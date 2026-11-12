@@ -4,3 +4,7 @@ projets/
 projets.json
 __pycache__/
 .DS_Store
+
+# Jeton secret et port du serveur de l'app
+.token
+.port

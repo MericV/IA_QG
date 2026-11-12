@@ -1,60 +1,117 @@
-"""Serveur local du QG en direct.
+"""Serveur local de l'app « QG du Bureau ».
 
-Usage (depuis la racine du projet) : python3 ~/.claude/skills/bureau/qg_server.py [port_de_départ]
-Prend le premier port libre à partir de 8766, l'écrit dans <projet>/.port et affiche l'adresse du QG.
+Usage : python3 ~/.claude/skills/bureau/qg_server.py [port_de_départ]
+Prend le premier port libre à partir de 8766, l'écrit dans <dossier du Bureau>/.port et affiche l'adresse.
+Lancé depuis la racine d'un projet, l'adresse ouvre directement la discussion de ce projet.
 
-Sécurité : écoute seulement sur 127.0.0.1 (adresse affichée en 127.0.0.1, pas « localhost » qui peut
-viser ::1) ; refuse toute requête dont l'en-tête Host n'est pas localhost/127.0.0.1 (rebinding DNS) ;
-ne sert qu'une liste blanche de chemins (la page, l'état, les livrables, l'historique) ; interdit
-l'affichage dans une iframe ; les écritures exigent le jeton secret du projet (stable d'un démarrage
-à l'autre, pour qu'une page ouverte se reconnecte) et une origine locale.
+Pages
+  GET  /                         l'app : barre latérale, discussions, modèles et comptes, intro
+  GET  /d/<discussion>/          le QG d'une discussion (bureau, rendu, conversation avec le PDG)
+  GET  /intro/<fichier>          la vidéo d'entrée dans le building
+API (écritures : jeton secret + origine locale)
+  GET  /api/discussions          liste des discussions (sujet, statut, modèle, dernière activité)
+  POST /api/discussions          {"text", "model"?}  nouvelle discussion ; le texte devient le premier message au PDG
+  GET  /api/providers            fournisseurs de modèles et état des comptes (jamais les clés)
+  POST /api/accounts             {"provider", "key"}  enregistre une clé dans le trousseau macOS
+  POST /api/accounts/remove      {"provider"}         la retire
+  GET  /d/<d>/state · /d/<d>/events (SSE) · /d/<d>/livrables/… · /d/<d>/missions/…
+  POST /d/<d>/say · /d/<d>/answer · /d/<d>/model {"provider", "model"} · /d/<d>/dismiss {"id", "reason"?}
 
-GET  /            page du QG (avec le jeton)
-GET  /state       état complet de la mission (JSON)
-GET  /events      flux SSE : un signal à chaque changement (mises à jour instantanées)
-POST /say         {"text"}           message du client au PDG
-POST /answer      {"id", "choice", "other"?}   réponse du client (choix proposé ou réponse libre)
+Sécurité : écoute seulement sur 127.0.0.1 ; refuse tout en-tête Host non local (rebinding DNS) ; ne sert
+qu'une liste blanche de fichiers ; affichage en iframe limité à l'app elle-même ; écritures avec le jeton
+secret (stable, conservé dans .token) et une origine locale. Les clés d'API vont dans le trousseau macOS
+(service « bureau-ia ») et ne sont jamais renvoyées par le serveur.
 """
-import functools, http.server, json, secrets, signal, sys, time, pathlib
+import functools, http.server, json, mimetypes, os, re, secrets, shutil, signal, subprocess, sys, threading, time, pathlib
 from urllib.parse import urlsplit, parse_qs, unquote
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 import qg_log  # noqa: E402
 
-
+HOME = qg_log.HOME
 TOKEN = None  # fixé au démarrage par serve()
+LOCK = threading.Lock()  # qg_log travaille sur une discussion à la fois : une requête à la fois
+KEYCHAIN = "bureau-ia"
+
+# Fournisseurs de modèles. Les modèles précis de chaque fournisseur seront lus chez lui une fois le compte ajouté.
+PROVIDERS = [
+    {"id": "claude-code", "name": "Claude Code", "kind": "moteur", "models": ["Claude Code (moteur actuel)"],
+     "help": "Le moteur actuel : la session Claude Code qui a lancé le QG fait travailler le Bureau."},
+    {"id": "anthropic", "name": "Anthropic (Claude)", "kind": "key", "models": ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5", "claude-fable-5-1"],
+     "help": "Clé d'API sur console.anthropic.com (sk-ant-…)."},
+    {"id": "openai", "name": "OpenAI (GPT)", "kind": "key", "models": [], "help": "Clé d'API sur platform.openai.com (sk-…)."},
+    {"id": "google", "name": "Google (Gemini)", "kind": "key", "models": [], "help": "Clé d'API sur aistudio.google.com."},
+    {"id": "mistral", "name": "Mistral", "kind": "key", "models": [], "help": "Clé d'API sur console.mistral.ai."},
+    {"id": "openrouter", "name": "OpenRouter", "kind": "key", "models": [], "help": "Une seule clé pour des centaines de modèles (openrouter.ai)."},
+    {"id": "ollama", "name": "Ollama (modèles locaux)", "kind": "local", "models": [], "help": "Modèles qui tournent sur ton Mac, sans clé. À installer depuis ollama.com."},
+    {"id": "hermes", "name": "Hermes Agent", "kind": "local", "models": [], "help": "Agent de Nous Research. Installation : bash ~/Documents/hermes-install/install.sh --skip-computer-use"},
+]
 
 
-def project_token():
-    """Jeton secret du projet, conservé dans un fichier caché (jamais servi) pour survivre aux redémarrages."""
-    f = qg_log.ROOT / ".token"
-    if not f.exists():
-        qg_log.ROOT.mkdir(parents=True, exist_ok=True)
-        f.write_text(secrets.token_urlsafe(24))
-        f.chmod(0o600)
-    return f.read_text().strip()
+def has_key(provider):
+    return subprocess.run(["security", "find-generic-password", "-s", KEYCHAIN, "-a", provider],
+                          capture_output=True).returncode == 0
 
 
-def allowed(path):
-    """Liste blanche des chemins servis, après décodage (%2E…) : aucun fichier interne du projet."""
-    parts = path.split("/")
-    if any(p.startswith(".") for p in parts):
-        return False
-    if path.startswith("/livrables/"):
-        return len(parts) == 3 and parts[2] != "index.json"
-    return path.startswith("/missions/")
+def providers():
+    out = []
+    for p in PROVIDERS:
+        p = dict(p)
+        if p["kind"] == "key":
+            p["status"] = "connecté" if has_key(p["id"]) else "à connecter"
+        elif p["id"] == "claude-code":
+            p["status"] = "actif"
+        elif p["id"] == "ollama":
+            try:
+                import urllib.request
+                with urllib.request.urlopen("http://127.0.0.1:11434/api/tags", timeout=1) as r:
+                    p["models"] = [m["name"] for m in json.load(r).get("models", [])]
+                p["status"] = "détecté"
+            except OSError:
+                p["status"] = "non installé"
+        elif p["id"] == "hermes":
+            p["status"] = "détecté" if shutil.which("hermes") or (pathlib.Path.home() / ".hermes" / "hermes-agent").exists() else "non installé"
+        out.append(p)
+    return out
 
 
-def stamp():
-    """Empreinte des fichiers de la mission : change dès qu'un échange, une consigne ou un livrable arrive."""
-    files = [qg_log.LIVE, qg_log.CONS, qg_log.QUEST, qg_log.LIVR / "index.json"]
+def discussions():
+    items = []
+    for live in (qg_log.DATA / "projets").glob("*/qg-live.json"):
+        try:
+            d = json.loads(live.read_text(encoding="utf-8"))
+        except ValueError:
+            continue
+        ev = d.get("events", [])
+        items.append({"id": live.parent.name, "topic": d.get("topic") or live.parent.name, "updated": live.stat().st_mtime,
+                      "events": len(ev), "done": any(e.get("type") == "deliver" for e in ev),
+                      "model": d.get("model", qg_log.DEFAULT_MODEL)})
+    return sorted(items, key=lambda x: -x["updated"])
+
+
+def stamp(root):
+    """Empreinte des fichiers d'une discussion : change dès qu'un échange, une consigne ou un livrable arrive."""
+    files = [root / "qg-live.json", root / "consignes.json", root / "questions.json", root / "livrables" / "index.json"]
     return tuple(f.stat().st_mtime_ns if f.exists() else 0 for f in files)
 
 
-class Handler(http.server.SimpleHTTPRequestHandler):
+def inside(base, rel):
+    """Fichier rel à l'intérieur de base, sans fichier caché ni sortie du dossier ; None sinon."""
+    if any(part.startswith(".") for part in rel.split("/")):
+        return None
+    target = (base / rel).resolve()
+    if base.resolve() not in target.parents and target != base.resolve():
+        return None
+    if target.is_dir():
+        target = target / "index.html"
+    return target if target.is_file() else None
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
     def end_headers(self):
-        self.send_header("X-Frame-Options", "DENY")
-        self.send_header("Content-Security-Policy", "frame-ancestors 'none'")
+        # L'app affiche le QG dans une iframe : autorisé pour elle seule, jamais pour un autre site.
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("Content-Security-Policy", "frame-ancestors 'self'")
         self.send_header("X-Content-Type-Options", "nosniff")
         super().end_headers()
 
@@ -67,14 +124,32 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         origin = self.headers.get("Origin")
         return self.headers.get("Host") in hosts and (origin is None or urlsplit(origin).netloc in hosts)
 
-    def send_json(self, data, code=200):
-        body = json.dumps(data, ensure_ascii=False).encode()
+    def send_body(self, body, ctype, code=200):
         self.send_response(code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Type", ctype)
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def send_json(self, data, code=200):
+        self.send_body(json.dumps(data, ensure_ascii=False).encode(), "application/json; charset=utf-8", code)
+
+    def send_page(self, path):
+        self.send_body(path.read_text(encoding="utf-8").replace("__QG_TOKEN__", TOKEN).encode(), "text/html; charset=utf-8")
+
+    def send_file(self, path):
+        ctype = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        if ctype.startswith("text/"):
+            ctype += "; charset=utf-8"
+        self.send_body(path.read_bytes(), ctype)
+
+    def discussion(self, path):
+        """(nom, reste du chemin) pour /d/<nom>/…, sinon None."""
+        m = re.fullmatch(r"/d/([^/]+)(/.*)?", path)
+        if not m or not qg_log.PROJECT_NAME.fullmatch(m.group(1)) or ".." in m.group(1):
+            return None
+        return m.group(1), m.group(2)
 
     def do_GET(self):
         if not self.local():
@@ -82,24 +157,41 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         url = urlsplit(self.path)
         path = unquote(url.path)
         if path in ("/", "/index.html"):
-            page = (qg_log.ROOT / "index.html").read_text(encoding="utf-8").replace("__QG_TOKEN__", TOKEN).encode()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Content-Length", str(len(page)))
-            self.end_headers()
-            return self.wfile.write(page)
-        if path == "/state":
-            return self.send_json(qg_log.state())
-        if path == "/events":
+            return self.send_page(HOME / "app.html")
+        if path.startswith("/intro/"):
+            f = inside(HOME / "intro", path[len("/intro/"):])
+            return self.send_file(f) if f and f.suffix in (".mp4", ".webm", ".jpg", ".png") else self.send_error(404)
+        if path == "/api/discussions":
+            return self.send_json(discussions())
+        if path == "/api/providers":
+            return self.send_json(providers())
+        d = self.discussion(path)
+        if not d:
+            return self.send_error(404)
+        name, rest = d
+        if rest is None:
+            self.send_response(301)
+            self.send_header("Location", f"/d/{name}/")
+            return self.end_headers()
+        with LOCK:
+            qg_log.use_project(name)
+            root = qg_log.ROOT
+            if not qg_log.LIVE.exists():
+                return self.send_error(404)
+            if rest in ("/", "/index.html"):
+                return self.send_page(HOME / "qg.html")
+            if rest == "/state":
+                return self.send_json(qg_log.state())
+        if rest == "/events":
             if parse_qs(url.query).get("token") != [TOKEN]:
                 return self.send_error(403)
-            return self.stream()
-        if not allowed(path):
-            return self.send_error(404)
-        return super().do_GET()
+            return self.stream(root)
+        if rest.startswith("/livrables/") and not rest.endswith("/index.json") or rest.startswith("/missions/"):
+            f = inside(root, rest.lstrip("/"))
+            return self.send_file(f) if f else self.send_error(404)
+        return self.send_error(404)
 
-    def stream(self):
+    def stream(self, root):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-store")
@@ -107,7 +199,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         last, beat = None, time.time()
         try:
             while True:
-                cur = stamp()
+                cur = stamp(root)
                 if cur != last:
                     self.wfile.write(b"data: change\n\n")
                     self.wfile.flush()
@@ -124,18 +216,41 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         if not self.local() or self.headers.get("X-QG-Token") != TOKEN:
             return self.send_error(403)
+        path = unquote(urlsplit(self.path).path)
         try:
-            msg = json.loads(self.rfile.read(min(int(self.headers.get("Content-Length", 0)), 32000)))
-            if self.path == "/say":
-                text = str(msg.get("text", "")).strip()[:4000]
-                if not text:
-                    return self.send_error(400)
-                qg_log.new_message(text)
-            elif self.path == "/answer":
-                if not qg_log.answer(int(msg["id"]), str(msg["choice"]), bool(msg.get("other"))):
-                    return self.send_json({"erreur": "question déjà répondue ou choix invalide"}, 409)
-            else:
+            msg = json.loads(self.rfile.read(min(int(self.headers.get("Content-Length", 0)), 32000)) or b"{}")
+            if path == "/api/discussions":
+                return self.new_discussion(msg)
+            if path == "/api/accounts":
+                return self.add_account(msg)
+            if path == "/api/accounts/remove":
+                provider = str(msg.get("provider", ""))
+                subprocess.run(["security", "delete-generic-password", "-s", KEYCHAIN, "-a", provider], capture_output=True)
+                return self.send_json({"ok": True})
+            d = self.discussion(path)
+            if not d or not d[1]:
                 return self.send_error(404)
+            name, rest = d
+            with LOCK:
+                qg_log.use_project(name)
+                if rest == "/say":
+                    text = str(msg.get("text", "")).strip()[:4000]
+                    if not text:
+                        return self.send_error(400)
+                    qg_log.new_message(text)
+                elif rest == "/answer":
+                    if not qg_log.answer(int(msg["id"]), str(msg["choice"]), bool(msg.get("other"))):
+                        return self.send_json({"erreur": "question déjà réglée ou choix invalide"}, 409)
+                elif rest == "/dismiss":
+                    qg_log.dismiss(str(msg["id"]), str(msg.get("reason") or "décision du client")[:300], by_client=True)
+                elif rest == "/model":
+                    model = {"provider": str(msg["provider"])[:40], "model": str(msg["model"])[:120]}
+                    if model["provider"] not in {p["id"] for p in PROVIDERS}:
+                        return self.send_error(400)
+                    qg_log.require_mission()
+                    qg_log.update(qg_log.LIVE, {}, lambda data: data.__setitem__("model", model))
+                else:
+                    return self.send_error(404)
         except (ValueError, KeyError, AttributeError, TypeError):
             return self.send_error(400)
         except qg_log.Erreur as e:
@@ -143,33 +258,64 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         self.send_response(204)
         self.end_headers()
 
+    def new_discussion(self, msg):
+        text = str(msg.get("text", "")).strip()[:4000]
+        if not text:
+            return self.send_error(400)
+        model = msg.get("model") if isinstance(msg.get("model"), dict) else None
+        name = (qg_log.slug(text)[:40].strip("-") or "discussion") + "-" + os.urandom(2).hex()
+        topic = text if len(text) <= 80 else text[:77].rsplit(" ", 1)[0] + "…"
+        with LOCK:
+            qg_log.use_project(name)
+            qg_log.ROOT.mkdir(parents=True, exist_ok=True)
+            qg_log.update(qg_log.LIVE, {}, lambda d: (d.clear(), d.update(qg_log.new_mission(topic, model))))
+            qg_log.write_history()
+            qg_log.new_message(text)
+        return self.send_json({"id": name}, 201)
+
+    def add_account(self, msg):
+        provider, key = str(msg.get("provider", "")), str(msg.get("key", "")).strip()
+        if provider not in {p["id"] for p in PROVIDERS if p["kind"] == "key"} or not 10 <= len(key) <= 400 or any(c.isspace() for c in key):
+            return self.send_json({"erreur": "fournisseur inconnu ou clé invalide"}, 400)
+        r = subprocess.run(["security", "add-generic-password", "-U", "-s", KEYCHAIN, "-a", provider, "-w", key], capture_output=True)
+        return self.send_json({"ok": r.returncode == 0}, 200 if r.returncode == 0 else 500)
+
     def log_message(self, *a):
         pass
 
 
+def project_token():
+    """Jeton secret de l'app, conservé dans un fichier caché (jamais servi) pour survivre aux redémarrages."""
+    f = qg_log.DATA / ".token"
+    if not f.exists():
+        qg_log.DATA.mkdir(parents=True, exist_ok=True)
+        f.write_text(secrets.token_urlsafe(24))
+        f.chmod(0o600)
+    return f.read_text().strip()
+
+
 def serve(start=8766):
     global TOKEN
-    if not (qg_log.ROOT / "index.html").exists():
-        sys.exit('Erreur : aucun QG pour ce projet. Lance d\'abord  python3 qg_log.py init "Sujet" nom-du-projet')
+    current = qg_log.ROOT.name if qg_log.LIVE.exists() else ""
     TOKEN = project_token()
     # kill (SIGTERM) passe par le même chemin que Ctrl+C : le fichier .port est bien supprimé
     signal.signal(signal.SIGTERM, lambda *a: sys.exit(0))
-    handler = functools.partial(Handler, directory=str(qg_log.ROOT))
     for port in range(start, start + 50):
         try:
-            server = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
+            server = http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler)
             break
         except OSError:
             continue
     else:
         sys.exit(f"Erreur : aucun port libre entre {start} et {start + 49}")
     server.daemon_threads = True
-    (qg_log.ROOT / ".port").write_text(str(port))
-    print(f"QG : http://127.0.0.1:{port}/", flush=True)
+    portfile = qg_log.DATA / ".port"
+    portfile.write_text(str(port))
+    print(f"QG : http://127.0.0.1:{port}/" + (f"#{current}" if current else ""), flush=True)
     try:
         server.serve_forever()
     finally:
-        (qg_log.ROOT / ".port").unlink(missing_ok=True)
+        portfile.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

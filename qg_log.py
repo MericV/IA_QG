@@ -13,6 +13,8 @@ Mission
   FROM TO "texte" [type] [étape]      échange ; TO = "-" ou "a,b" ; type = ok|ko|deliver|work|-
   recruit ID "Nom" "mission" "pourquoi"  le PDG recrute un membre (vivier ou rôle inventé) ; il apparaît dans l'organigramme
   release ID "bilan"                  le membre a terminé sa part
+  dismiss ID "raison"                 fin de contrat : il quitte le bureau et l'organigramme
+  (recruit accepte un 5e argument : le brief complet de l'agent, en texte ou @fichier ; le client le voit dans sa fiche)
   hire ID "Nom" ROLE_DE_BASE "raison" ancienne forme : renfort calqué sur un rôle existant
   livrable FICHIER [ROLE] ["libellé"] enregistre une version du livrable (et ses différences avec la précédente)
   retro                               résume la mission (renvois, consignes, questions) pour en tirer des leçons
@@ -26,6 +28,7 @@ Client
   dispatch N ROLE "consigne"          le PDG transmet le message N à un rôle
   applied N ROLE "ce qui a changé"    le rôle confirme qu'il a appliqué la consigne
   inbox                               messages et réponses non lus
+  wait-all                            attend un message dans n'importe quelle discussion de l'app
   wait                                attend un message ou une réponse, l'affiche, puis s'arrête
 Chaque écriture affiche aussi ce que le client a envoyé et qui n'a pas encore été lu.
 """
@@ -53,7 +56,19 @@ def set_root(name=None):
         reg[cwd] = name
         DATA.mkdir(parents=True, exist_ok=True)
         REGISTRY.write_text(json.dumps(reg, ensure_ascii=False, indent=1), encoding="utf-8")
-    ROOT = DATA / "projets" / reg.get(cwd, pathlib.Path.cwd().name)
+    # $BUREAU_PROJET désigne une discussion de l'app sans passer par le dossier courant
+    use_project(os.environ.get("BUREAU_PROJET") or reg.get(cwd) or slug(pathlib.Path.cwd().name))
+
+
+PROJECT_NAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,80}")
+
+
+def use_project(name):
+    """Travaille sur la discussion (dossier projets/<name>) indiquée, quel que soit le dossier courant."""
+    global ROOT, LIVE, CONS, QUEST, LIVR, INBOX, SEEN
+    if not PROJECT_NAME.fullmatch(name) or ".." in name:
+        raise Erreur(f"nom de discussion invalide : {name}")
+    ROOT = DATA / "projets" / name
     LIVE, CONS, QUEST = ROOT / "qg-live.json", ROOT / "consignes.json", ROOT / "questions.json"
     LIVR = ROOT / "livrables"
     INBOX, SEEN = ROOT / "inbox.jsonl", ROOT / ".inbox-lu"
@@ -102,8 +117,12 @@ def require_mission():
         raise Erreur('aucune mission en cours : lance d\'abord  python3 qg_log.py init "Sujet"')
 
 
-def new_mission(topic):
+DEFAULT_MODEL = {"provider": "claude-code", "model": "Claude Code (moteur actuel)"}
+
+
+def new_mission(topic, model=None):
     return {"mission": time.strftime("%Y%m%d-%H%M%S-") + os.urandom(2).hex(), "topic": topic, "label": "En direct", "note": "",
+            "model": model or DEFAULT_MODEL,
             "stages": [{"id": slug(s), "name": s} for s in DEFAULT_STAGES], "team": [], "events": []}
 
 
@@ -117,14 +136,14 @@ def known_roles():
     return ROLES | hired | {m["id"] for m in live.get("team", [])}
 
 
-def recruit(rid, name, mission, why, like=None):
+def recruit(rid, name, mission, why, like=None, brief=""):
     """Le PDG recrute un membre de l'équipe : il apparaît dans l'organigramme et entre dans le bureau."""
     require_mission()
     if not HIRE_ID.fullmatch(rid):
         raise Erreur(f"identifiant « {rid} » invalide : minuscules, chiffres et _ (16 caractères max.), ex. recruteur")
     if rid in PERMANENT or rid in {m["id"] for m in read(LIVE, {}).get("team", [])}:
         raise Erreur(f"« {rid} » fait déjà partie de l'équipe")
-    member = {"id": rid, "name": name, "mission": mission, "why": why, "status": "au travail", **now()}
+    member = {"id": rid, "name": name, "mission": mission, "why": why, "brief": brief[:20000], "status": "au travail", **now()}
     update(LIVE, {}, lambda d: d.setdefault("team", []).append(member))
     append_event({"from": "pdg", "type": "hire", "text": f"Recrute {name} : {why}",
                   "hire": {"id": rid, "name": name, "mission": mission, "like": like or (rid if rid in ROLES else None)}})
@@ -214,9 +233,31 @@ def unread():
     return msgs
 
 
+def dismiss(rid, reason, by_client=False):
+    """Fin de contrat : le membre quitte le bureau et l'organigramme (il reste dans l'historique)."""
+    require_mission()
+
+    def end(d):
+        m = next((m for m in d.get("team", []) if m["id"] == rid), None)
+        if not m:
+            raise Erreur(f"« {rid} » n'est pas dans l'équipe recrutée")
+        if m["status"] == "parti":
+            raise Erreur(f"le contrat de « {rid} » est déjà terminé")
+        m.update({"status": "parti", "end_reason": reason, "end_by": "client" if by_client else "pdg"})
+        return m["name"]
+    name = update(LIVE, {}, end)
+    append_event({"from": "client" if by_client else "pdg", "type": "dismiss", "target": rid,
+                  "text": f"Fin de contrat pour {name} : {reason}"})
+    if by_client:
+        inbox({"kind": "dismiss", "id": rid, "text": reason, "name": name})
+
+
 def show(msgs):
     for m in msgs:
-        if m.get("kind") == "answer":
+        if m.get("kind") == "dismiss":
+            print(f"🚪 LE CLIENT A MIS FIN AU CONTRAT de {m['name']} ({m['id']}) [{m['t']}] : {m['text']}")
+            print("   → arrêter l'agent correspondant s'il travaille encore (TaskStop), et en tenir compte dans la mission")
+        elif m.get("kind") == "answer":
             print(f"❓ RÉPONSE DU CLIENT [{m['t']}] à « {m['question']} » : {m['text']}")
         else:
             print(f"📨 MESSAGE DU CLIENT n° {m['id']} [{m['t']}] au PDG : {m['text']}")
@@ -358,9 +399,9 @@ def main(a):
         return
     cmd = a[0]
     if cmd == "where":
-        port = ROOT / ".port"
+        port = DATA / ".port"
         print(ROOT)
-        print(f"QG : http://127.0.0.1:{port.read_text()}/" if port.exists() else "QG : serveur non lancé")
+        print(f"QG : http://127.0.0.1:{port.read_text()}/#{ROOT.name}" if port.exists() else "QG : serveur non lancé")
         print("Mission en cours" if LIVE.exists() else "Aucune mission : vérifie que tu es à la racine du projet, puis lance init")
         return
     if cmd == "init":
@@ -387,6 +428,16 @@ def main(a):
             time.sleep(1)
         show(msgs)
         return
+    if cmd == "wait-all":
+        # Toutes les discussions de l'app : se réveille au premier message, quelle que soit la discussion
+        while True:
+            for d in sorted((DATA / "projets").glob("*/qg-live.json")):
+                use_project(d.parent.name)
+                if (msgs := unread()):
+                    print(f"=== Discussion « {d.parent.name} » ({read(LIVE, {}).get('topic', '')}) : préfixer les commandes par BUREAU_PROJET={d.parent.name}")
+                    show(msgs)
+                    return
+            time.sleep(1)
     if cmd == "retro":
         # Matière de la rétrospective : ce qui a été rejeté, corrigé ou demandé par le client
         d = state()
@@ -428,8 +479,14 @@ def main(a):
             raise Erreur('aucune étape : stages "Cadrage|Sources|..."')
         update(LIVE, {}, lambda d: d.__setitem__("stages", [{"id": slug(s), "name": s} for s in names]))
     elif cmd == "recruit":
-        # recruit ID "Nom" "mission" "pourquoi"
-        recruit(a[1], a[2], a[3], a[4])
+        # recruit ID "Nom" "mission" "pourquoi" ["brief" | @fichier]
+        brief = a[5] if len(a) > 5 else ""
+        if brief.startswith("@"):
+            brief = pathlib.Path(brief[1:]).read_text(encoding="utf-8")
+        recruit(a[1], a[2], a[3], a[4], brief=brief)
+    elif cmd == "dismiss":
+        # dismiss ID "raison" : fin de contrat décidée par le PDG
+        dismiss(a[1], a[2])
     elif cmd == "release":
         # release ID "bilan" : le membre a fini sa part
         rid = a[1]

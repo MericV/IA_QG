@@ -33,7 +33,7 @@ def http(url, data=None, headers=None, method=None):
 def start_server():
     srv = subprocess.Popen([sys.executable, str(HERE / "qg_server.py"), "8890"], cwd=WORK, env=ENV, stdout=subprocess.PIPE, text=True)
     url = re.search(r"http://127\.0\.0\.1:\d+/", srv.stdout.readline()).group(0)
-    return srv, url
+    return srv, url + "d/test/"
 
 
 def stop(srv):
@@ -67,8 +67,15 @@ try:
     qg("recruteur", "pdg", "Deux objections du point de vue du jury")
     assert "pas dans l'équipe" in qg("release", "inconnu", "x", ok=False)
     qg("release", "recruteur", "Relecture faite")
+    # Brief complet visible et fin de contrat (PDG)
+    (WORK / "brief.md").write_text("Tu es l'Analyste. Compare A et B.")
+    qg("recruit", "ana", "Analyste", "Comparer", "Besoin d'un tableau", f"@{WORK / 'brief.md'}")
+    qg("dismiss", "ana", "Plus utile")
+    assert "déjà terminé" in qg("dismiss", "ana", "encore", ok=False)
+    m = [x for x in json.loads((ROOT / "qg-live.json").read_text())["team"] if x["id"] == "ana"][0]
+    assert m["brief"].startswith("Tu es l'Analyste") and m["status"] == "parti" and m["end_by"] == "pdg"
     team = json.loads((ROOT / "qg-live.json").read_text())["team"]
-    assert [m["id"] for m in team] == ["bib2", "recruteur"] and team[1]["status"] == "terminé" and team[1]["bilan"] == "Relecture faite"
+    assert [m["id"] for m in team][:2] == ["bib2", "recruteur"] and team[1]["status"] == "terminé" and team[1]["bilan"] == "Relecture faite"
     qg("bib2", "pdg", "le renfort travaille")
     qg("aud", "-", "audit rejeté", "ko", "Sources")
     qg("aud", "-", "audit validé", "ok", "sources")
@@ -98,11 +105,36 @@ try:
     # Serveur : sécurité, message du client, question
     srv, url = start_server()
     try:
+        base = url.split("d/test/")[0]
         status, page, headers = http(url)
         assert status == 200 and "__QG_TOKEN__" not in page
-        assert headers["X-Frame-Options"] == "DENY" and "frame-ancestors 'none'" in headers["Content-Security-Policy"]
+        assert headers["X-Frame-Options"] == "SAMEORIGIN" and "frame-ancestors 'self'" in headers["Content-Security-Policy"], "iframe : l'app seule"
         token = re.search(r"const TOKEN = '([^']+)'", page).group(1)
-        port = url.split(":")[2].strip("/")
+        port = url.split(":")[2].split("/")[0]
+        # L'app à la racine, la liste des discussions et les fournisseurs (jamais de clé dans la réponse)
+        status, app, _ = http(base)
+        assert status == 200 and "Nouvelle discussion" in app and token in app
+        assert any(d["id"] == "test" for d in json.loads(http(base + "api/discussions")[1]))
+        provs = json.loads(http(base + "api/providers")[1])
+        assert {"claude-code", "anthropic", "openai", "hermes"} <= {p["id"] for p in provs} and all("key" not in p for p in provs)
+        assert http(base + "api/accounts", {"provider": "anthropic", "key": "sk-test-1234567890"}, {"Content-Type": "application/json"})[0] == 403, "comptes : jeton obligatoire"
+        assert http(base + "api/accounts", {"provider": "inconnu", "key": "sk-test-1234567890"}, {"X-QG-Token": token})[0] == 400
+        assert http(base + "d/..%2F..%2Fetc/", )[0] == 404 and http(base + "d/inexistante/")[0] == 404
+        assert http(url + "model", {"provider": "anthropic", "model": "claude-opus-5-5"}, {"X-QG-Token": token})[0] == 204
+        assert json.loads((ROOT / "qg-live.json").read_text())["model"]["model"] == "claude-opus-5-5"
+        assert http(url + "model", {"provider": "pirate", "model": "x"}, {"X-QG-Token": token})[0] == 400
+        assert http(url + "dismiss", {"id": "bib2"}, {"Content-Type": "application/json"})[0] == 403
+        assert http(url + "dismiss", {"id": "bib2", "reason": "plus utile"}, {"X-QG-Token": token})[0] == 204
+        assert "FIN AU CONTRAT" in qg("inbox"), "le PDG est prévenu"
+        assert http(url + "dismiss", {"id": "bib2"}, {"X-QG-Token": token})[0] == 409
+        # Nouvelle discussion depuis l'app : son premier message arrive au PDG
+        status, body, _ = http(base + "api/discussions", {"text": "Une synthèse de deux pages sur le cloud souverain"}, {"X-QG-Token": token})
+        new_id = json.loads(body)["id"]
+        assert status == 201 and (TMP / "bureau" / "projets" / new_id / "consignes.json").exists()
+        env_new = {**ENV, "BUREAU_PROJET": new_id}
+        out = subprocess.run([sys.executable, str(HERE / "qg_log.py"), "inbox"], cwd=WORK, env=env_new, capture_output=True, text=True).stdout
+        assert "cloud souverain" in out, "BUREAU_PROJET cible la discussion de l'app"
+        shutil.rmtree(TMP / "bureau" / "projets" / new_id)
         assert http(url + "say", {"text": "sans jeton"}, {"Content-Type": "application/json"})[0] == 403
         assert http(url + "say", {"text": "mauvais hôte"}, {"X-QG-Token": token, "Host": f"evil.example:{port}"})[0] == 403
         assert http(url + "say", {"text": "autre site"}, {"X-QG-Token": token, "Origin": "https://evil.example"})[0] == 403
@@ -110,6 +142,8 @@ try:
         for hidden in [".port", "%2Eport", ".token", "%2Etoken", "inbox.jsonl", "inbox%2Ejsonl", "%2Everrou",
                        "qg-live.json", "consignes.json", "livrables/index.json", "livrables/%2E%2E/qg-live.json"]:
             assert http(url + hidden)[0] == 404, f"{hidden} ne doit pas être servi"
+        for hidden in [".token", "%2Etoken", ".port", "intro/..%2F.token", "intro/%2E%2E/qg_log.py", "qg_log.py", "projets.json"]:
+            assert http(base + hidden)[0] == 404, f"racine : {hidden} ne doit pas être servi"
         assert http(url + "livrables/01-section.md")[0] == 200 and http(url + "missions/")[0] == 200
         assert http(url + "say", {"text": "Ajoute la source X"}, {"X-QG-Token": token})[0] == 204
         out = qg("inbox")
@@ -142,7 +176,7 @@ try:
         assert all("source" not in v for v in state["livrables"]), "le chemin local du livrable ne doit pas être exposé"
     finally:
         stop(srv)
-    assert not (ROOT / ".port").exists(), ".port doit disparaître à l'arrêt (SIGTERM)"
+    assert not (TMP / "bureau" / ".port").exists(), ".port doit disparaître à l'arrêt (SIGTERM)"
 
     # Redémarrage : le jeton du projet ne change pas, une page ouverte reste valable
     srv, url = start_server()

@@ -20,12 +20,14 @@ cd "Bureau IA"
 | `vivier.md` | Vivier de rôles où le PDG recrute l'équipe de chaque mission ; il s'enrichit des rôles inventés utiles |
 | `lecons.md` | Mémoire de méthode : leçons tirées des missions passées, lues au début de chaque mission et complétées à la fin |
 | `briefs.md` | Modèles de brief pour les agents (recherche, contre-vérification, rédaction, critique) |
+| `app.html` | L'app : barre latérale repliable, discussions, nouvelle discussion, Modèles et comptes, intro vidéo |
 | `qg.html` | Page du QG : bureau animé, fil, questions du PDG, consignes, indicateurs, kanban, livrable |
 | `qg_log.py` | Journal de mission, consignes et questions du client, livrables, export, historique |
-| `qg_server.py` | Serveur local du QG (jeton secret, mises à jour instantanées) |
+| `qg_server.py` | Serveur local de l'app : discussions, comptes (trousseau macOS), modèles, QG en direct |
 | `audit.py` | Contrôles automatiques de l'Auditeur |
 | `pdf_text.swift` | Extraction du texte d'un PDF (macOS) |
 | `test_qg_log.py` | Test du circuit complet |
+| `intro/` | Vidéo d'entrée dans le building (générée par `intro/entree_building.py` avec Blender) |
 | `projets/` | Données locales de chaque projet (exclues du dépôt) |
 
 ## Commandes du QG
@@ -42,7 +44,8 @@ Toujours depuis la racine du projet sur lequel le Bureau travaille (`B=~/.claude
 | `qg_log.py livrable FICHIER [ROLE] ["libellé"]` | Nouvelle version du livrable, avec ses changements |
 | `qg_log.py ask "Question ?" "A\|B"` | Question du PDG au client, avec boutons de réponse |
 | `qg_log.py ack N "…"` · `dispatch N ROLE "…"` · `applied N ROLE "…"` | Traitement du message n° N du client |
-| `qg_log.py inbox` · `wait` | Messages et réponses non lus (`wait` bloque jusqu'au prochain) |
+| `qg_log.py inbox` · `wait` · `wait-all` | Messages non lus ; `wait` attend la discussion courante, `wait-all` toutes les discussions de l'app |
+| `BUREAU_PROJET=<nom> python3 qg_log.py …` | Agit sur une discussion de l'app, quel que soit le dossier courant |
 | `qg_log.py retro` | Résumé de la mission (renvois, consignes, questions) pour la rétrospective |
 | `qg_log.py close N "raison"` | Clôt une question déjà réglée par un message du client |
 | `qg_log.py export` | Page rejouable de la mission + historique (`missions/index.html`) |

@@ -24,6 +24,8 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+/* Dans l'app, le titre est déjà dans sa barre du haut : le QG ne le répète pas. */
+.embedded .top h1, .embedded .top .topic { display: none; }
 html, body { height: 100%; }
 body {
   background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); margin: 0;
@@ -56,8 +58,46 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 /* ---------- Grille principale ---------- */
-.grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 12px; min-height: 0; }
-.left { display: grid; grid-template-rows: minmax(260px, 1.15fr) minmax(220px, 1fr); gap: 12px; min-height: 0; min-width: 0; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 12px var(--chatW, 420px); min-height: 0; }
+.left { display: grid; grid-template-rows: var(--officeH, minmax(260px, 1.15fr)) 12px minmax(0, 1fr); min-height: 0; min-width: 0; }
+.grid.chat-off { grid-template-columns: minmax(0, 1fr) 12px 0; }
+.grid.chat-off .chat { display: none; }
+.left.work-off { grid-template-rows: minmax(0, 1fr) 12px 0; }
+.left.work-off .work { display: none; }
+/* Séparateurs façon VS Code : on les tire pour redimensionner, la flèche replie ou déplie le panneau */
+.split { position: relative; display: grid; place-items: center; touch-action: none; outline-offset: -2px; }
+.split.v { cursor: col-resize; }
+.split.h { cursor: row-resize; }
+.split::before { content: ""; background: var(--line); border-radius: 99px; transition: background .15s; }
+.split.v::before { width: 3px; height: 44px; }
+.split.h::before { height: 3px; width: 44px; }
+.split:hover::before, .split.drag::before, .split:focus-visible::before { background: var(--accent); }
+.split .arrow { position: absolute; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); background: var(--panel); color: var(--dim); font-size: 10px; line-height: 1; display: grid; place-items: center; padding: 0; z-index: 2; }
+.split.v .arrow { top: 6px; }
+.split.h .arrow { right: 10px; }
+.split .arrow:hover { color: var(--fg); border-color: var(--dim); }
+/* Fiche détaillée d'un agent */
+.agent-panel { position: fixed; top: 0; right: 0; bottom: 0; width: min(480px, 100%); background: var(--panel); border-left: 1px solid var(--line); box-shadow: -12px 0 40px rgba(20,30,50,.14); z-index: 30; display: grid; grid-template-rows: auto minmax(0, 1fr);
+  padding-top: env(safe-area-inset-top, 0px); padding-right: env(safe-area-inset-right, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.ap-head { display: flex; gap: 10px; align-items: center; padding: 14px 16px; border-bottom: 3px solid var(--c, var(--line)); }
+.ap-head .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--c); flex: none; }
+.ap-head b { font: 600 15px var(--display); flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ap-head .st { font: 600 11px var(--mono); color: var(--warn); white-space: nowrap; }
+.ap-head .st.done { color: var(--ok); } .ap-head .st.gone { color: var(--dim); }
+.ap-head .close { border: 0; background: none; font-size: 18px; color: var(--dim); }
+.ap-body { overflow-y: auto; padding: 14px 16px 24px; display: grid; gap: 16px; align-content: start; }
+.ap-body h5 { margin: 0 0 6px; font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+.ap-body p { margin: 0; overflow-wrap: anywhere; }
+.ap-brief { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 12.5px/1.55 var(--mono); background: var(--bg); border-radius: 10px; padding: 10px 12px; max-height: 300px; overflow: auto; }
+.ap-log { list-style: none; margin: 0; padding: 0; display: grid; gap: 9px; }
+.ap-log li { font-size: 13.5px; border-left: 2px solid var(--line); padding-left: 10px; overflow-wrap: anywhere; }
+.ap-log li.work { border-color: var(--warn); } .ap-log li.ok { border-color: var(--ok); } .ap-log li.ko { border-color: var(--ko); }
+.ap-log .t { display: block; font: 500 11px var(--mono); color: var(--dim); }
+.ap-end { border: 1px solid var(--ko); color: var(--ko); background: none; border-radius: 10px; padding: 8px 14px; font-weight: 700; justify-self: start; }
+.ap-end.confirm { background: var(--ko); color: #fff; }
+.org .node { text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.org .node:hover { border-color: var(--dim); }
+.org .gone { text-align: center; color: var(--dim); font-size: 13px; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; min-width: 0; min-height: 0; }
 
 .office { position: relative; overflow: hidden; }
@@ -68,10 +108,6 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
 .now span i { width: 8px; height: 8px; border-radius: 50%; flex: none; animation: pulse 1.2s ease-in-out infinite; }
 .now span em { font-style: normal; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes pulse { 50% { opacity: .3; } }
-.who-card { position: absolute; top: 10px; left: 12px; max-width: min(320px, calc(100% - 24px)); background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 13px; box-shadow: 0 6px 20px rgba(20,30,50,.08); }
-.who-card b { display: block; font-size: 14px; }
-.who-card p { margin: 4px 0 0; color: var(--dim); }
-.who-card button { position: absolute; top: 4px; right: 6px; border: 0; background: none; color: var(--dim); font-size: 16px; }
 
 /* ---------- Rendu / Coulisses ---------- */
 .work { display: grid; grid-template-rows: auto minmax(0, 1fr); }
@@ -155,6 +191,7 @@ form#chat .hint { display: flex; justify-content: space-between; font-size: 11px
 .note-line { font-size: 12px; color: var(--ko); min-height: 0; }
 
 @media (max-width: 960px) {
+  .split { display: none; }
   html, body { height: auto; }
   .app { height: auto; }
   .grid { grid-template-columns: minmax(0, 1fr); }
@@ -184,8 +221,10 @@ form#chat .hint { display: flex; justify-content: space-between; font-size: 11px
     <section class="left">
       <div class="card office">
         <canvas id="office" tabindex="0" role="img" aria-label="Le bureau : chaque rôle est un petit robot qui se déplace pour échanger. Les échanges détaillés sont dans l'onglet Coulisses."></canvas>
-        <div class="who-card" id="whoCard" hidden><button type="button" id="whoClose" aria-label="Fermer">×</button><b id="whoName"></b><p id="whoRole"></p><p id="whoLast"></p></div>
         <div class="now" id="now"></div>
+      </div>
+      <div class="split h" id="splitH" role="separator" aria-orientation="horizontal" aria-label="Redimensionner le bureau et le rendu (glisser, ou flèches haut et bas)" tabindex="0">
+        <button class="arrow" id="workToggle" type="button" aria-label="Replier le rendu">▼</button>
       </div>
       <div class="card work">
         <div class="tabs" role="tablist">
@@ -214,6 +253,9 @@ form#chat .hint { display: flex; justify-content: space-between; font-size: 11px
       </div>
     </section>
 
+    <div class="split v" id="splitV" role="separator" aria-orientation="vertical" aria-label="Redimensionner la conversation (glisser, ou flèches gauche et droite)" tabindex="0">
+      <button class="arrow" id="chatToggle" type="button" aria-label="Replier la conversation">▶</button>
+    </div>
     <aside class="card chat" aria-label="Conversation avec le PDG">
       <div class="chat-head">
         <div class="av" aria-hidden="true">PDG</div>
@@ -232,6 +274,11 @@ form#chat .hint { display: flex; justify-content: space-between; font-size: 11px
     </aside>
   </main>
 </div>
+
+<aside class="agent-panel" id="agentPanel" hidden aria-label="Fiche de l'agent">
+  <div class="ap-head"><span class="dot"></span><b id="apName"></b><span class="st" id="apStatus"></span><button class="close" id="apClose" type="button" aria-label="Fermer la fiche">✕</button></div>
+  <div class="ap-body" id="apBody"></div>
+</aside>
 
 <!-- Journal de session : remplacé par qg_log.py export pour rejouer une vraie mission. -->
 <script id="session" type="application/json">
@@ -540,6 +587,7 @@ function frame(now) {
   const dt = Math.min(.05, (now - lastFrame) / 1000); lastFrame = now;
   for (const a of Object.values(agents)) {
     let rem = speed() * dt;
+    if (a.leaving && !a.path.length) { delete agents[a.id]; continue; }
     while (a.path.length && (reduce || rem > 0)) {
       const [px, py] = a.path[0], d = Math.hypot(px - a.x, py - a.y);
       if (reduce || d <= rem) { a.x = px; a.y = py; a.path.shift(); rem -= d; }
@@ -568,6 +616,10 @@ function step() {
   // ancien journal sans recrutement : un rôle du vivier qui parle entre quand même dans le bureau
   for (const id of [e.from, ...to]) if (!agents[id] && ROLES[id]) hire({id, name: ROLES[id].name});
   if (e.type === 'release' && agents[e.from]) { released.add(e.from); agents[e.from].activity = null; }
+  if (e.type === 'dismiss' && e.target) {
+    dismissed.add(e.target);
+    const a = agents[e.target]; if (a) { a.leaving = true; a.activity = null; setDest(a, [13.1, 6.0]); }
+  }
   const A = agents[e.from] || agents.pdg;
   const color = e.type === 'ok' ? '#1d9e62' : e.type === 'ko' ? '#d93b30' : A.color;
   Object.values(agents).forEach(a => { if (a !== A && (a.x !== a.home[0] || a.y !== a.home[1])) setDest(a, a.home); });
@@ -597,7 +649,7 @@ function step() {
 function addFeed(e, A, to) {
   const li = el('li', e.type || '');
   li.innerHTML = `<i style="background:${esc(A.color)}"></i><div><div class="who"></div><div class="msg"></div></div>`;
-  const dest = to.length ? ' → ' + to.map(nameOf).join(', ') : {ok: ' · audit validé', ko: ' · audit rejeté', work: ' · au travail', deliverable: ' · nouvelle version du rendu', hire: ' · recrutement', release: ' · a terminé sa part'}[e.type] || '';
+  const dest = to.length ? ' → ' + to.map(nameOf).join(', ') : {ok: ' · audit validé', ko: ' · audit rejeté', work: ' · au travail', deliverable: ' · nouvelle version du rendu', hire: ' · recrutement', release: ' · a terminé sa part', dismiss: ' · fin de contrat'}[e.type] || '';
   li.querySelector('.who').textContent = A.name + dest + (e.t ? ' · ' + e.t : '');
   li.querySelector('.msg').textContent = e.text;
   $('feed').prepend(li);
@@ -728,19 +780,52 @@ function renderNow() {
     s.append(el('b', null, a.name), el('em', null, a.activity)); $('now').appendChild(s);
   });
 }
+// ---------- Fiche d'un agent : mission, brief complet, ce qu'il fait en direct, fin de contrat ----------
+let openAgent = null, dismissed = new Set();
+function showAgent(id) { openAgent = id; pinned = agents[id] || null; $('agentPanel').hidden = false; renderWho(); $('apClose').focus(); }
+function closeAgent() { openAgent = null; pinned = null; $('agentPanel').hidden = true; }
+$('apClose').onclick = closeAgent;
+addEventListener('keydown', ev => { if (ev.key === 'Escape' && openAgent) closeAgent(); });
+function section(title, child) { const d = el('div'); d.append(el('h5', null, title), child); return d; }
 function renderWho() {
-  $('whoCard').hidden = !pinned; if (!pinned) return;
-  $('whoName').textContent = pinned.name; $('whoName').style.color = pinned.color;
-  $('whoRole').textContent = pinned.role;
-  $('whoLast').textContent = pinned.last ? 'Dernier mot : ' + pinned.last : 'N\'a pas encore pris la parole.';
+  if (!openAgent) return;
+  const id = openAgent, r = ROLES[id] || {name: id, color: '#999', role: ''}, m = (S.team || []).find(x => x.id === id) || {};
+  const perm = CORE.includes(id);
+  const st = dismissed.has(id) ? ['Contrat terminé', 'gone'] : released.has(id) ? ['✓ Part terminée', 'done'] : perm ? ['Permanent', 'done'] : ['● Au travail', ''];
+  $('agentPanel').style.setProperty('--c', r.color);
+  $('apName').textContent = r.name; $('apStatus').textContent = st[0]; $('apStatus').className = 'st ' + st[1];
+  const body = $('apBody'); body.innerHTML = '';
+  body.append(section('Mission', el('p', null, m.mission || r.role || '—')));
+  if (m.why) body.append(section('Pourquoi le PDG l\'a recruté', el('p', null, m.why)));
+  if (!perm) body.append(section('Brief complet (ses instructions exactes)', m.brief ? el('pre', 'ap-brief', m.brief) : el('p', 'empty', 'Brief non communiqué pour ce rôle.')));
+  const log = el('ol', 'ap-log');
+  const mine = S.events.slice(0, idx).filter(e => e.from === id || tos(e).includes(id) || e.target === id).reverse();
+  mine.forEach(e => {
+    const li = el('li', e.type || '');
+    const dir = e.from === id ? (tos(e).length ? '→ ' + tos(e).map(nameOf).join(', ') : e.type === 'work' ? 'au travail' : 'note') : '← ' + nameOf(e.from);
+    li.append(el('span', 't', (e.t ? e.t + ' · ' : '') + dir), e.text);
+    log.appendChild(li);
+  });
+  body.append(section(`En direct : ce qu'il fait (${mine.length})`, mine.length ? log : el('p', 'empty', 'Rien pour l\'instant.')));
+  if (m.bilan) body.append(section('Bilan', el('p', null, m.bilan)));
+  if (m.end_reason) body.append(section('Fin de contrat', el('p', null, m.end_reason + (m.end_by === 'client' ? ' (décidée par toi)' : ' (décidée par le PDG)'))));
+  if (live && hired.includes(id) && !dismissed.has(id)) {
+    const b = el('button', 'ap-end', 'Finir son contrat'); b.type = 'button';
+    b.onclick = async () => {
+      if (!b.classList.contains('confirm')) { b.classList.add('confirm'); b.textContent = 'Confirmer : il quitte le bureau'; return; }
+      b.disabled = true;
+      try { await post('dismiss', {id, reason: 'plus utile pour la mission (décision du client)'}); fetchState(); }
+      catch (code) { b.disabled = false; $('note').textContent = code === 403 ? RELOAD : 'Fin de contrat non envoyée : le QG ne répond pas.'; }
+    };
+    body.append(b);
+  }
 }
 cv.addEventListener('click', ev => {
   const r = cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
   let best = null, bd = 30 * tw / 40 + 6;
   for (const a of Object.values(agents)) { const d = Math.hypot(a.sx - mx, a.sy - my); if (d < bd) { bd = d; best = a; } }
-  pinned = best; renderWho();
+  if (best && best.id !== 'client') showAgent(best.id); else closeAgent();
 });
-$('whoClose').onclick = () => { pinned = null; renderWho(); };
 
 // Recrutement : un rôle du vivier garde sa couleur et son poste ; un renfort reprend la teinte de son modèle ;
 // un rôle inventé reçoit une couleur et un poste libres. Chaque recrue entre par l'accueil.
@@ -787,24 +872,28 @@ for (const k of Object.keys(TABS)) $(TABS[k][0]).onclick = () => showTab(k);
 // ---------- Organigramme : les permanents, puis l'équipe recrutée pour cette mission ----------
 function renderOrg() {
   const org = $('org'); org.innerHTML = '';
-  const node = (a, tag, extra) => {
-    const n = el('div', 'node'); n.style.setProperty('--c', a.color);
+  const node = (a, tag, extra, id) => {
+    const n = el('button', 'node'); n.type = 'button'; n.style.setProperty('--c', a.color);
+    n.onclick = () => showAgent(id); n.setAttribute('aria-label', `Voir la fiche de ${a.name}`);
     const b = el('b'); b.append(el('i'), a.name); n.append(el('span', 'tag', tag), b);
     extra(n); return n;
   };
   const lvl = items => { const d = el('div', 'lvl'); items.forEach(i => d.appendChild(i)); return d; };
-  org.append(lvl([node(ROLES.pdg, 'Permanent · dirige', n => n.append(el('span', 'why', 'Réfléchit à la mission et recrute l\'équipe.')))]), el('div', 'link'));
-  org.append(lvl([node(ROLES.aud, 'Permanent · contrôle', n => n.append(el('span', 'why', 'Zéro invention, tout sourcé, audit à chaque étape.')))]), el('div', 'link'));
-  org.append(el('h4', null, `Équipe recrutée · ${hired.length}`));
-  if (!hired.length) { org.append(el('div', 'empty-team', 'Le PDG n\'a encore recruté personne pour cette mission.')); return; }
-  org.append(lvl(hired.map(id => {
+  org.append(lvl([node(ROLES.pdg, 'Permanent · dirige', n => n.append(el('span', 'why', 'Réfléchit à la mission et recrute l\'équipe.')), 'pdg')]), el('div', 'link'));
+  org.append(lvl([node(ROLES.aud, 'Permanent · contrôle', n => n.append(el('span', 'why', 'Zéro invention, tout sourcé, audit à chaque étape.')), 'aud')]), el('div', 'link'));
+  const active = hired.filter(id => !dismissed.has(id)), gone = hired.filter(id => dismissed.has(id));
+  org.append(el('h4', null, `Équipe recrutée · ${active.length}`));
+  if (gone.length) org.append(el('div', 'gone', 'Contrats terminés : ' + gone.map(id => (ROLES[id] || {name: id}).name).join(', ')));
+  if (!active.length) { org.append(el('div', 'empty-team', hired.length ? 'Plus personne en mission : tous les contrats sont terminés.' : 'Le PDG n\'a encore recruté personne pour cette mission.')); return; }
+  org.append(lvl(active.map(id => {
     const m = (S.team || []).find(x => x.id === id) || {}, a = agents[id] || ROLES[id], done = released.has(id);
     return node(a, (VIVIER.has(id) ? 'Rôle du vivier' : ROLES[id].like ? 'Renfort' : 'Rôle inventé') + (m.t ? ' · ' + m.t : ''), n => {
       n.append(el('span', 'st' + (done ? ' done' : ''), done ? '✓ Part terminée' : '● Au travail'));
       n.append(el('span', null, m.mission || ROLES[id].role));
       if (m.why) n.append(el('span', 'why', 'Pourquoi : ' + m.why));
       if (done && m.bilan) n.append(el('span', 'why', 'Bilan : ' + m.bilan));
-    });
+      n.append(el('span', 'why', 'Voir sa fiche et ce qu\'il fait →'));
+    }, id);
   })));
 }
 function renderLivrables() {
@@ -856,7 +945,7 @@ function header() {
   $('chat').hidden = !live; $('history').hidden = !live; $('replay').hidden = live;
 }
 function reset() {
-  hired.forEach(id => { delete agents[id]; if (VIVIER.has(id)) ROLES[id] = ROLES_INIT[id]; else delete ROLES[id]; }); hired = []; released = new Set();
+  hired.forEach(id => { delete agents[id]; if (VIVIER.has(id)) ROLES[id] = ROLES_INIT[id]; else delete ROLES[id]; }); hired = []; released = new Set(); dismissed = new Set();
   idx = 0; curStage = null; bubble = null; current = null; pinned = null; gate = {state: null, t: -1e9}; livrableMax = 0; livKey = '';
   gates = Object.fromEntries(S.stages.map(s => [s.id, {state: 'pending', retries: 0}]));
   Object.values(agents).forEach(a => Object.assign(a, {x: a.home[0], y: a.home[1], path: [], called: CORE.includes(a.id), sent: 0, recv: 0, last: '', activity: null}));
@@ -907,6 +996,37 @@ function connect() {
 }
 setInterval(() => { if (CAN_LIVE && Date.now() - lastSeen > 25000) connect(); }, 5000);
 
+// Panneaux redimensionnables (mémorisés pour ce navigateur) : conversation entre 300 et 760 px, bureau au moins 200 px.
+const gridEl = document.querySelector('.grid'), leftEl = document.querySelector('.left');
+const prefs = (() => { try { return JSON.parse(localStorage.getItem('qgPanneaux')) || {}; } catch { return {}; } })();
+const savePrefs = () => { try { localStorage.setItem('qgPanneaux', JSON.stringify(prefs)); } catch {} };
+function applyPrefs() {
+  if (prefs.chatW) gridEl.style.setProperty('--chatW', prefs.chatW + 'px'); else gridEl.style.removeProperty('--chatW');
+  if (prefs.officeH) leftEl.style.setProperty('--officeH', prefs.officeH + 'px'); else leftEl.style.removeProperty('--officeH');
+  gridEl.classList.toggle('chat-off', !!prefs.chatOff); leftEl.classList.toggle('work-off', !!prefs.workOff);
+  $('chatToggle').textContent = prefs.chatOff ? '◀' : '▶'; $('chatToggle').setAttribute('aria-label', prefs.chatOff ? 'Déplier la conversation' : 'Replier la conversation');
+  $('workToggle').textContent = prefs.workOff ? '▲' : '▼'; $('workToggle').setAttribute('aria-label', prefs.workOff ? 'Déplier le rendu' : 'Replier le rendu');
+}
+const setChatW = w => { prefs.chatW = Math.round(Math.min(760, Math.max(300, w))); prefs.chatOff = false; applyPrefs(); };
+const setOfficeH = h => { const max = leftEl.getBoundingClientRect().height - 160; prefs.officeH = Math.round(Math.min(max, Math.max(200, h))); prefs.workOff = false; applyPrefs(); };
+function dragSplit(split, onMove) {
+  split.addEventListener('pointerdown', ev => {
+    if (ev.target.closest('.arrow')) return;
+    split.setPointerCapture(ev.pointerId); split.classList.add('drag');
+    const move = e => onMove(e), up = () => { split.classList.remove('drag'); split.removeEventListener('pointermove', move); split.removeEventListener('pointerup', up); savePrefs(); };
+    split.addEventListener('pointermove', move); split.addEventListener('pointerup', up);
+  });
+  split.addEventListener('dblclick', ev => { if (!ev.target.closest('.arrow')) { delete prefs[split.id === 'splitV' ? 'chatW' : 'officeH']; savePrefs(); applyPrefs(); } });
+}
+dragSplit($('splitV'), e => setChatW(gridEl.getBoundingClientRect().right - e.clientX - 6));
+dragSplit($('splitH'), e => setOfficeH(e.clientY - leftEl.getBoundingClientRect().top - 6));
+$('splitV').addEventListener('keydown', e => { const w = $('chatW') || document.querySelector('.chat').getBoundingClientRect().width; if (e.key === 'ArrowLeft') { setChatW(w + 20); savePrefs(); } if (e.key === 'ArrowRight') { setChatW(w - 20); savePrefs(); } });
+$('splitH').addEventListener('keydown', e => { const h = document.querySelector('.office').getBoundingClientRect().height; if (e.key === 'ArrowDown') { setOfficeH(h + 20); savePrefs(); } if (e.key === 'ArrowUp') { setOfficeH(h - 20); savePrefs(); } });
+$('chatToggle').onclick = () => { prefs.chatOff = !prefs.chatOff; savePrefs(); applyPrefs(); };
+$('workToggle').onclick = () => { prefs.workOff = !prefs.workOff; savePrefs(); applyPrefs(); };
+applyPrefs();
+
+if (window.top !== window.self) document.body.classList.add('embedded');
 header(); reset(); layout(); requestAnimationFrame(frame);
 if (CAN_LIVE) connect(); else { setPlaying(true); }
 </script>

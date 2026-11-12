@@ -1,0 +1,345 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QG du Bureau</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* L'app : une barre latérale qu'on replie (discussions, nouvelle discussion, modèles et comptes) et la zone principale
+   (accueil avec une grande zone de saisie, ou le QG de la discussion ouverte). Même palette que le QG. */
+:root {
+  --bg: #eef1f5;
+  --side: #e6eaf0;
+  --panel: #ffffff;
+  --line: #dbe1e9;
+  --fg: #19202d;
+  --dim: #677184;
+  --accent: #2f5bff;
+  --ok: #1d9e62;
+  --warn: #b26a00;
+  --display: "Unbounded", "Arial Black", sans-serif;
+  --body: "Manrope", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+svg { width: 18px; height: 18px; flex: none; }
+
+.shell { display: grid; grid-template-columns: 272px minmax(0, 1fr); height: 100%; transition: grid-template-columns .2s ease; }
+.shell.collapsed { grid-template-columns: 60px minmax(0, 1fr); }
+
+/* ---------- Barre latérale ---------- */
+.side { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; padding: 10px; min-width: 0; overflow: hidden;
+  padding-left: max(10px, env(safe-area-inset-left, 0px)); }
+.side-top { display: flex; align-items: center; gap: 8px; height: 40px; }
+.brand { font: 600 14px var(--display); white-space: nowrap; }
+.icon-btn { display: inline-grid; place-items: center; width: 38px; height: 38px; border: 0; border-radius: 10px; background: none; color: var(--fg); flex: none; }
+.icon-btn:hover { background: rgba(25,32,45,.07); }
+.side-btn { display: flex; align-items: center; gap: 10px; border: 0; border-radius: 10px; background: none; padding: 9px 10px; font-weight: 600; text-align: left; white-space: nowrap; overflow: hidden; }
+.side-btn:hover { background: rgba(25,32,45,.07); }
+.side-btn.new { color: var(--accent); }
+.search { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: var(--panel); font-size: 14px; }
+.side .eyebrow { font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin: 10px 6px 4px; white-space: nowrap; }
+#list { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+#list a { display: grid; gap: 1px; padding: 8px 10px; border-radius: 10px; color: inherit; text-decoration: none; }
+#list a:hover { background: rgba(25,32,45,.06); }
+#list a[aria-current="page"] { background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+#list .t { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#list .s { font-size: 12px; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#list .s i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--warn); margin-right: 6px; }
+#list .s i.done { background: var(--ok); }
+.side-foot { border-top: 1px solid var(--line); padding-top: 6px; }
+.collapsed .brand, .collapsed .search, .collapsed .eyebrow, .collapsed #list, .collapsed .side-btn span { display: none; }
+.collapsed .side-btn { justify-content: center; padding: 10px 0; }
+
+/* ---------- Zone principale ---------- */
+main { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; }
+.main-top { display: flex; align-items: center; gap: 10px; padding: 8px 14px; min-height: 52px; padding-right: max(14px, env(safe-area-inset-right, 0px)); }
+.main-top h2 { font-size: 15px; font-weight: 700; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.model { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 7px 10px; font-size: 13px; font-weight: 600; max-width: 280px; }
+.notice { font-size: 12px; color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); border-radius: 8px; padding: 4px 9px; }
+#frame { width: 100%; height: 100%; border: 0; display: block; }
+
+.home { display: grid; place-items: center; padding: 24px 16px 15vh; }
+.home-inner { width: min(720px, 100%); display: grid; gap: 18px; text-align: center; }
+.home h1 { font: 600 clamp(22px, 3.2vw, 32px)/1.2 var(--display); margin: 0; letter-spacing: .01em; text-wrap: balance; }
+.home p { margin: 0; color: var(--dim); }
+.composer { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 12px; display: grid; gap: 10px; text-align: left; box-shadow: 0 8px 30px rgba(25,32,45,.06); }
+.composer textarea { border: 0; resize: none; min-height: 72px; max-height: 260px; font-size: 16px; line-height: 1.5; background: none; }
+.composer textarea:focus-visible { outline: none; }
+.composer .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.composer .grow { flex: 1; }
+.send { border: 0; background: var(--accent); color: #fff; border-radius: 12px; padding: 9px 16px; font-weight: 700; }
+.send:disabled { opacity: .5; cursor: default; }
+.ideas { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.ideas button { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 7px 13px; font-size: 13px; }
+.ideas button:hover { border-color: var(--dim); }
+
+/* ---------- Modèles et comptes ---------- */
+dialog { border: 0; border-radius: 18px; padding: 0; width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); box-shadow: 0 20px 60px rgba(25,32,45,.25); }
+dialog::backdrop { background: rgba(20,26,38,.35); }
+.dlg { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: calc(100vh - 48px); }
+.dlg-head { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.dlg-head h3 { margin: 0; font: 600 16px var(--display); flex: 1; }
+.dlg-body { overflow-y: auto; padding: 16px 20px 20px; display: grid; gap: 10px; }
+.dlg-body > p { margin: 0 0 4px; color: var(--dim); font-size: 14px; }
+.prov { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; display: grid; gap: 6px; }
+.prov-top { display: flex; align-items: center; gap: 8px; }
+.prov-top b { flex: 1; }
+.pill { font: 600 11px var(--mono); padding: 3px 8px; border-radius: 99px; background: var(--bg); color: var(--dim); white-space: nowrap; }
+.pill.on { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.prov p { margin: 0; font-size: 13px; color: var(--dim); overflow-wrap: anywhere; }
+.prov form { display: flex; gap: 6px; flex-wrap: wrap; }
+.prov input { flex: 1 1 220px; min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font: 13px var(--mono); }
+.prov .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 7px 12px; font-weight: 600; font-size: 13px; }
+.prov .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.prov .msg { font-size: 12px; }
+
+/* ---------- Intro : entrée dans le building ---------- */
+#intro { position: fixed; inset: 0; background: #0d1220; z-index: 50; display: grid; place-items: center; transition: opacity .6s ease; }
+#intro.out { opacity: 0; pointer-events: none; }
+#intro video { width: 100%; height: 100%; object-fit: cover; }
+#enter { position: absolute; border: 0; background: #fff; color: #19202d; border-radius: 99px; padding: 14px 26px; font-weight: 700; font-size: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.3); }
+#skip { position: absolute; right: max(20px, env(safe-area-inset-right, 0px)); bottom: max(20px, env(safe-area-inset-bottom, 0px)); border: 1px solid rgba(255,255,255,.4); background: rgba(13,18,32,.5); color: #fff; border-radius: 99px; padding: 8px 16px; font-weight: 600; }
+
+@media (max-width: 720px) {
+  .shell, .shell.collapsed { grid-template-columns: 0 minmax(0, 1fr); }
+  .shell:not(.collapsed) .side { position: fixed; inset: 0 auto 0 0; width: 280px; z-index: 20; box-shadow: 0 0 40px rgba(0,0,0,.2); }
+  .shell.collapsed .side { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .shell, #intro { transition: none; } }
+</style>
+
+<div class="shell" id="shell">
+  <aside class="side" aria-label="Barre latérale">
+    <div class="side-top">
+      <button class="icon-btn" id="toggle" type="button" aria-label="Replier la barre latérale" aria-expanded="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></svg>
+      </button>
+      <span class="brand">QG du Bureau</span>
+    </div>
+    <button class="side-btn new" id="newChat" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>Nouvelle discussion</span>
+    </button>
+    <input class="search" id="search" type="search" placeholder="Rechercher une discussion" aria-label="Rechercher une discussion">
+    <p class="eyebrow">Discussions</p>
+    <ol id="list"></ol>
+    <div class="side-foot">
+      <button class="side-btn" id="openSettings" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Modèles et comptes</span>
+      </button>
+    </div>
+  </aside>
+
+  <main>
+    <header class="main-top">
+      <h2 id="title">Nouvelle discussion</h2>
+      <span class="notice" id="notice" hidden></span>
+      <select class="model" id="modelPick" aria-label="Modèle de la discussion"></select>
+    </header>
+    <section class="home" id="home">
+      <div class="home-inner">
+        <h1 id="greet">Quelle mission pour le Bureau ?</h1>
+        <p>Le PDG réfléchit à ta demande, recrute l'équipe qu'il faut et te tient au courant dans le QG.</p>
+        <form class="composer" id="composer">
+          <textarea id="prompt" rows="3" maxlength="4000" placeholder="Décris ta mission : ce que tu veux, pour qui, sous quel format…" aria-label="Ta mission"></textarea>
+          <div class="row">
+            <select class="model" id="homeModel" aria-label="Modèle"></select>
+            <span class="grow"></span>
+            <button class="send" id="go" type="submit" disabled>Lancer la mission</button>
+          </div>
+        </form>
+        <div class="ideas" id="ideas">
+          <button type="button">Une synthèse sourcée de 2 pages sur un sujet</button>
+          <button type="button">Une lettre de motivation de 500 caractères</button>
+          <button type="button">Comparer trois solutions et recommander la meilleure</button>
+        </div>
+      </div>
+    </section>
+    <iframe id="frame" title="QG de la discussion" hidden></iframe>
+  </main>
+</div>
+
+<dialog id="settings" aria-labelledby="settingsTitle">
+  <div class="dlg">
+    <div class="dlg-head"><h3 id="settingsTitle">Modèles et comptes</h3><button class="icon-btn" id="closeSettings" type="button" aria-label="Fermer">✕</button></div>
+    <div class="dlg-body">
+      <p>Ajoute les comptes des fournisseurs que tu veux utiliser. Tes clés restent sur ton Mac, dans le trousseau macOS : l'app ne les réaffiche jamais et ne les envoie qu'au fournisseur concerné.</p>
+      <div id="providers"></div>
+    </div>
+  </div>
+</dialog>
+
+<div id="intro" hidden>
+  <video id="introVideo" muted playsinline preload="auto" poster="/intro/poster.jpg">
+    <source src="/intro/entree.webm" type="video/webm">
+    <source src="/intro/entree.mp4" type="video/mp4">
+  </video>
+  <button id="enter" type="button" hidden>Entrer dans le QG</button>
+  <button id="skip" type="button">Passer</button>
+</div>
+
+<script>
+const TOKEN = '__QG_TOKEN__';
+const $ = id => document.getElementById(id);
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+const store = {get: k => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }};
+async function post(path, body) {
+  const r = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json', 'X-QG-Token': TOKEN}, body: JSON.stringify(body)});
+  const data = r.status === 204 ? null : await r.json().catch(() => null);
+  if (!r.ok) throw Object.assign(new Error((data && data.erreur) || 'Erreur ' + r.status), {status: r.status});
+  return data;
+}
+
+// ---------- Intro : entrée dans le building, une fois par session ----------
+(function intro() {
+  // À chaque ouverture de l'app. Le navigateur choisit WebM ou MP4 : un format non lu n'est pas une panne,
+  // seule l'erreur de la dernière source compte. Si la lecture automatique est bloquée (économie d'énergie…),
+  // on affiche un bouton « Entrer dans le QG » qui lance la vidéo au clic.
+  const box = $('intro'), v = $('introVideo'), sources = v.querySelectorAll('source');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let done = false;
+  const end = () => { if (done) return; done = true; box.classList.add('out'); setTimeout(() => { box.hidden = true; }, 650); };
+  const askClick = () => { $('enter').hidden = false; $('enter').focus(); };
+  box.hidden = false;
+  v.addEventListener('ended', end);
+  sources[sources.length - 1].addEventListener('error', () => { box.hidden = true; done = true; });
+  $('skip').onclick = end;
+  $('enter').onclick = () => { $('enter').hidden = true; v.play().catch(end); };
+  v.play().catch(askClick);
+  setTimeout(() => { if (!done && v.paused && $('enter').hidden) askClick(); }, 4000);
+})();
+
+// ---------- Barre latérale ----------
+function setCollapsed(c) {
+  $('shell').classList.toggle('collapsed', c);
+  $('toggle').setAttribute('aria-expanded', !c);
+  $('toggle').setAttribute('aria-label', c ? 'Ouvrir la barre latérale' : 'Replier la barre latérale');
+  store.set('barre', c ? 'repliee' : 'ouverte');
+}
+setCollapsed(store.get('barre') === 'repliee' || matchMedia('(max-width: 720px)').matches);
+$('toggle').onclick = () => setCollapsed(!$('shell').classList.contains('collapsed'));
+addEventListener('keydown', ev => { if ((ev.metaKey || ev.ctrlKey) && ev.key === 'b') { ev.preventDefault(); $('toggle').click(); } });
+
+let items = [], providersList = [];
+const since = t => { const s = Date.now() / 1000 - t; return s < 60 ? 'à l\'instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : new Date(t * 1000).toLocaleDateString('fr-FR'); };
+function renderList() {
+  const q = $('search').value.trim().toLowerCase(), cur = location.hash.slice(1);
+  $('list').innerHTML = '';
+  items.filter(d => !q || d.topic.toLowerCase().includes(q)).forEach(d => {
+    const li = el('li'), a = el('a'); a.href = '#' + d.id;
+    if (d.id === cur) a.setAttribute('aria-current', 'page');
+    const s = el('span', 's'); s.append(el('i', d.done ? 'done' : ''), `${d.done ? 'Terminée' : 'En cours'} · ${since(d.updated)}`);
+    a.append(el('span', 't', d.topic), s); li.appendChild(a); $('list').appendChild(li);
+  });
+  if (!items.length) $('list').appendChild(el('li', 's', 'Aucune discussion pour l\'instant.')).style.padding = '6px 10px';
+}
+let listKey = '';
+async function loadList() {
+  // on ne reconstruit la liste que si elle a changé : un survol ou un focus clavier n'est pas perdu toutes les 4 s
+  try {
+    const next = await (await fetch('/api/discussions', {cache: 'no-store'})).json(), key = JSON.stringify(next.map(d => [d.id, d.topic, d.done, d.model]));
+    items = next; if (key === listKey) return; listKey = key; route();
+  } catch {}
+}
+$('search').oninput = renderList;
+
+// ---------- Modèles ----------
+function fillModels(select, current) {
+  select.innerHTML = '';
+  for (const p of providersList) {
+    const ready = ['actif', 'connecté', 'détecté'].includes(p.status);
+    const g = el('optgroup'); g.label = p.name + (ready ? '' : ` · ${p.status}`);
+    const models = p.models.length ? p.models : [ready ? 'modèles lus après connexion' : 'à connecter dans Modèles et comptes'];
+    models.forEach(m => {
+      const o = el('option', null, m); o.value = JSON.stringify({provider: p.id, model: m});
+      o.disabled = !ready || !p.models.length;
+      if (current && current.provider === p.id && current.model === m) o.selected = true;
+      g.appendChild(o);
+    });
+    select.appendChild(g);
+  }
+}
+function engineNotice(model) {
+  // Seul Claude Code fait travailler le Bureau pour l'instant : on le dit au lieu de laisser croire le contraire.
+  const other = model && model.provider !== 'claude-code';
+  $('notice').hidden = !other;
+  $('notice').textContent = other ? `${model.model} sera utilisé dès que le moteur multi-modèles sera branché ; pour l'instant, Claude Code travaille.` : '';
+}
+async function loadProviders() {
+  try { providersList = await (await fetch('/api/providers', {cache: 'no-store'})).json(); } catch { providersList = []; }
+  fillModels($('homeModel'), JSON.parse(store.get('modele') || 'null') || {provider: 'claude-code', model: 'Claude Code (moteur actuel)'});
+  renderProviders(); route(true);
+}
+$('homeModel').onchange = () => store.set('modele', $('homeModel').value);
+$('modelPick').onchange = async () => {
+  const id = location.hash.slice(1), model = JSON.parse($('modelPick').value);
+  try { await post(`/d/${encodeURIComponent(id)}/model`, model); engineNotice(model); loadList(); } catch (e) { alertLine(e.message); }
+};
+const alertLine = text => { $('notice').hidden = false; $('notice').textContent = text; };
+
+// ---------- Navigation : accueil ou discussion ----------
+let shown = null;
+function route(force) {
+  const id = location.hash.slice(1), d = items.find(x => x.id === id);
+  renderList();
+  if (!d) {
+    shown = null; $('frame').hidden = true; $('frame').removeAttribute('src'); $('home').hidden = false;
+    $('title').textContent = 'Nouvelle discussion'; $('modelPick').hidden = true; $('notice').hidden = true;
+    return;
+  }
+  $('title').textContent = d.topic; $('modelPick').hidden = false;
+  fillModels($('modelPick'), d.model); engineNotice(d.model);
+  if (shown !== id) { shown = id; $('home').hidden = true; $('frame').hidden = false; $('frame').src = `/d/${encodeURIComponent(id)}/`; }
+  if (matchMedia('(max-width: 720px)').matches && !force) setCollapsed(true);
+}
+addEventListener('hashchange', () => route());
+$('newChat').onclick = () => { location.hash = ''; route(); $('prompt').focus(); };
+
+const prompt = $('prompt');
+prompt.oninput = () => { $('go').disabled = !prompt.value.trim(); prompt.style.height = 'auto'; prompt.style.height = Math.min(260, prompt.scrollHeight) + 'px'; };
+prompt.onkeydown = ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $('composer').requestSubmit(); } };
+$('ideas').onclick = ev => { if (ev.target.tagName === 'BUTTON') { prompt.value = ev.target.textContent + ' : '; prompt.oninput(); prompt.focus(); } };
+$('composer').onsubmit = async ev => {
+  ev.preventDefault();
+  const text = prompt.value.trim(); if (!text) return;
+  $('go').disabled = true;
+  try {
+    const {id} = await post('/api/discussions', {text, model: JSON.parse($('homeModel').value)});
+    prompt.value = ''; await loadList(); location.hash = id;
+  } catch (e) { $('go').disabled = false; $('greet').textContent = 'La mission n\'a pas pu être créée : ' + e.message; }
+};
+
+// ---------- Modèles et comptes ----------
+function renderProviders() {
+  const box = $('providers'); box.innerHTML = '';
+  for (const p of providersList) {
+    const card = el('div', 'prov'), top = el('div', 'prov-top');
+    top.append(el('b', null, p.name), el('span', 'pill' + (['actif', 'connecté', 'détecté'].includes(p.status) ? ' on' : ''), p.status));
+    card.append(top, el('p', null, p.help));
+    if (p.kind === 'key') {
+      const form = el('form'), input = el('input'), save = el('button', 'btn primary', p.status === 'connecté' ? 'Remplacer' : 'Enregistrer'), msg = el('span', 'msg');
+      input.type = 'password'; input.autocomplete = 'off'; input.placeholder = 'Colle ta clé d\'API ici'; input.setAttribute('aria-label', `Clé d'API ${p.name}`);
+      save.type = 'submit'; form.append(input, save);
+      if (p.status === 'connecté') { const rm = el('button', 'btn', 'Retirer'); rm.type = 'button'; rm.onclick = async () => { await post('/api/accounts/remove', {provider: p.id}); loadProviders(); }; form.append(rm); }
+      form.onsubmit = async ev => {
+        ev.preventDefault(); if (!input.value.trim()) return;
+        try { await post('/api/accounts', {provider: p.id, key: input.value.trim()}); input.value = ''; msg.textContent = 'Clé enregistrée dans le trousseau.'; loadProviders(); }
+        catch (e) { msg.textContent = e.message; }
+      };
+      card.append(form, msg);
+    }
+    box.appendChild(card);
+  }
+}
+$('openSettings').onclick = () => { loadProviders(); $('settings').showModal(); };
+$('closeSettings').onclick = () => $('settings').close();
+
+loadProviders(); loadList(); setInterval(loadList, 4000);
+</script>

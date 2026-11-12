@@ -81,3 +81,9 @@ Format d'une fiche : `### Nom` (identifiant QG) · **Mission** · **Le recruter 
 - **Le recruter quand :** candidature à une école ou une armée.
 - **Brief de base :** « Avocat du diable : relecture critique », lecteur = jury de recrutement.
 - **Ajouté le :** 2026-11-12
+
+### Relecteur clinique (`relclin`)
+- **Mission :** comparer phrase par phrase un texte médical ou de santé à la liste des faits validés : nuance perdue, délai présenté comme garanti, conseil ajouté, citation [n] erronée.
+- **Le recruter quand :** tout livrable de santé destiné à un patient ou au grand public, en parallèle du Correcteur.
+- **Brief de base :** relire sans rien modifier ; rendre un tableau passage · problème · correction exacte · source, puis un verdict.
+- **Ajouté le :** 2026-11-12
