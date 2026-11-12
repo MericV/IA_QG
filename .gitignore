@@ -1,0 +1,11 @@
+# État temporaire du QG en direct (recréé à chaque mission)
+.verrou
+*.tmp
+.inbox-lu
+inbox.jsonl
+__pycache__/
+.DS_Store
+
+# Données locales : chemins de la machine et travail des projets (le repo public ne contient que le moteur)
+projets.json
+projets/
