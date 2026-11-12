@@ -47,6 +47,8 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
 .steps li.active { color: var(--warn); border-color: currentColor; }
 .steps li.audit { color: var(--accent); border-color: currentColor; }
 .steps li.ko { color: var(--ko); border-color: currentColor; }
+.board-btn { font: 600 12px var(--body); padding: 4px 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: inherit; }
+.board-btn:hover { border-color: var(--accent); color: var(--accent); }
 .steps li.ok { color: #fff; background: var(--ok); border-color: var(--ok); }
 .meta { font: 500 12px var(--mono); color: var(--dim); white-space: nowrap; }
 .badge { font: 600 11px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); padding: 4px 9px; border-radius: 99px; white-space: nowrap; }
@@ -93,6 +95,14 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
 .ap-log li { font-size: 13.5px; border-left: 2px solid var(--line); padding-left: 10px; overflow-wrap: anywhere; }
 .ap-log li.work { border-color: var(--warn); } .ap-log li.ok { border-color: var(--ok); } .ap-log li.ko { border-color: var(--ko); }
 .ap-log .t { display: block; font: 500 11px var(--mono); color: var(--dim); }
+.agent-panel.board { width: min(980px, 100%); }
+.kb { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; align-items: start; }
+.kb-col { background: var(--bg); border-radius: 12px; padding: 10px; display: grid; gap: 8px; min-width: 0; }
+.kb-col h5 { display: flex; justify-content: space-between; margin: 0 2px 2px; }
+.kb-card { display: block; width: 100%; text-align: left; font: inherit; color: inherit; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--c, var(--line)); border-radius: 9px; padding: 8px 10px; overflow-wrap: anywhere; }
+button.kb-card { cursor: pointer; } button.kb-card:hover { border-color: var(--c, var(--dim)); }
+.kb-card small { display: block; font: 500 10.5px var(--mono); color: var(--dim); letter-spacing: .04em; text-transform: uppercase; margin-bottom: 3px; }
+.kb-card em { display: block; font-style: normal; font-size: 12.5px; color: var(--dim); margin-top: 3px; }
 .ap-end { border: 1px solid var(--ko); color: var(--ko); background: none; border-radius: 10px; padding: 8px 14px; font-weight: 700; justify-self: start; }
 .ap-end.confirm { background: var(--ko); color: #fff; }
 .org .node { text-align: left; font: inherit; color: inherit; cursor: pointer; }
@@ -207,6 +217,7 @@ form#chat .hint { display: flex; justify-content: space-between; font-size: 11px
     <h1>QG du Bureau</h1>
     <div class="topic" id="topic"></div>
     <ol class="steps" id="steps" aria-label="Étapes de la mission"></ol>
+    <button class="board-btn" id="boardBtn" type="button" title="Toutes les tâches : à faire, en cours, en contrôle, faites">📋 Tableau</button>
     <span class="meta" id="meta"></span>
     <span class="badge" id="label"></span>
     <a id="history" href="missions/" hidden>Missions passées</a>
@@ -782,13 +793,48 @@ function renderNow() {
 }
 // ---------- Fiche d'un agent : mission, brief complet, ce qu'il fait en direct, fin de contrat ----------
 let openAgent = null, dismissed = new Set();
-function showAgent(id) { openAgent = id; pinned = agents[id] || null; $('agentPanel').hidden = false; renderWho(); $('apClose').focus(); }
-function closeAgent() { openAgent = null; pinned = null; $('agentPanel').hidden = true; }
+function showAgent(id) { openAgent = id; pinned = agents[id] || null; $('agentPanel').hidden = false; $('agentPanel').classList.toggle('board', id === BOARD); renderWho(); $('apClose').focus(); }
+function closeAgent() { openAgent = null; pinned = null; $('agentPanel').hidden = true; $('agentPanel').classList.remove('board'); }
+// ---------- Tableau de la mission (façon agile) : étapes, recrues, consignes et décisions, rangées par état ----------
+const BOARD = '#tableau';
+function renderBoard() {
+  $('agentPanel').style.setProperty('--c', '#19202d');
+  $('apName').textContent = 'Tableau de la mission'; $('apStatus').className = 'st';
+  const cols = {todo: ['À faire', []], doing: ['En cours', []], check: ['En contrôle ou en attente', []], done: ['Fait', []]};
+  const card = (col, kind, title, sub, color, onclick) => {
+    const c = el(onclick ? 'button' : 'div', 'kb-card'); if (onclick) { c.type = 'button'; c.onclick = onclick; }
+    c.style.setProperty('--c', color); c.append(el('small', null, kind), title); if (sub) c.append(el('em', null, sub));
+    cols[col][1].push(c);
+  };
+  S.stages.forEach(st => {
+    const g = gates[st.id] || {state: 'pending', retries: 0};
+    const col = {pending: 'todo', active: 'doing', ko: 'doing', audit: 'check', ok: 'done'}[g.state] || 'todo';
+    card(col, 'Étape', st.name, g.state === 'ko' ? 'Renvoyée en correction par l\'Auditeur' : g.retries ? `${g.retries} renvoi${g.retries > 1 ? 's' : ''}` : '', {todo: '#c9d1dd', doing: '#f3b545', check: '#6e8bff', done: '#59c08d'}[col]);
+  });
+  hired.forEach(id => {
+    const a = agents[id] || {}, r = ROLES[id] || {}, m = (S.team || []).find(x => x.id === id) || {};
+    const gone = dismissed.has(id), over = released.has(id) || gone;
+    card(over ? 'done' : 'doing', r.name || id, m.mission || r.role || '', over ? (gone ? 'Contrat terminé' : m.bilan || 'Part terminée') : a.activity || 'Au travail', r.color || '#999', () => showAgent(id));
+  });
+  S.questions.forEach(q => card(q.answer || q.closed ? 'done' : 'check', 'Ta décision', q.text, q.answer ? 'Réponse : ' + q.answer : q.closed ? 'Close' : 'En attente de ta réponse', '#e86a92'));
+  S.consignes.forEach(c => {
+    const st = c.status || 'nouveau', col = st === 'appliqué' ? 'done' : st === 'nouveau' ? 'todo' : 'doing';
+    card(col, 'Ta consigne n° ' + c.id, c.text.length > 140 ? c.text.slice(0, 140) + '…' : c.text, st, '#2f5bff');
+  });
+  const kb = el('div', 'kb');
+  for (const [title, list] of Object.values(cols)) {
+    const col = el('div', 'kb-col'), h = el('h5'); h.append(el('span', null, title), el('span', null, String(list.length)));
+    col.append(h, ...(list.length ? list : [el('p', 'empty', '—')])); kb.appendChild(col);
+  }
+  const body = $('apBody'); body.innerHTML = ''; body.append(kb);
+}
 $('apClose').onclick = closeAgent;
+$('boardBtn').onclick = () => openAgent === BOARD ? closeAgent() : showAgent(BOARD);
 addEventListener('keydown', ev => { if (ev.key === 'Escape' && openAgent) closeAgent(); });
 function section(title, child) { const d = el('div'); d.append(el('h5', null, title), child); return d; }
 function renderWho() {
   if (!openAgent) return;
+  if (openAgent === BOARD) return renderBoard();
   const id = openAgent, r = ROLES[id] || {name: id, color: '#999', role: ''}, m = (S.team || []).find(x => x.id === id) || {};
   const perm = CORE.includes(id);
   const st = dismissed.has(id) ? ['Contrat terminé', 'gone'] : released.has(id) ? ['✓ Part terminée', 'done'] : perm ? ['Permanent', 'done'] : ['● Au travail', ''];
@@ -820,11 +866,14 @@ function renderWho() {
     body.append(b);
   }
 }
+const inPoly = (x, y, pts) => { let inside = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside; } return inside; };
 cv.addEventListener('click', ev => {
   const r = cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
   let best = null, bd = 30 * tw / 40 + 6;
   for (const a of Object.values(agents)) { const d = Math.hypot(a.sx - mx, a.sy - my); if (d < bd) { bd = d; best = a; } }
-  if (best && best.id !== 'client') showAgent(best.id); else closeAgent();
+  if (best && best.id !== 'client') return showAgent(best.id);
+  const quad = [P(4.2, .02, .9), P(10.2, .02, .9), P(10.2, .02, 2.8), P(4.2, .02, 2.8)];
+  if (inPoly(mx, my, quad)) showAgent(BOARD); else closeAgent();
 });
 
 // Recrutement : un rôle du vivier garde sa couleur et son poste ; un renfort reprend la teinte de son modèle ;
