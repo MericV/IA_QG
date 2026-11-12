@@ -100,6 +100,20 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
 #feed li.ok .who { color: var(--ok); } #feed li.ko .who { color: var(--ko); }
 #feed li.work .msg { color: var(--dim); font-style: italic; }
 
+/* ---------- Organigramme ---------- */
+.org { display: grid; gap: 6px; }
+.org h4 { margin: 8px 0 2px; font: 500 11px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--dim); text-align: center; }
+.org .lvl { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.org .link { width: 2px; height: 16px; background: var(--line); margin: 0 auto; }
+.org .node { border: 1px solid var(--line); border-top: 3px solid var(--c, var(--line)); border-radius: 12px; padding: 10px 12px; width: min(260px, 100%); background: var(--panel); display: grid; gap: 4px; font-size: 13px; }
+.org .node b { font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.org .node b i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex: none; }
+.org .node .tag { font: 600 10px var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--dim); }
+.org .node .st { font: 600 11px var(--mono); color: var(--warn); }
+.org .node .st.done { color: var(--ok); }
+.org .node .why { color: var(--dim); }
+.org .empty-team { text-align: center; color: var(--dim); font-size: 14px; padding: 8px; }
+
 /* ---------- Conversation avec le PDG ---------- */
 .chat { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
 .chat-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
@@ -176,6 +190,7 @@ form#chat .hint { display: flex; justify-content: space-between; font-size: 11px
       <div class="card work">
         <div class="tabs" role="tablist">
           <button role="tab" id="tabRendu" aria-selected="true" aria-controls="paneRendu" type="button">Rendu</button>
+          <button role="tab" id="tabOrg" aria-selected="false" aria-controls="paneOrg" type="button">Organigramme</button>
           <button role="tab" id="tabCoulisses" aria-selected="false" aria-controls="paneCoulisses" type="button">Coulisses</button>
         </div>
         <div class="pane" id="paneRendu" role="tabpanel">
@@ -189,6 +204,9 @@ form#chat .hint { display: flex; justify-content: space-between; font-size: 11px
             <span class="count" id="count"></span>
           </div>
           <pre id="livView"><span class="empty"><b>Le rendu apparaîtra ici.</b> Dès que l'Écrivain a une première version, elle s'affiche dans cet onglet, puis chaque correction après audit.</span></pre>
+        </div>
+        <div class="pane" id="paneOrg" role="tabpanel" hidden>
+          <div class="org" id="org"></div>
         </div>
         <div class="pane" id="paneCoulisses" role="tabpanel" hidden>
           <ol id="feed"></ol>
@@ -273,7 +291,9 @@ const ROLES = dict({
   jur:    {name: 'Juriste', color: '#5b6cff', home: [2.2, 10.9], role: 'RGPD, conformité, contrats.'},
   cdp:    {name: 'Chef de projet', color: '#7cb342', home: [1.0, 10.6], role: 'Planning, échéances, coordination.'},
 });
-const CORE = ['pdg', 'aud', 'bib', 'ecr', 'cor', 'client'];
+// Permanents : le PDG, l'Auditeur et toi. Tous les autres sont recrutés par le PDG au fil de la mission.
+const CORE = ['pdg', 'aud', 'client'];
+const VIVIER = new Set(Object.keys(ROLES)), ROLES_INIT = JSON.parse(JSON.stringify(ROLES));
 const nameOf = id => (ROLES[id] || {name: id}).name;
 
 // ---------- Projection isométrique ----------
@@ -432,7 +452,7 @@ function drawRoom() {
 
 // ---------- Agents ----------
 const makeAgent = (id, r) => ({id, ...r, x: r.home[0], y: r.home[1], path: [], called: CORE.includes(id), flash: -1e9, sent: 0, recv: 0, last: '', activity: null});
-const agents = dict(Object.fromEntries(Object.entries(ROLES).map(([id, r]) => [id, makeAgent(id, r)])));
+const agents = dict(Object.fromEntries(CORE.map(id => [id, makeAgent(id, ROLES[id])])));
 let bubble = null, current = null, pinned = null;
 const setDest = (a, p) => { a.path = route([a.x, a.y], p); };
 const pathLen = a => { let l = 0, x = a.x, y = a.y; for (const [px, py] of a.path) { l += Math.hypot(px - x, py - y); x = px; y = py; } return l; };
@@ -464,7 +484,16 @@ function drawAgent(a, now) {
   if (blink) { ctx.fillRect(sx - 1.4 * s, by - 27.6 * s, 3 * s, .9 * s); ctx.fillRect(sx + 3.2 * s, by - 27.6 * s, 3 * s, .9 * s); }
   else { ctx.beginPath(); ctx.arc(sx + .1 * s, by - 27.4 * s, 1.5 * s, 0, 7); ctx.arc(sx + 4.7 * s, by - 27.4 * s, 1.5 * s, 0, 7); ctx.fill(); }
   if (a.id === 'pdg') { ctx.fillStyle = '#19202d'; ctx.beginPath(); ctx.ellipse(sx, by - 35 * s, 10 * s, 2.4 * s, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.roundRect(sx - 5 * s, by - 44 * s, 10 * s, 9 * s, 2 * s); ctx.fill(); ctx.fillStyle = '#d93b30'; ctx.fillRect(sx - 5 * s, by - 38.5 * s, 10 * s, 2 * s); }
-  // étiquette : pastille blanche ombrée, point de couleur du rôle
+  // au travail : l'antenne s'allume et pulse
+  if (a.activity && !reduce) { ctx.globalAlpha = .35 + .35 * Math.sin(now / 180); ctx.fillStyle = '#ffb020'; ctx.beginPath(); ctx.arc(sx, by - 42 * s, 5 * s, 0, 7); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  a.sx = sx; a.sy = by - 18 * s; a.fx = sx; a.fy = sy;
+}
+
+// Étiquettes dessinées après les meubles et les robots : un nom n'est jamais caché derrière un bureau.
+function drawLabel(a) {
+  const s = tw / 40, sx = a.fx, sy = a.fy;
+  // pastille blanche ombrée, point de couleur du rôle
   if (a.called || a === pinned) {
     ctx.font = `600 ${Math.max(10, 11 * s)}px ${FONT}`;
     const w = ctx.measureText(a.name).width + 22, lx = sx - w / 2, ly = sy + 5 * s;
@@ -474,10 +503,6 @@ function drawAgent(a, now) {
     ctx.fillStyle = a === pinned ? '#ffffff' : a.color; ctx.beginPath(); ctx.arc(lx + 9, ly + 9, 3, 0, 7); ctx.fill();
     ctx.fillStyle = a === pinned ? '#fff' : '#19202d'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(a.name, lx + 16, ly + 9.5);
   }
-  // au travail : l'antenne s'allume et pulse
-  if (a.activity && !reduce) { ctx.globalAlpha = .35 + .35 * Math.sin(now / 180); ctx.fillStyle = '#ffb020'; ctx.beginPath(); ctx.arc(sx, by - 42 * s, 5 * s, 0, 7); ctx.fill(); }
-  ctx.globalAlpha = 1;
-  a.sx = sx; a.sy = by - 18 * s;
 }
 
 function drawBubble(now) {
@@ -525,6 +550,7 @@ function frame(now) {
   drawRoom();
   // ponytail: tri par profondeur x+y, suffisant pour une pièce sans chevauchement complexe
   furniture.concat(Object.values(agents).map(a => ({d: a.x + a.y + .5, draw: () => drawAgent(a, now)}))).sort((p, q) => p.d - q.d).forEach(it => it.draw());
+  Object.values(agents).forEach(drawLabel);
   drawBubble(now);
   const backlog = S.events.length - idx, gap = live ? (backlog > 2 ? 600 : 1400) : 2800 / +$('speed').value;
   if (playing && now - lastStep > gap) { lastStep = now; step(); }
@@ -539,6 +565,9 @@ function step() {
   if (idx >= S.events.length) { setPlaying(false); return; }
   const e = S.events[idx++], now = performance.now(), to = tos(e);
   if (e.type === 'hire' && e.hire && !agents[e.hire.id]) hire(e.hire);
+  // ancien journal sans recrutement : un rôle du vivier qui parle entre quand même dans le bureau
+  for (const id of [e.from, ...to]) if (!agents[id] && ROLES[id]) hire({id, name: ROLES[id].name});
+  if (e.type === 'release' && agents[e.from]) { released.add(e.from); agents[e.from].activity = null; }
   const A = agents[e.from] || agents.pdg;
   const color = e.type === 'ok' ? '#1d9e62' : e.type === 'ko' ? '#d93b30' : A.color;
   Object.values(agents).forEach(a => { if (a !== A && (a.x !== a.home[0] || a.y !== a.home[1])) setDest(a, a.home); });
@@ -561,14 +590,14 @@ function step() {
   if (e.type === 'deliverable') livrableMax = Math.max(livrableMax, e.livrable);
   addFeed(e, A, to);
   addChat(e);
-  renderNow(); renderTop(); renderLivrables(); renderWho();
+  renderNow(); renderTop(); renderLivrables(); renderWho(); renderOrg();
   if (idx >= S.events.length) setPlaying(false);
 }
 
 function addFeed(e, A, to) {
   const li = el('li', e.type || '');
   li.innerHTML = `<i style="background:${esc(A.color)}"></i><div><div class="who"></div><div class="msg"></div></div>`;
-  const dest = to.length ? ' → ' + to.map(nameOf).join(', ') : {ok: ' · audit validé', ko: ' · audit rejeté', work: ' · au travail', deliverable: ' · nouvelle version du rendu', hire: ' · embauche'}[e.type] || '';
+  const dest = to.length ? ' → ' + to.map(nameOf).join(', ') : {ok: ' · audit validé', ko: ' · audit rejeté', work: ' · au travail', deliverable: ' · nouvelle version du rendu', hire: ' · recrutement', release: ' · a terminé sa part'}[e.type] || '';
   li.querySelector('.who').textContent = A.name + dest + (e.t ? ' · ' + e.t : '');
   li.querySelector('.msg').textContent = e.text;
   $('feed').prepend(li);
@@ -603,6 +632,10 @@ function addChat(e) {
     li.appendChild(el('span', 'by', nameOf(e.from) + (e.t ? ' · ' + e.t : '')));
     longText(li, e.text);
     if (e.type === 'deliver' && S.livrables.length) li.appendChild(noteButton('Voir le rendu final'));
+  } else if (e.type === 'hire' && e.hire) {
+    li = el('li', 'm note');
+    const b = el('button', null, `Le PDG recrute ${e.hire.name} · voir l'organigramme`); b.type = 'button'; b.onclick = () => showTab('org');
+    li.appendChild(b);
   } else if (e.type === 'deliverable') {
     li = el('li', 'm note');
     li.appendChild(noteButton('Nouvelle version du rendu : ' + e.text + ' · voir'));
@@ -709,15 +742,34 @@ cv.addEventListener('click', ev => {
 });
 $('whoClose').onclick = () => { pinned = null; renderWho(); };
 
-// Embauche : un renfort clone le rôle de base (teinte plus claire), entre par l'accueil et rejoint un poste voisin.
-let hired = [];
+// Recrutement : un rôle du vivier garde sa couleur et son poste ; un renfort reprend la teinte de son modèle ;
+// un rôle inventé reçoit une couleur et un poste libres. Chaque recrue entre par l'accueil.
+let hired = [], released = new Set();
+const PALETTE = ['#0ea5a4', '#e86a92', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#a16207', '#64748b', '#db2777'];
+const SPOTS = [[3.2, 6.8], [9.8, 9.6], [12.3, 4.1], [4.4, 5.0], [3.0, 6.6], [9.8, 9.6], [7.6, 10.4], [12.3, 4.1], [5.8, 2.3], [8.6, 2.2], [2.4, 8.1], [3.6, 8.2], [1.2, 8.2], [4.6, 9.5], [3.6, 10.9], [2.2, 10.9], [10.4, 4.6], [6.2, 6.6], [1.2, 10.6]];
+// Place libre à l'écran (projection isométrique) : un robot et son étiquette occupent une zone large et haute,
+// donc deux postes éloignés au sol peuvent se recouvrir à l'écran. Ellipse : large pour l'étiquette, haute pour le corps.
+const apart = (a, b, k = 1) => (((a[0] - a[1]) - (b[0] - b[1])) / (3.6 * k)) ** 2 + (((a[0] + a[1]) - (b[0] + b[1])) / (6.4 * k)) ** 2 > 1;
+function freeSpot() {
+  const taken = Object.values(agents).map(a => a.home);
+  return SPOTS.find(p => !blocked(...p) && taken.every(h => apart(h, p)))
+    || SPOTS.find(p => !blocked(...p) && taken.every(h => apart(h, p, .6))) || meetPoint({home: [7, 8]});
+}
 function lighten(hex, k) { const n = parseInt(hex.slice(1), 16); return '#' + [n >> 16, n >> 8 & 255, n & 255].map(c => Math.round(c + (255 - c) * k).toString(16).padStart(2, '0')).join(''); }
 function hire(h) {
-  const base = ROLES[h.like] || ROLES.pdg, n = hired.filter(id => ROLES[id].like === h.like).length + 1;
-  const [dx, dy] = n % 2 ? [1.1, -.3] : [-.3, 1.1];
-  let home = [Math.min(GX - .6, base.home[0] + dx * Math.ceil(n / 2)), Math.min(GY - .5, base.home[1] + dy * Math.ceil(n / 2))];
-  if (blocked(...home)) home = meetPoint({home: base.home});
-  ROLES[h.id] = {name: h.name, color: lighten(base.color, .3 * Math.min(n, 2)), home, role: base.role + ' (renfort)', like: h.like};
+  let color, home, role;
+  if (VIVIER.has(h.id)) ({color, home, role} = ROLES_INIT[h.id]);
+  else if (h.like && ROLES[h.like]) {
+    const base = ROLES[h.like], n = hired.filter(id => ROLES[id] && ROLES[id].like === h.like).length + 1;
+    const [dx, dy] = n % 2 ? [1.1, -.3] : [-.3, 1.1];
+    home = [Math.min(GX - .6, base.home[0] + dx * Math.ceil(n / 2)), Math.min(GY - .5, base.home[1] + dy * Math.ceil(n / 2))];
+    if (blocked(...home)) home = freeSpot();
+    color = lighten(base.color, .3 * Math.min(n, 2)); role = base.role + ' (renfort)';
+  } else {
+    color = PALETTE[[...h.id].reduce((n, c) => n + c.charCodeAt(0), 0) % PALETTE.length]; home = freeSpot(); role = 'Rôle recruté pour cette mission.';
+  }
+  if (Object.values(agents).some(a => Math.hypot(a.home[0] - home[0], a.home[1] - home[1]) < .5)) home = freeSpot();
+  ROLES[h.id] = {name: h.name || h.id, color, home, role: h.mission || role, like: h.like};
   agents[h.id] = Object.assign(makeAgent(h.id, ROLES[h.id]), {x: 13.1, y: 6.0, called: true, flash: performance.now()});
   setDest(agents[h.id], home);
   hired.push(h.id);
@@ -725,14 +777,36 @@ function hire(h) {
 
 // ---------- Rendu : versions successives et changements ----------
 let livMode = 'text', livKey = '', livReq = 0, livText = '';
+const TABS = {rendu: ['tabRendu', 'paneRendu'], org: ['tabOrg', 'paneOrg'], coulisses: ['tabCoulisses', 'paneCoulisses']};
 function showTab(which) {
-  const r = which === 'rendu';
-  $('tabRendu').setAttribute('aria-selected', r); $('tabCoulisses').setAttribute('aria-selected', !r);
-  $('paneRendu').hidden = !r; $('paneCoulisses').hidden = r;
-  if (r) $('tabRendu').querySelector('.dotnew')?.remove();
+  for (const [k, [t, p]] of Object.entries(TABS)) { $(t).setAttribute('aria-selected', k === which); $(p).hidden = k !== which; }
+  $(TABS[which][0]).querySelector('.dotnew')?.remove();
 }
-$('tabRendu').onclick = () => showTab('rendu');
-$('tabCoulisses').onclick = () => showTab('coulisses');
+for (const k of Object.keys(TABS)) $(TABS[k][0]).onclick = () => showTab(k);
+
+// ---------- Organigramme : les permanents, puis l'équipe recrutée pour cette mission ----------
+function renderOrg() {
+  const org = $('org'); org.innerHTML = '';
+  const node = (a, tag, extra) => {
+    const n = el('div', 'node'); n.style.setProperty('--c', a.color);
+    const b = el('b'); b.append(el('i'), a.name); n.append(el('span', 'tag', tag), b);
+    extra(n); return n;
+  };
+  const lvl = items => { const d = el('div', 'lvl'); items.forEach(i => d.appendChild(i)); return d; };
+  org.append(lvl([node(ROLES.pdg, 'Permanent · dirige', n => n.append(el('span', 'why', 'Réfléchit à la mission et recrute l\'équipe.')))]), el('div', 'link'));
+  org.append(lvl([node(ROLES.aud, 'Permanent · contrôle', n => n.append(el('span', 'why', 'Zéro invention, tout sourcé, audit à chaque étape.')))]), el('div', 'link'));
+  org.append(el('h4', null, `Équipe recrutée · ${hired.length}`));
+  if (!hired.length) { org.append(el('div', 'empty-team', 'Le PDG n\'a encore recruté personne pour cette mission.')); return; }
+  org.append(lvl(hired.map(id => {
+    const m = (S.team || []).find(x => x.id === id) || {}, a = agents[id] || ROLES[id], done = released.has(id);
+    return node(a, (VIVIER.has(id) ? 'Rôle du vivier' : ROLES[id].like ? 'Renfort' : 'Rôle inventé') + (m.t ? ' · ' + m.t : ''), n => {
+      n.append(el('span', 'st' + (done ? ' done' : ''), done ? '✓ Part terminée' : '● Au travail'));
+      n.append(el('span', null, m.mission || ROLES[id].role));
+      if (m.why) n.append(el('span', 'why', 'Pourquoi : ' + m.why));
+      if (done && m.bilan) n.append(el('span', 'why', 'Bilan : ' + m.bilan));
+    });
+  })));
+}
 function renderLivrables() {
   const list = S.livrables.filter(v => v.n <= livrableMax), key = list.map(v => v.n).join();
   if (!list.length || key === livKey) return; livKey = key;
@@ -782,14 +856,14 @@ function header() {
   $('chat').hidden = !live; $('history').hidden = !live; $('replay').hidden = live;
 }
 function reset() {
-  hired.forEach(id => { delete agents[id]; delete ROLES[id]; }); hired = [];
+  hired.forEach(id => { delete agents[id]; if (VIVIER.has(id)) ROLES[id] = ROLES_INIT[id]; else delete ROLES[id]; }); hired = []; released = new Set();
   idx = 0; curStage = null; bubble = null; current = null; pinned = null; gate = {state: null, t: -1e9}; livrableMax = 0; livKey = '';
   gates = Object.fromEntries(S.stages.map(s => [s.id, {state: 'pending', retries: 0}]));
   Object.values(agents).forEach(a => Object.assign(a, {x: a.home[0], y: a.home[1], path: [], called: CORE.includes(a.id), sent: 0, recv: 0, last: '', activity: null}));
   $('feed').innerHTML = ''; $('msgs').innerHTML = ''; qCards.clear(); statusEls.clear();
   $('renduHead').hidden = true;
   $('livView').innerHTML = '<span class="empty"><b>Le rendu apparaîtra ici.</b> Dès que l\'Écrivain a une première version, elle s\'affiche dans cet onglet, puis chaque correction après audit.</span>';
-  renderNow(); renderTop(); renderWho(); renderQuestions(); setPlaying(false);
+  renderNow(); renderTop(); renderWho(); renderQuestions(); renderOrg(); setPlaying(false);
 }
 $('play').onclick = () => { if (idx >= S.events.length) reset(); setPlaying(!playing); lastStep = 0; };
 $('reset').onclick = () => reset();

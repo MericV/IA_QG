@@ -60,6 +60,15 @@ try:
     for bad in ["-", "a,b", "", "Bib2", "__proto__", "x" * 17]:
         assert "invalide" in qg("hire", bad, "Renfort", "bib", "x", ok=False), bad
     qg("hire", "bib2", "Bibliothécaire 2", "bib", "renfort")
+    # Recrutement par le PDG : rôle du vivier ou rôle inventé, puis fin de mission du rôle
+    qg("recruit", "recruteur", "Recruteur militaire", "Relire avec les yeux d'un jury", "Le livrable sera jugé par un jury")
+    assert "déjà partie" in qg("recruit", "recruteur", "Doublon", "x", "y", ok=False)
+    assert "déjà partie" in qg("recruit", "aud", "Auditeur bis", "x", "y", ok=False), "les permanents ne se recrutent pas"
+    qg("recruteur", "pdg", "Deux objections du point de vue du jury")
+    assert "pas dans l'équipe" in qg("release", "inconnu", "x", ok=False)
+    qg("release", "recruteur", "Relecture faite")
+    team = json.loads((ROOT / "qg-live.json").read_text())["team"]
+    assert [m["id"] for m in team] == ["bib2", "recruteur"] and team[1]["status"] == "terminé" and team[1]["bilan"] == "Relecture faite"
     qg("bib2", "pdg", "le renfort travaille")
     qg("aud", "-", "audit rejeté", "ko", "Sources")
     qg("aud", "-", "audit validé", "ok", "sources")

@@ -11,7 +11,9 @@ Mission
   topic "Nouveau sujet"               renomme la mission en cours
   stages "Cadrage|Sources|..."        déclare les étapes de la mission (par défaut : Cadrage|Sources|Rédaction|Forme|Audit final)
   FROM TO "texte" [type] [étape]      échange ; TO = "-" ou "a,b" ; type = ok|ko|deliver|work|-
-  hire ID "Nom" ROLE_DE_BASE "raison" embauche d'un renfort
+  recruit ID "Nom" "mission" "pourquoi"  le PDG recrute un membre (vivier ou rôle inventé) ; il apparaît dans l'organigramme
+  release ID "bilan"                  le membre a terminé sa part
+  hire ID "Nom" ROLE_DE_BASE "raison" ancienne forme : renfort calqué sur un rôle existant
   livrable FICHIER [ROLE] ["libellé"] enregistre une version du livrable (et ses différences avec la précédente)
   retro                               résume la mission (renvois, consignes, questions) pour en tirer des leçons
   export                              écrit la page rejouable de la mission dans missions/ et met à jour l'historique
@@ -102,12 +104,30 @@ def require_mission():
 
 def new_mission(topic):
     return {"mission": time.strftime("%Y%m%d-%H%M%S-") + os.urandom(2).hex(), "topic": topic, "label": "En direct", "note": "",
-            "stages": [{"id": slug(s), "name": s} for s in DEFAULT_STAGES], "events": []}
+            "stages": [{"id": slug(s), "name": s} for s in DEFAULT_STAGES], "team": [], "events": []}
+
+
+PERMANENT = {"pdg", "aud", "client"}
 
 
 def known_roles():
-    hired = {e["hire"]["id"] for e in read(LIVE, {"events": []})["events"] if e.get("type") == "hire"}
-    return ROLES | hired
+    """Rôles utilisables dans le journal : permanents, rôles du vivier, et toute l'équipe recrutée."""
+    live = read(LIVE, {"events": []})
+    hired = {e["hire"]["id"] for e in live["events"] if e.get("type") == "hire"}
+    return ROLES | hired | {m["id"] for m in live.get("team", [])}
+
+
+def recruit(rid, name, mission, why, like=None):
+    """Le PDG recrute un membre de l'équipe : il apparaît dans l'organigramme et entre dans le bureau."""
+    require_mission()
+    if not HIRE_ID.fullmatch(rid):
+        raise Erreur(f"identifiant « {rid} » invalide : minuscules, chiffres et _ (16 caractères max.), ex. recruteur")
+    if rid in PERMANENT or rid in {m["id"] for m in read(LIVE, {}).get("team", [])}:
+        raise Erreur(f"« {rid} » fait déjà partie de l'équipe")
+    member = {"id": rid, "name": name, "mission": mission, "why": why, "status": "au travail", **now()}
+    update(LIVE, {}, lambda d: d.setdefault("team", []).append(member))
+    append_event({"from": "pdg", "type": "hire", "text": f"Recrute {name} : {why}",
+                  "hire": {"id": rid, "name": name, "mission": mission, "like": like or (rid if rid in ROLES else None)}})
 
 
 def check_role(role, allowed=None):
@@ -384,11 +404,15 @@ def main(a):
         print("Consignes du client :")
         for m in d["consignes"]:
             print(f"  - n° {m['id']} ({m['status']}) {m['text'][:160]}")
+        print("Équipe recrutée :")
+        for m in d.get("team", []):
+            print(f"  - {m['name']} ({m['id']}, {m['status']}) : {m['mission']}")
         print("Questions au client :")
         for q in d["questions"]:
             print(f"  - {q['text']} → " + (f"réponse : {q['answer']}" if q.get("answer") else f"close : {q['closed']}" if q.get("closed") else "sans réponse"))
         print("Fin :", "remise au client" if any(e.get("type") == "deliver" for e in d["events"]) else "pas de remise (mission arrêtée ou en cours)")
-        print(f"\nÀ faire : tirer 1 à 3 leçons de méthode et les ajouter à {HOME / 'lecons.md'} (format et règles en tête du fichier).")
+        print(f"\nÀ faire : tirer 1 à 3 leçons de méthode et les ajouter à {HOME / 'lecons.md'} ;"
+              f" ajouter au vivier ({HOME / 'vivier.md'}) tout rôle inventé qui a été utile.")
         return
     if cmd == "export":
         out = export()
@@ -403,13 +427,26 @@ def main(a):
         if not names:
             raise Erreur('aucune étape : stages "Cadrage|Sources|..."')
         update(LIVE, {}, lambda d: d.__setitem__("stages", [{"id": slug(s), "name": s} for s in names]))
+    elif cmd == "recruit":
+        # recruit ID "Nom" "mission" "pourquoi"
+        recruit(a[1], a[2], a[3], a[4])
+    elif cmd == "release":
+        # release ID "bilan" : le membre a fini sa part
+        rid = a[1]
+
+        def done(d):
+            m = next((m for m in d.get("team", []) if m["id"] == rid), None)
+            if not m:
+                raise Erreur(f"« {rid} » n'est pas dans l'équipe recrutée")
+            m.update({"status": "terminé", "bilan": a[2]})
+        update(LIVE, {}, done)
+        append_event({"from": rid, "to": "pdg", "type": "release", "text": a[2]})
     elif cmd == "hire":
+        # ancienne forme, gardée pour compatibilité : renfort calqué sur un rôle existant
         check_role(a[3], ROLES)
-        if not HIRE_ID.fullmatch(a[1]):
-            raise Erreur(f"identifiant « {a[1]} » invalide : minuscules, chiffres et _ (16 caractères max.), ex. bib2")
         if a[1] in known_roles():
             raise Erreur(f"l'identifiant « {a[1]} » est déjà pris")
-        append_event({"from": "pdg", "type": "hire", "hire": {"id": a[1], "name": a[2], "like": a[3]}, "text": a[4]})
+        recruit(a[1], a[2], f"Renfort de {a[3]}", a[4], like=a[3])
     elif cmd == "ask":
         require_mission()
         options = [o.strip() for o in a[2].split("|") if o.strip()]

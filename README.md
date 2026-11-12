@@ -17,6 +17,7 @@ cd "Bureau IA"
 | Fichier | Rôle |
 |---|---|
 | `SKILL.md` | Charte du Bureau : rôles, règles de l'Auditeur, circuit, mode QG |
+| `vivier.md` | Vivier de rôles où le PDG recrute l'équipe de chaque mission ; il s'enrichit des rôles inventés utiles |
 | `lecons.md` | Mémoire de méthode : leçons tirées des missions passées, lues au début de chaque mission et complétées à la fin |
 | `briefs.md` | Modèles de brief pour les agents (recherche, contre-vérification, rédaction, critique) |
 | `qg.html` | Page du QG : bureau animé, fil, questions du PDG, consignes, indicateurs, kanban, livrable |
@@ -36,7 +37,8 @@ Toujours depuis la racine du projet sur lequel le Bureau travaille (`B=~/.claude
 | `python3 $B/qg_log.py init "Sujet" [nom]` | Archive la mission précédente, démarre une mission (nom du projet : la première fois) |
 | `qg_log.py stages "A\|B\|C"` | Étapes de la mission (par défaut : Cadrage, Sources, Rédaction, Forme, Audit final) |
 | `qg_log.py FROM TO "texte" [type] [étape]` | Échange. `TO` = rôle, `a,b` ou `-`. `type` = `ok`, `ko`, `deliver`, `work` ou `-` |
-| `qg_log.py hire ID "Nom" ROLE "raison"` | Embauche d'un renfort |
+| `qg_log.py recruit ID "Nom" "mission" "pourquoi"` | Le PDG recrute un membre (vivier ou rôle inventé) : il entre dans le bureau et l'Organigramme |
+| `qg_log.py release ID "bilan"` | Le membre a terminé sa part |
 | `qg_log.py livrable FICHIER [ROLE] ["libellé"]` | Nouvelle version du livrable, avec ses changements |
 | `qg_log.py ask "Question ?" "A\|B"` | Question du PDG au client, avec boutons de réponse |
 | `qg_log.py ack N "…"` · `dispatch N ROLE "…"` · `applied N ROLE "…"` | Traitement du message n° N du client |
@@ -47,7 +49,7 @@ Toujours depuis la racine du projet sur lequel le Bureau travaille (`B=~/.claude
 | `qg_log.py where` | Dossier du projet et adresse du QG |
 | `python3 $B/qg_server.py` | Lance le QG (premier port libre à partir de 8766) |
 
-Rôles : `pdg aud bib ecr cor client ana str avo des ing jur cdp`, plus les renforts embauchés.
+Permanents : `pdg` (PDG) et `aud` (Auditeur) ; le client est `client`. Tous les autres rôles sont recrutés avec `recruit` (identifiants du vivier comme `bib`, `ecr`, ou identifiants inventés).
 
 ## Outils de l'Auditeur
 
