@@ -17,6 +17,7 @@ cd "Bureau IA"
 | Fichier | Rôle |
 |---|---|
 | `SKILL.md` | Charte du Bureau : rôles, règles de l'Auditeur, circuit, mode QG |
+| `lecons.md` | Mémoire de méthode : leçons tirées des missions passées, lues au début de chaque mission et complétées à la fin |
 | `briefs.md` | Modèles de brief pour les agents (recherche, contre-vérification, rédaction, critique) |
 | `qg.html` | Page du QG : bureau animé, fil, questions du PDG, consignes, indicateurs, kanban, livrable |
 | `qg_log.py` | Journal de mission, consignes et questions du client, livrables, export, historique |
@@ -40,6 +41,8 @@ Toujours depuis la racine du projet sur lequel le Bureau travaille (`B=~/.claude
 | `qg_log.py ask "Question ?" "A\|B"` | Question du PDG au client, avec boutons de réponse |
 | `qg_log.py ack N "…"` · `dispatch N ROLE "…"` · `applied N ROLE "…"` | Traitement du message n° N du client |
 | `qg_log.py inbox` · `wait` | Messages et réponses non lus (`wait` bloque jusqu'au prochain) |
+| `qg_log.py retro` | Résumé de la mission (renvois, consignes, questions) pour la rétrospective |
+| `qg_log.py close N "raison"` | Clôt une question déjà réglée par un message du client |
 | `qg_log.py export` | Page rejouable de la mission + historique (`missions/index.html`) |
 | `qg_log.py where` | Dossier du projet et adresse du QG |
 | `python3 $B/qg_server.py` | Lance le QG (premier port libre à partir de 8766) |

@@ -13,7 +13,7 @@ GET  /            page du QG (avec le jeton)
 GET  /state       état complet de la mission (JSON)
 GET  /events      flux SSE : un signal à chaque changement (mises à jour instantanées)
 POST /say         {"text"}           message du client au PDG
-POST /answer      {"id", "choice"}   réponse du client à une question du PDG
+POST /answer      {"id", "choice", "other"?}   réponse du client (choix proposé ou réponse libre)
 """
 import functools, http.server, json, secrets, signal, sys, time, pathlib
 from urllib.parse import urlsplit, parse_qs, unquote
@@ -125,14 +125,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if not self.local() or self.headers.get("X-QG-Token") != TOKEN:
             return self.send_error(403)
         try:
-            msg = json.loads(self.rfile.read(min(int(self.headers.get("Content-Length", 0)), 8000)))
+            msg = json.loads(self.rfile.read(min(int(self.headers.get("Content-Length", 0)), 32000)))
             if self.path == "/say":
-                text = str(msg.get("text", "")).strip()[:1000]
+                text = str(msg.get("text", "")).strip()[:4000]
                 if not text:
                     return self.send_error(400)
                 qg_log.new_message(text)
             elif self.path == "/answer":
-                if not qg_log.answer(int(msg["id"]), str(msg["choice"])):
+                if not qg_log.answer(int(msg["id"]), str(msg["choice"]), bool(msg.get("other"))):
                     return self.send_json({"erreur": "question déjà répondue ou choix invalide"}, 409)
             else:
                 return self.send_error(404)

@@ -35,6 +35,16 @@ Spécialistes convoqués par le PDG si besoin : 📊 Analyste (`ana`) · ♟️ 
 - `python3 $B/audit.py FICHIER.md --sources SOURCES.md --pages N` : citations inconnues, `[HYP]`/`[EST]`, longueur, chiffres sans source. Un verdict « rejeté » renvoie le travail.
 - `swift $B/pdf_text.swift FICHIER.pdf [--pages 1-3]` : lire le texte d'un PDF (rapports, communiqués).
 
+## Amélioration continue
+
+Le Bureau apprend de ses missions, comme une équipe qui fait ses retours d'expérience. Sa mémoire de méthode est `$B/lecons.md`.
+
+1. **Au début de chaque mission**, le PDG lit `$B/lecons.md` et applique les leçons qui concernent la mission (il peut le dire au client en une phrase).
+2. **À la fin de chaque mission**, livrée ou arrêtée, le PDG fait une rétrospective : `python3 $B/qg_log.py retro` (en mode QG) ou, sinon, à partir de ce qui s'est passé dans la conversation. Il en tire **1 à 3 leçons** : ce qui a fait perdre du temps, ce que l'Auditeur a rejeté, ce que le client a dû corriger ou redemander.
+3. **Il les ajoute à `$B/lecons.md`**, dans la bonne catégorie et au format du fichier. Il ne garde que des règles de **méthode**, réutilisables ailleurs : jamais de données personnelles, de contenu de client ni de détail propre à un projet. Si une leçon existe déjà, il la précise au lieu de la répéter. Au-delà d'une quarantaine de leçons, il fusionne les plus proches.
+4. **Si une leçon révèle un défaut des outils** (page du QG, scripts), le PDG le signale au client et propose la correction ; il ne modifie pas les outils sans son accord.
+5. Le fichier est versionné avec le Bureau : les leçons voyagent avec lui.
+
 ## Circuit de travail
 
 1. **PDG** : cadrage, plan, critères de réussite, puis **audit 1** du plan.
@@ -65,7 +75,8 @@ Toutes les commandes se lancent **depuis la racine du projet de l'utilisateur** 
 2. **Ouvrir le QG :** lancer en arrière-plan `python3 $B/qg_server.py`, qui affiche l'adresse `http://127.0.0.1:PORT/` (premier port libre à partir de 8766), puis l'ouvrir dans le panneau navigateur. Garder aussi en arrière-plan `python3 $B/qg_log.py wait` pour être réveillé quand le client écrit ou répond, et le relancer après chaque réveil.
 3. **Tenir le journal en vrai, au fil de l'eau :** chaque échange réel avec `python3 $B/qg_log.py FROM TO "texte" [ok|ko|deliver|work|-] [étape]`. `work` = activité en cours sans échange. Un audit = `… aud - "…" ok|ko étape`. La remise au client = `… pdg client "…" deliver` : c'est elle qui marque la mission « terminée ». Embauche : `python3 $B/qg_log.py hire ID "Nom" ROLE "raison"`. Ne jamais inventer ni réécrire un échange après coup.
 4. **Livrable :** après chaque version significative (premier jet, correction après audit, version finale), `python3 $B/qg_log.py livrable FICHIER [ROLE] ["libellé"]`. Le client voit le texte et les changements.
-5. **Décisions du client :** quand une décision lui revient vraiment, le PDG la pose avec `python3 $B/qg_log.py ask "Question ?" "Choix A|Choix B"`. Le client répond par des boutons ; la réponse arrive comme `❓ RÉPONSE DU CLIENT` et le travail continue selon son choix.
+5. **Décisions du client :** quand une décision lui revient vraiment, le PDG la pose avec `python3 $B/qg_log.py ask "Question ?" "Choix A|Choix B"`. Le client répond par un bouton ou en texte libre ; la réponse arrive comme `❓ RÉPONSE DU CLIENT` et le travail continue selon son choix. Si un message du client règle déjà la question, la clore : `python3 $B/qg_log.py close N "Réglé par ton message : …"`.
+5 bis. **Une vraie conversation :** le panneau de droite du QG est un fil de discussion entre le client et le PDG. Il n'y apparaît que ce qui est adressé au client (`… pdg client "…"`), ses messages, les questions et les nouvelles versions du rendu. Le PDG y répond à chaque message comme dans une messagerie : phrases courtes, ce qui avance, ce qu'il attend du client. Les échanges internes restent dans les Coulisses.
 6. **Messages du client :** chaque commande affiche les messages non lus (`📨 MESSAGE DU CLIENT n° N`). Pour chacun, **avant toute autre tâche** :
    1. `python3 $B/qg_log.py ack N "…"` : le PDG accuse réception et dit en une phrase ce qu'il va en faire ;
    2. `python3 $B/qg_log.py dispatch N ROLE "…"` pour **chaque** rôle concerné, avec une consigne reformulée pour ce rôle ;

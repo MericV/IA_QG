@@ -3,252 +3,235 @@
 <title>QG du Bureau</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600&family=Manrope:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Bureau isométrique vivant au centre, panneau de pilotage à droite (questions, activité, consignes, indicateurs, fiche agent, kanban), fil des échanges et livrable en bas. Thème clair assumé, comme une maquette d'architecte. */
+/* Trois choses seulement : le bureau qui travaille (à gauche, en haut), le rendu (à gauche, en bas), la conversation avec le PDG (à droite). Écran fixe sur ordinateur, empilé sur téléphone. */
 :root {
-  --bg: #eceff4;
+  --bg: #eef1f5;
   --panel: #ffffff;
-  --line: #dde2ea;
-  --fg: #1a2130;
-  --dim: #6b7587;
+  --line: #dfe4eb;
+  --fg: #19202d;
+  --dim: #677184;
   --accent: #2f5bff;
+  --you: #fff4cc;
   --ok: #1d9e62;
-  --ko: #e0443a;
-  --warn: #b86e00;
+  --ko: #d93b30;
+  --warn: #b26a00;
   --display: "Unbounded", "Arial Black", sans-serif;
   --body: "Manrope", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
   color-scheme: light;
 }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
 body {
-  background: var(--bg); color: var(--fg); font: 14px/1.5 var(--body); margin: 0;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 16px;
+  background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); margin: 0;
+  padding-left: max(12px, env(safe-area-inset-left, 0px));
+  padding-right: max(12px, env(safe-area-inset-right, 0px));
+  padding-block: 12px;
 }
-.app { display: grid; gap: 12px; max-width: 1440px; margin: 0 auto; }
-header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
-h1 { font: 600 18px/1.1 var(--display); letter-spacing: .02em; margin: 0; }
-.topic { color: var(--dim); min-width: 0; flex: 1 1 300px; }
-.topic b { color: var(--fg); font-weight: 600; }
-.badge { font: 500 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); padding: 3px 8px; border-radius: 99px; }
+.app { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 12px; max-width: 1600px; margin: 0 auto; }
+button, select, textarea, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible, canvas:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- Barre du haut ---------- */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.top h1 { font: 600 16px/1 var(--display); margin: 0; letter-spacing: .01em; }
+.topic { font-weight: 700; min-width: 0; flex: 1 1 260px; overflow-wrap: anywhere; }
+.steps { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.steps li { font: 600 12px var(--body); padding: 4px 10px; border-radius: 99px; background: var(--panel); border: 1px solid var(--line); color: var(--dim); white-space: nowrap; }
+.steps li.active { color: var(--warn); border-color: currentColor; }
+.steps li.audit { color: var(--accent); border-color: currentColor; }
+.steps li.ko { color: var(--ko); border-color: currentColor; }
+.steps li.ok { color: #fff; background: var(--ok); border-color: var(--ok); }
+.meta { font: 500 12px var(--mono); color: var(--dim); white-space: nowrap; }
+.badge { font: 600 11px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); padding: 4px 9px; border-radius: 99px; white-space: nowrap; }
 .badge.off { color: var(--ko); background: color-mix(in srgb, var(--ko) 10%, transparent); }
-header a { font: 600 12px var(--body); color: var(--accent); }
+.top a { font-weight: 600; font-size: 13px; color: var(--accent); }
+.replay { display: flex; gap: 4px; align-items: center; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 6px 12px; font-weight: 600; font-size: 13px; }
+.btn:hover { border-color: var(--dim); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; }
-.office { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; position: relative; height: min(66vh, 600px); min-height: 380px; overflow: hidden; min-width: 0; }
+/* ---------- Grille principale ---------- */
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 12px; min-height: 0; }
+.left { display: grid; grid-template-rows: minmax(260px, 1.15fr) minmax(220px, 1fr); gap: 12px; min-height: 0; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; min-width: 0; min-height: 0; }
+
+.office { position: relative; overflow: hidden; }
 canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
-.hint { position: absolute; left: 14px; bottom: 10px; font: 400 11px var(--mono); color: var(--dim); pointer-events: none; }
+.now { position: absolute; left: 12px; bottom: 10px; right: 12px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
+.now span { display: inline-flex; gap: 6px; align-items: center; background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 99px; padding: 4px 10px; font-size: 12px; max-width: 100%; }
+.now span b { font-weight: 700; }
+.now span i { width: 8px; height: 8px; border-radius: 50%; flex: none; animation: pulse 1.2s ease-in-out infinite; }
+.now span em { font-style: normal; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes pulse { 50% { opacity: .3; } }
+.who-card { position: absolute; top: 10px; left: 12px; max-width: min(320px, calc(100% - 24px)); background: rgba(255,255,255,.97); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 13px; box-shadow: 0 6px 20px rgba(20,30,50,.08); }
+.who-card b { display: block; font-size: 14px; }
+.who-card p { margin: 4px 0 0; color: var(--dim); }
+.who-card button { position: absolute; top: 4px; right: 6px; border: 0; background: none; color: var(--dim); font-size: 16px; }
 
-.side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
-.eyebrow { font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); margin: 0 0 8px; }
-.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.stat b { display: block; font: 600 20px var(--display); font-variant-numeric: tabular-nums; }
-.stat span { font-size: 12px; color: var(--dim); }
-.first { font-size: 12px; color: var(--dim); margin: 10px 0 0; }
-.first b { color: var(--fg); font-variant-numeric: tabular-nums; }
-.bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: 10px; }
-.bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .4s; }
-
-.ask { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent); }
-.q { display: grid; gap: 8px; }
-.q + .q { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
-.q p { margin: 0; font-weight: 600; }
-.q .opts { display: flex; flex-wrap: wrap; gap: 6px; }
-.q .opt { background: var(--accent); border-color: var(--accent); color: #fff; }
-.q .done { font-size: 13px; color: var(--ok); }
-.q .wait { font-size: 13px; color: var(--dim); }
-
-.agent-head { display: flex; align-items: center; gap: 10px; }
-.dot { width: 26px; height: 26px; border-radius: 50%; flex: none; box-shadow: inset 0 -4px 0 rgba(0,0,0,.15); }
-.agent-head b { font: 600 14px var(--display); }
-.pill { margin-left: auto; font: 500 11px var(--mono); padding: 2px 8px; border-radius: 99px; background: var(--bg); color: var(--dim); white-space: nowrap; }
-.pill.move { color: var(--warn); } .pill.talk { color: var(--accent); }
-#agentPick { width: 100%; margin: 0 0 10px; }
-dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 10px 0 0; font-size: 12px; }
-dt { font: 500 10px/1.9 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
-dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-
-.kanban { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-.col h3 { font: 500 9px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 0 0 6px; }
-.col h3 span { color: var(--fg); }
-.kcard { background: var(--bg); border-radius: 6px; padding: 5px 6px; font-size: 11px; font-weight: 600; margin-bottom: 4px; border-left: 3px solid var(--line); overflow-wrap: anywhere; }
-.kcard.active { border-color: var(--warn); } .kcard.audit { border-color: var(--accent); } .kcard.ok { border-color: var(--ok); }
-.kcard small { display: block; font: 500 9px var(--mono); color: var(--dim); }
-.kcard small.ko { color: var(--ko); }
-
-.bottom { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; }
-#feed { list-style: none; margin: 0; padding: 0; max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-#feed li { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 10px; font-size: 14px; }
-#feed li i { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; }
-#feed li.work .msg { color: var(--dim); font-style: italic; }
-#feed li.client { background: color-mix(in srgb, #f2c230 14%, transparent); border-radius: 8px; padding: 6px 8px; }
-#feed li.question { background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 8px; padding: 6px 8px; }
-.who { font: 500 11px var(--mono); color: var(--dim); }
-li.ok .who { color: var(--ok); } li.ko .who { color: var(--ko); }
-#chat { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
-#chat input { flex: 1 1 220px; min-width: 0; font: 500 14px var(--body); padding: 9px 12px; border: 1px solid var(--line); border-radius: 99px; background: var(--bg); color: var(--fg); }
-#chat input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-#chat .send { background: var(--accent); border-color: var(--accent); color: #fff; }
-
-#now { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
-#now li { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 8px; }
-#now li i { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; animation: pulse 1.2s ease-in-out infinite; }
-#now b { font-weight: 600; }
-@keyframes pulse { 50% { opacity: .35; } }
-#cons { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; max-height: 260px; overflow-y: auto; }
-#cons li { font-size: 13px; border-left: 3px solid var(--line); padding-left: 10px; }
-#cons li.reçu { border-color: var(--warn); } #cons li.lu, #cons li.transmis { border-color: var(--accent); } #cons li.appliqué { border-color: var(--ok); }
-#cons .head { display: flex; gap: 8px; align-items: baseline; }
-#cons .num { font: 500 11px var(--mono); color: var(--dim); }
-#cons .st { margin-left: auto; font: 500 10px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--dim); white-space: nowrap; }
-#cons .roles { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-#cons .chip { font: 500 10px var(--mono); padding: 2px 7px; border-radius: 99px; background: var(--bg); display: inline-flex; gap: 5px; align-items: center; }
-#cons .chip i { width: 7px; height: 7px; border-radius: 50%; }
-#cons .chip.done { color: var(--ok); }
-
-.liv-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
-.liv-head .eyebrow { margin: 0; }
-#livPick { flex: 1 1 260px; min-width: 0; }
-.seg { display: inline-flex; gap: 4px; }
-.seg button[aria-pressed="true"] { background: var(--fg); border-color: var(--fg); color: #fff; }
-#livView { margin: 0; max-height: 440px; overflow: auto; background: var(--bg); border-radius: 10px; padding: 12px 14px; font: 12px/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* ---------- Rendu / Coulisses ---------- */
+.work { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.tabs { display: flex; gap: 4px; padding: 10px 12px 0; border-bottom: 1px solid var(--line); }
+.tabs button { border: 0; background: none; padding: 8px 12px 10px; font-weight: 700; font-size: 14px; color: var(--dim); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-color: var(--fg); }
+.tabs .dotnew { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); margin-left: 6px; vertical-align: middle; }
+.pane { min-height: 0; overflow: auto; padding: 14px 16px; }
+.rendu-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.rendu-head select { flex: 1 1 220px; min-width: 0; border: 1px solid var(--line); border-radius: 99px; padding: 6px 10px; background: var(--panel); font-size: 13px; }
+.seg { display: inline-flex; gap: 2px; background: var(--bg); border-radius: 99px; padding: 2px; }
+.seg button { border: 0; background: none; border-radius: 99px; padding: 5px 11px; font-weight: 600; font-size: 13px; color: var(--dim); }
+.seg button[aria-pressed="true"] { background: var(--panel); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.count { font: 500 12px var(--mono); color: var(--dim); }
+#livView { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 15px/1.65 var(--body); }
+#livView.diff { font: 13px/1.6 var(--mono); }
 #livView .add { color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); display: block; }
 #livView .del { color: var(--ko); background: color-mix(in srgb, var(--ko) 8%, transparent); display: block; text-decoration: line-through; }
 #livView .hunk { color: var(--dim); display: block; margin-top: 8px; }
+.empty { color: var(--dim); }
+.empty b { color: var(--fg); }
+#feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+#feed li { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 10px; font-size: 14px; }
+#feed li i { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; }
+#feed .who { font: 500 11px var(--mono); color: var(--dim); }
+#feed li.ok .who { color: var(--ok); } #feed li.ko .who { color: var(--ko); }
+#feed li.work .msg { color: var(--dim); font-style: italic; }
 
-.empty { color: var(--dim); font-style: italic; display: block !important; }
-.controls { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
-button, select { font: 600 12px var(--body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 99px; padding: 8px 14px; cursor: pointer; }
-button:hover, select:hover { border-color: var(--dim); }
-button:disabled { opacity: .5; cursor: default; }
-button:focus-visible, select:focus-visible, canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-#play { background: var(--accent); border-color: var(--accent); color: #fff; min-width: 100px; }
-.note { color: var(--dim); font-size: 12px; margin: 8px 0 0; width: 100%; }
+/* ---------- Conversation avec le PDG ---------- */
+.chat { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
+.chat-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.chat-head .av { width: 34px; height: 34px; border-radius: 50%; background: #2f5bff; color: #fff; display: grid; place-items: center; font: 600 12px var(--display); }
+.chat-head b { display: block; font-size: 15px; }
+.chat-head span { font-size: 12px; color: var(--dim); }
+.chat-head .wait { margin-left: auto; font: 600 11px var(--mono); color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); padding: 4px 9px; border-radius: 99px; white-space: nowrap; }
+#msgs { list-style: none; margin: 0; padding: 14px 14px 6px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.m { max-width: 88%; display: grid; gap: 4px; }
+.m .bubble { padding: 9px 12px; border-radius: 14px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14.5px; }
+.m .by { font: 500 11px var(--mono); color: var(--dim); }
+.m.them { align-self: flex-start; }
+.m.them .bubble { background: var(--bg); border-top-left-radius: 4px; }
+.m.you { align-self: flex-end; justify-items: end; }
+.m.you .bubble { background: var(--you); border-top-right-radius: 4px; }
+.m .status { font-size: 12px; color: var(--dim); }
+.m .status.done { color: var(--ok); }
+.m .more { border: 0; background: none; color: var(--accent); font-weight: 600; font-size: 13px; padding: 0; justify-self: start; }
+.m.deliver .bubble { background: color-mix(in srgb, var(--ok) 12%, transparent); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
+.m.note { align-self: center; max-width: 100%; }
+.m.note button { border: 1px dashed var(--line); background: var(--panel); border-radius: 99px; padding: 5px 12px; font-size: 13px; color: var(--dim); }
+.m.note button:hover { color: var(--fg); border-color: var(--dim); }
+.q { background: var(--panel); border: 1.5px solid var(--accent); border-radius: 14px; padding: 12px; display: grid; gap: 8px; }
+.q p { margin: 0; font-weight: 700; }
+.q .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.q .opt { border: 0; background: var(--accent); color: #fff; border-radius: 99px; padding: 7px 13px; font-weight: 600; font-size: 13px; text-align: left; }
+.q .opt:disabled, .q .free button:disabled { opacity: .5; cursor: default; }
+.q .free { display: flex; gap: 6px; }
+.q .free input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 99px; padding: 7px 12px; font-size: 13px; }
+.q .free button { border: 1px solid var(--accent); background: none; color: var(--accent); border-radius: 99px; padding: 6px 12px; font-weight: 600; font-size: 13px; }
+.q .done { color: var(--ok); font-weight: 600; font-size: 14px; }
+.q .closed { color: var(--dim); font-size: 13px; }
+.q.settled { border-color: var(--line); }
+form#chat { border-top: 1px solid var(--line); padding: 10px 12px 12px; display: grid; gap: 6px; }
+form#chat .row { display: flex; gap: 8px; align-items: flex-end; }
+form#chat textarea { flex: 1; min-width: 0; resize: none; border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: var(--bg); max-height: 160px; font-size: 14.5px; line-height: 1.45; }
+form#chat button { border: 0; background: var(--accent); color: #fff; border-radius: 12px; padding: 10px 14px; font-weight: 700; }
+form#chat .hint { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); }
+.note-line { font-size: 12px; color: var(--ko); min-height: 0; }
 
-@media (max-width: 900px) {
-  .main, .bottom { grid-template-columns: minmax(0, 1fr); }
-  .office { height: 400px; min-height: 0; }
+@media (max-width: 960px) {
+  html, body { height: auto; }
+  .app { height: auto; }
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .left { grid-template-rows: 340px auto; }
+  .work .pane { max-height: 60vh; }
+  .chat { height: 75vh; }
 }
-@media (prefers-reduced-motion: reduce) { #now li i { animation: none; } .bar i { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .now span i { animation: none; } }
 </style>
 
 <div class="app">
-  <header>
+  <header class="top">
     <h1>QG du Bureau</h1>
-    <div class="topic">Mission : <b id="topic"></b></div>
+    <div class="topic" id="topic"></div>
+    <ol class="steps" id="steps" aria-label="Étapes de la mission"></ol>
+    <span class="meta" id="meta"></span>
     <span class="badge" id="label"></span>
-    <a id="history" href="missions/" hidden>Historique des missions</a>
+    <a id="history" href="missions/" hidden>Missions passées</a>
+    <div class="replay" id="replay">
+      <button class="btn primary" id="play" type="button">▶ Lecture</button>
+      <button class="btn" id="reset" type="button">↺</button>
+      <select class="btn" id="speed" aria-label="Vitesse"><option value="1">×1</option><option value="2" selected>×2</option><option value="4">×4</option></select>
+    </div>
   </header>
 
-  <div class="main">
-    <div class="office">
-      <canvas id="office" tabindex="0" role="img" aria-label="Bureau en vue isométrique : chaque rôle est un petit robot qui se déplace pour échanger avec les autres. Le fil des échanges reprend tout ce qui s'y passe."></canvas>
-      <div class="hint">Clique sur un agent, ou choisis-le dans la fiche agent</div>
-    </div>
-    <div class="side">
-      <section class="card ask" id="askCard" hidden>
-        <p class="eyebrow">Le PDG te demande</p>
-        <div id="asks"></div>
-      </section>
-      <section class="card">
-        <p class="eyebrow">En ce moment</p>
-        <ul id="now"><li class="empty">Personne n'est en train de travailler.</li></ul>
-      </section>
-      <section class="card" id="consCard" hidden>
-        <p class="eyebrow">Tes consignes</p>
-        <ol id="cons"></ol>
-      </section>
-      <section class="card">
-        <p class="eyebrow">Vue d'ensemble</p>
-        <div class="stats">
-          <div class="stat"><b id="sAgents">0</b><span>agents mobilisés</span></div>
-          <div class="stat"><b id="sMsgs">0 / 0</b><span>échanges</span></div>
-          <div class="stat"><b id="sKo">0</b><span>renvois en correction</span></div>
-          <div class="stat"><b id="sDur">—</b><span>durée de la mission</span></div>
-        </div>
-        <p class="first">Audits validés du premier coup : <b id="sFirst">—</b></p>
-        <div class="bar"><i id="progress"></i></div>
-      </section>
-      <section class="card">
-        <p class="eyebrow">Fiche agent</p>
-        <select id="agentPick" aria-label="Choisir l'agent à afficher"></select>
-        <div class="agent-head"><span class="dot" id="aDot"></span><b id="aName"></b><span class="pill" id="aStatus"></span></div>
-        <dl>
-          <dt>Rôle</dt><dd id="aRole"></dd>
-          <dt>Échanges</dt><dd id="aCount"></dd>
-          <dt>Dernier mot</dt><dd id="aLast"></dd>
-        </dl>
-      </section>
-      <section class="card">
-        <p class="eyebrow">Tableau de mission</p>
-        <div class="kanban" id="kanban"></div>
-      </section>
-    </div>
-  </div>
-
-  <div class="bottom">
-    <section class="card">
-      <p class="eyebrow">Fil des échanges</p>
-      <form id="chat" hidden>
-        <input id="chatText" type="text" maxlength="1000" autocomplete="off" placeholder="Écris au PDG : une info, une consigne, une correction…" aria-label="Message au PDG">
-        <button class="send" type="submit">Envoyer au PDG</button>
-      </form>
-      <ol id="feed"></ol>
-    </section>
-    <section class="card controls">
-      <button id="play" type="button">▶ Lecture</button>
-      <button id="next" type="button">Étape +1</button>
-      <button id="reset" type="button">↺ Recommencer</button>
-      <select id="speed" aria-label="Vitesse de lecture"><option value="1">×1</option><option value="2" selected>×2</option><option value="4">×4</option></select>
-      <p class="note" id="note"></p>
-    </section>
-  </div>
-
-  <section class="card" id="livCard" hidden>
-    <div class="liv-head">
-      <p class="eyebrow">Livrable</p>
-      <select id="livPick" aria-label="Version du livrable"></select>
-      <div class="seg" role="group" aria-label="Affichage">
-        <button id="livText" type="button" aria-pressed="true">Texte</button>
-        <button id="livDiff" type="button" aria-pressed="false">Changements</button>
+  <main class="grid">
+    <section class="left">
+      <div class="card office">
+        <canvas id="office" tabindex="0" role="img" aria-label="Le bureau : chaque rôle est un petit robot qui se déplace pour échanger. Les échanges détaillés sont dans l'onglet Coulisses."></canvas>
+        <div class="who-card" id="whoCard" hidden><button type="button" id="whoClose" aria-label="Fermer">×</button><b id="whoName"></b><p id="whoRole"></p><p id="whoLast"></p></div>
+        <div class="now" id="now"></div>
       </div>
-    </div>
-    <pre id="livView"></pre>
-  </section>
+      <div class="card work">
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tabRendu" aria-selected="true" aria-controls="paneRendu" type="button">Rendu</button>
+          <button role="tab" id="tabCoulisses" aria-selected="false" aria-controls="paneCoulisses" type="button">Coulisses</button>
+        </div>
+        <div class="pane" id="paneRendu" role="tabpanel">
+          <div class="rendu-head" id="renduHead" hidden>
+            <select id="livPick" aria-label="Version du rendu"></select>
+            <div class="seg" role="group" aria-label="Affichage">
+              <button id="livText" type="button" aria-pressed="true">Texte</button>
+              <button id="livDiff" type="button" aria-pressed="false">Changements</button>
+            </div>
+            <button class="btn" id="copy" type="button">Copier</button>
+            <span class="count" id="count"></span>
+          </div>
+          <pre id="livView"><span class="empty"><b>Le rendu apparaîtra ici.</b> Dès que l'Écrivain a une première version, elle s'affiche dans cet onglet, puis chaque correction après audit.</span></pre>
+        </div>
+        <div class="pane" id="paneCoulisses" role="tabpanel" hidden>
+          <ol id="feed"></ol>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card chat" aria-label="Conversation avec le PDG">
+      <div class="chat-head">
+        <div class="av" aria-hidden="true">PDG</div>
+        <div><b>Le PDG</b><span>Ton interlocuteur : il répond et répartit le travail</span></div>
+        <span class="wait" id="waitPill" hidden></span>
+      </div>
+      <ol id="msgs" aria-live="polite"></ol>
+      <form id="chat" hidden>
+        <div class="row">
+          <textarea id="chatText" rows="2" maxlength="4000" placeholder="Écris au PDG…" aria-label="Message au PDG"></textarea>
+          <button type="submit">Envoyer</button>
+        </div>
+        <div class="hint"><span>Entrée pour envoyer · Maj + Entrée pour aller à la ligne</span><span id="chatCount">0 / 4000</span></div>
+        <div class="note-line" id="note"></div>
+      </form>
+    </aside>
+  </main>
 </div>
 
 <!-- Journal de session : remplacé par qg_log.py export pour rejouer une vraie mission. -->
 <script id="session" type="application/json">
 {
   "mission": "exemple",
-  "topic": "Synthèse d'une page : ITIL 4 et COBIT 2019, quelles différences ?",
+  "topic": "Exemple : synthèse d'une page sur ITIL 4 et COBIT 2019",
   "label": "Session d'exemple",
-  "note": "Session d'exemple pour montrer le fonctionnement. Les échanges sont illustratifs.",
   "events": [
     {"from":"client","to":"pdg","text":"Une synthèse d'une page qui compare ITIL 4 et COBIT 2019.","stage":"cadrage"},
-    {"from":"pdg","to":"aud","text":"Plan : 1) définitions, 2) objectifs, 3) complémentarité. Une page, sources officielles uniquement."},
-    {"from":"aud","type":"ok","text":"Audit 1 : le plan couvre la demande, les critères sont mesurables.","stage":"cadrage"},
-    {"from":"pdg","to":"bib","text":"Trouve les publications officielles des deux référentiels.","stage":"sources"},
-    {"from":"bib","to":"pdg","text":"ITIL 4 : éditeur AXELOS (PeopleCert). COBIT 2019 : éditeur ISACA. Deux sources primaires."},
-    {"from":"aud","type":"ok","text":"Audit 2 : sources primaires, éditeurs officiels, fiabilité validée.","stage":"sources"},
-    {"from":"pdg","to":["ecr","avo"],"text":"Écrivain : rédige les 3 sections. Avocat du diable : relis la section 3.","stage":"redaction"},
-    {"from":"ecr","to":"avo","text":"Section 3 : « COBIT gouverne, ITIL exécute ». Trop simpliste ?"},
-    {"from":"avo","to":"ecr","text":"Oui. COBIT couvre aussi la gestion, pas seulement la gouvernance. Il faut nuancer."},
-    {"from":"ecr","to":"aud","text":"Sections prêtes. J'ai ajouté « 80 % des grandes entreprises utilisent ITIL »."},
-    {"from":"aud","type":"ko","text":"Audit 3 rejeté : le chiffre de 80 % n'a aucune source.","stage":"redaction"},
-    {"from":"aud","to":"bib","text":"Cherche une source fiable pour ce chiffre."},
-    {"from":"bib","to":"aud","text":"Aucune source fiable trouvée. Je propose de retirer le chiffre."},
-    {"from":"aud","to":"ecr","text":"Retire le chiffre et garde une formulation qualitative."},
-    {"from":"ecr","to":"aud","text":"Corrigé : « ITIL est un référentiel largement adopté », sans chiffre."},
-    {"from":"aud","type":"ok","text":"Audit 3 validé : chaque affirmation est sourcée.","stage":"redaction"},
-    {"from":"pdg","to":"cor","text":"Passe sur la forme : orthographe, ton, mise en page.","stage":"forme"},
-    {"from":"cor","to":"pdg","text":"Neuf corrections, ton harmonisé, tient sur une page."},
-    {"from":"aud","type":"ok","text":"Audit de forme validé.","stage":"forme"},
-    {"from":"aud","type":"ok","text":"Audit final : les 5 règles sont respectées. Aucune zone non vérifiée.","stage":"audit-final"},
-    {"from":"pdg","to":"client","type":"deliver","text":"Livrable remis, avec ses 2 sources.","stage":"audit-final"}
+    {"from":"pdg","to":"client","text":"Bien reçu. Le Bibliothécaire cherche les sources officielles, je te tiens au courant ici."},
+    {"from":"aud","type":"ok","text":"Audit 1 : le plan couvre la demande.","stage":"cadrage"},
+    {"from":"bib","to":"pdg","text":"ITIL 4 : éditeur AXELOS (PeopleCert). COBIT 2019 : éditeur ISACA.","stage":"sources"},
+    {"from":"aud","type":"ok","text":"Audit 2 : sources primaires validées.","stage":"sources"},
+    {"from":"ecr","to":"aud","text":"Premier jet prêt.","stage":"redaction"},
+    {"from":"aud","type":"ko","text":"Rejeté : un chiffre sans source.","stage":"redaction"},
+    {"from":"ecr","to":"aud","text":"Chiffre retiré, formulation qualitative."},
+    {"from":"aud","type":"ok","text":"Audit 3 validé.","stage":"redaction"},
+    {"from":"pdg","to":"client","type":"deliver","text":"Voici ta synthèse, validée par l'Auditeur.","stage":"audit-final"}
   ]
 }
 </script>
@@ -261,6 +244,8 @@ const $ = id => document.getElementById(id);
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
 const slug = s => String(s).normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+const tos = e => e.to ? [].concat(e.to) : [];
 
 const DEFAULT_STAGES = ['Cadrage', 'Sources', 'Rédaction', 'Forme', 'Audit final'].map(n => ({id: slug(n), name: n}));
 function normalize(s) {
@@ -271,16 +256,15 @@ function normalize(s) {
 let S = normalize(JSON.parse($('session').textContent));
 const stageId = x => (S.stages.find(s => s.id === x || s.name === x || s.id === slug(x)) || {}).id;
 
-// Rôles : couleur, poste (coordonnées du sol isométrique), mission.
-// Objets sans prototype : un identifiant comme « constructor » ne peut pas tomber sur une propriété héritée.
+// Rôles : objets sans prototype, pour qu'un identifiant comme « constructor » ne tombe pas sur une propriété héritée.
 const dict = o => Object.assign(Object.create(null), o);
 const ROLES = dict({
   pdg:    {name: 'PDG', color: '#2f5bff', home: [8.2, 4.2], role: 'Cadre la demande, répartit le travail, tranche, valide.'},
-  aud:    {name: 'Auditeur', color: '#e0443a', home: [11.6, 8.9], role: 'Contrôle chaque étape. Zéro invention, tout est sourcé.'},
+  aud:    {name: 'Auditeur', color: '#d93b30', home: [11.6, 8.9], role: 'Contrôle chaque étape. Zéro invention, tout est sourcé.'},
   bib:    {name: 'Bibliothécaire', color: '#f08a24', home: [2.1, 3.4], role: 'Cherche, vérifie et cite les sources.'},
   ecr:    {name: 'Écrivain', color: '#7b4cf0', home: [6.1, 9.5], role: 'Rédige à partir des informations validées.'},
   cor:    {name: 'Correcteur', color: '#1d9e62', home: [11.9, 1.9], role: 'Orthographe, style, clarté, mise en forme.'},
-  client: {name: 'Toi', color: '#f2c230', home: [13.1, 6.0], role: 'Le client : passe commande et reçoit le livrable.'},
+  client: {name: 'Toi', color: '#f2c230', home: [13.1, 6.0], role: 'Le client : passe commande et reçoit le rendu.'},
   ana:    {name: 'Analyste', color: '#14a3b8', home: [1.0, 8.3], role: 'Chiffres, tableaux, comparaisons.'},
   str:    {name: 'Stratège', color: '#d6409f', home: [2.2, 8.0], role: 'Recommandations, SWOT, décisions.'},
   avo:    {name: 'Avocat du diable', color: '#8a5a2b', home: [3.4, 8.3], role: 'Attaque les idées pour en trouver les failles.'},
@@ -290,7 +274,7 @@ const ROLES = dict({
   cdp:    {name: 'Chef de projet', color: '#7cb342', home: [1.0, 10.6], role: 'Planning, échéances, coordination.'},
 });
 const CORE = ['pdg', 'aud', 'bib', 'ecr', 'cor', 'client'];
-const COLS = [['todo', 'À faire'], ['active', 'En cours'], ['audit', 'En audit'], ['ok', 'Validé']];
+const nameOf = id => (ROLES[id] || {name: id}).name;
 
 // ---------- Projection isométrique ----------
 const cv = $('office'), ctx = cv.getContext('2d');
@@ -300,9 +284,9 @@ const P = (x, y, z = 0) => [ox + (x - y) * tw / 2, oy + (x + y) * tw / 4 - z * t
 function layout() {
   const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  tw = Math.min(W * .94 / ((GX + GY) / 2), H * .9 / ((GX + GY) / 4 + WH / 2));
+  tw = Math.min(W * .94 / ((GX + GY) / 2), H * .86 / ((GX + GY) / 4 + WH / 2));
   ox = W / 2 - (GX - GY) * tw / 4;
-  oy = (H - ((GX + GY) * tw / 4 + WH * tw / 2)) / 2 + WH * tw / 2;
+  oy = (H - ((GX + GY) * tw / 4 + WH * tw / 2)) / 2 + WH * tw / 2 - 10;
 }
 new ResizeObserver(layout).observe(cv);
 const FONT = getComputedStyle(document.documentElement).getPropertyValue('--body');
@@ -311,10 +295,7 @@ function shade(hex, k) {
   const n = parseInt(hex.slice(1), 16), f = c => Math.max(0, Math.min(255, Math.round(c * (1 + k))));
   return `rgb(${f(n >> 16)},${f(n >> 8 & 255)},${f(n & 255)})`;
 }
-function poly(pts, fill) {
-  ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
-  ctx.fillStyle = fill; ctx.fill();
-}
+function poly(pts, fill) { ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fillStyle = fill; ctx.fill(); }
 function box(x, y, w, d, h, col, z = 0) {
   poly([P(x, y + d, z), P(x + w, y + d, z), P(x + w, y + d, z + h), P(x, y + d, z + h)], shade(col, -.12));
   poly([P(x + w, y, z), P(x + w, y + d, z), P(x + w, y + d, z + h), P(x + w, y, z + h)], shade(col, -.24));
@@ -323,19 +304,61 @@ function box(x, y, w, d, h, col, z = 0) {
 const wallQuad = (x0, x1, z0, z1, fill) => poly([P(x0, .02, z0), P(x1, .02, z0), P(x1, .02, z1), P(x0, .02, z1)], fill);
 const leftQuad = (y0, y1, z0, z1, fill) => poly([P(.02, y0, z0), P(.02, y1, z0), P(.02, y1, z1), P(.02, y0, z1)], fill);
 
-// Mobilier : profondeur pour l'ordre de dessin, et emprise au sol pour que les robots le contournent.
-const WOOD = '#b98a5e', WHITE = '#f4f6f9', STEEL = '#c3cad4', DARK = '#2b3342';
+// Mobilier : bois clair, pieds fins, écrans allumés, plantes. Chaque meuble projette une ombre douce au sol.
+const OAK = '#dcb98f', WHITE = '#f6f7fa', STEEL = '#c9d0da', DARK = '#26303f', GLOW = '#8fc1ff';
+const floorShadow = (x, y, w, d) => poly([P(x + .1, y + .1), P(x + w + .25, y + .1), P(x + w + .25, y + d + .25), P(x + .1, y + d + .25)], 'rgba(80,55,30,.09)');
+function desk(x, y, w, d, top) {
+  floorShadow(x, y, w, d);
+  for (const [lx, ly] of [[x + .06, y + .06], [x + w - .14, y + .06], [x + .06, y + d - .14], [x + w - .14, y + d - .14]]) box(lx, ly, .08, .08, .62, '#9aa3b0');
+  box(x, y, w, d, .08, top, .62);
+}
+function monitor(x, y, w, z) {
+  box(x + w / 2 - .05, y + .02, .1, .06, .18, '#9aa3b0', z);
+  box(x, y, w, .07, .48, DARK, z + .18);
+  poly([P(x + .05, y + .075, z + .23), P(x + w - .05, y + .075, z + .23), P(x + w - .05, y + .075, z + .61), P(x + .05, y + .075, z + .61)], GLOW);
+}
+function plant(x, y, k = 1) {
+  floorShadow(x, y, .45, .45);
+  box(x, y, .45, .45, .38, '#efe9e1');
+  const [cx, cy] = P(x + .22, y + .22, .38), r = tw * .2 * k;
+  for (const [dx, dy, rr, c] of [[0, -.9, 1, '#3f9a5a'], [-.7, -.4, .8, '#4fb36a'], [.7, -.5, .8, '#358a4d'], [0, -1.6, .75, '#5cc178']]) {
+    ctx.fillStyle = c; ctx.beginPath(); ctx.arc(cx + dx * r, cy + dy * r, rr * r, 0, 7); ctx.fill();
+  }
+}
+const BOOKS = ['#e0443a', '#2f5bff', '#1d9e62', '#f08a24', '#7b4cf0', '#f2c230', '#14a3b8', '#d6409f'];
 const furniture = [
-  {d: 4, draw: () => { box(.1, 1.2, .8, 4.2, 2.4, '#d9c3a5'); [[1.4, '#e0443a'], [2.0, '#2f5bff'], [2.6, '#1d9e62'], [3.2, '#f08a24'], [3.8, '#7b4cf0'], [4.4, '#f2c230']].forEach(([y, c], i) => box(.85, y, .12, .45, .55, c, .25 + (i % 3) * .7)); }},
-  {d: 13.3, draw: () => { box(7, 5, 2.8, 1.3, .75, WOOD); box(7.5, 5.15, 1.6, .12, .7, DARK, .75); box(9.25, 5.3, .35, .35, .25, '#f4f6f9', .75); }},
-  {d: 13.5, draw: () => { box(12.6, .5, .6, .6, .5, '#dfe3ea'); box(12.7, .6, .4, .4, .7, '#3f9a5a', .5); }},
-  {d: 14.3, draw: () => { box(5.2, 7.9, 1.9, 1.1, .7, WHITE); box(5.5, 8.05, .9, .6, .06, '#fffbe8', .7); box(5.6, 8.1, .9, .6, .06, '#fff3c4', .76); }},
-  {d: 6.3, draw: () => { box(11, 2.6, 1.8, 1, .7, WHITE); box(11.4, 2.75, .9, .1, .5, DARK, .7); }},
-  {d: 17.5, draw: () => { const c = gateColor(); box(10.6, 7.6, .3, .45, 1.9, STEEL); box(12.3, 7.6, .3, .45, 1.9, STEEL); box(10.6, 7.6, 2, .45, .22, c, 1.9); }},
-  {d: 11.9, draw: () => { box(1.2, 9.0, 2.6, 1.3, .65, '#e6e9ef'); }},
-  {d: 0, draw: () => poly([P(12.4, 5.3), P(13.8, 5.3), P(13.8, 6.7), P(12.4, 6.7)], '#fbe9a8')},
+  // Bibliothèque : cadre, trois étagères, livres de hauteurs variées
+  {d: 4, draw: () => {
+    floorShadow(.1, 1.2, .8, 4.2);
+    box(.1, 1.2, .8, 4.2, 2.4, '#e2cba8');
+    // les étagères d'abord, puis les livres posés dessus (sinon les planches les recouvrent)
+    [.12, .87, 1.62].forEach(z => box(.1, 1.2, .86, 4.2, .05, '#cdb38c', z - .05));
+    [.12, .87, 1.62].forEach((z, row) => {
+      let y = 1.32;
+      for (let i = 0; y < 5.2; i++) { const t = .16 + ((i * 7 + row * 3) % 4) * .04, h = .45 + ((i * 5 + row) % 3) * .1; box(.74, y, .22, t, h, BOOKS[(i + row * 3) % BOOKS.length], z); y += t + .03; }
+    });
+  }},
+  // Bureau du PDG : grand plateau en chêne, deux écrans
+  {d: 13.3, draw: () => { desk(7, 5, 2.8, 1.3, OAK); monitor(7.35, 5.2, .95, .7); monitor(8.45, 5.2, .95, .7); box(9.35, 5.75, .3, .22, .04, '#f2c230', .7); }},
+  {d: 2.4, draw: () => plant(12.65, .55, 1.15)},
+  {d: 1.3, draw: () => plant(.45, .45, 1)},
+  // Poste de l'Écrivain : bureau blanc, écran, feuilles
+  {d: 14.3, draw: () => { desk(5.2, 7.9, 1.9, 1.1, WHITE); monitor(5.45, 8.0, .8, .7); box(6.4, 8.35, .5, .38, .05, '#fffaf0', .7); box(6.45, 8.4, .5, .38, .05, '#fff1c9', .75); }},
+  // Poste du Correcteur
+  {d: 6.3, draw: () => { desk(11, 2.6, 1.8, 1, WHITE); monitor(11.35, 2.7, .9, .7); }},
+  // Portique d'audit : deux montants, bandeau lumineux, faisceau au sol à la couleur du dernier audit
+  {d: 17.5, draw: () => {
+    const c = gateColor();
+    ctx.globalAlpha = .28; poly([P(10.9, 7.62), P(12.3, 7.62), P(12.3, 8.03), P(10.9, 8.03)], c); ctx.globalAlpha = 1;
+    floorShadow(10.6, 7.6, 2, .45);
+    box(10.6, 7.6, .3, .45, 1.9, STEEL); box(12.3, 7.6, .3, .45, 1.9, STEEL);
+    box(10.6, 7.6, 2, .45, .26, '#e9edf2', 1.9); box(10.62, 8.02, 1.96, .02, .1, c, 1.98);
+  }},
+  // Coin réunion : tapis et table ronde-ish des spécialistes
+  {d: 11.9, draw: () => { floorShadow(1.2, 9, 2.6, 1.3); box(1.25, 9.05, 2.5, 1.2, .62, '#a9b3c2'); box(1.2, 9.0, 2.6, 1.3, .06, '#f6f7fa', .62); }},
+  {d: 2.2, draw: () => plant(13.2, 10.9, .9)},
 ];
-const BLOCKS = [[.1, 1.2, .8, 4.2], [7, 5, 2.8, 1.3], [12.6, .5, .6, .6], [5.2, 7.9, 1.9, 1.1], [11, 2.6, 1.8, 1], [10.6, 7.6, .3, .45], [12.3, 7.6, .3, .45], [1.2, 9, 2.6, 1.3]];
+const BLOCKS = [[.1, 1.2, .8, 4.2], [7, 5, 2.8, 1.3], [12.6, .5, .6, .6], [5.2, 7.9, 1.9, 1.1], [11, 2.6, 1.8, 1], [10.6, 7.6, .3, .45], [12.3, 7.6, .3, .45], [1.2, 9, 2.6, 1.3], [.4, .4, .5, .5], [13.15, 10.85, .5, .5]];
 const HUBS = [[6.4, 6.9], [10, 6.9], [4.6, 6], [9.9, 3.9], [4.5, 3.5], [10.2, 9.8], [5, 10.9], [12.8, 4.2]];
 const blocked = (x, y) => x < .3 || y < .3 || x > GX - .3 || y > GY - .3 || BLOCKS.some(([bx, by, w, d]) => x > bx - .3 && x < bx + w + .3 && y > by - .3 && y < by + d + .3);
 const clear = (a, b) => { for (let i = 1; i <= 24; i++) { const t = i / 24; if (blocked(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)) return false; } return true; };
@@ -352,25 +375,54 @@ function meetPoint(B) {
   }
   return [B.home[0] + .9, B.home[1] + .7];
 }
-
 let gate = {state: null, t: -1e9};
 function gateColor() { if (!gate.state) return '#9aa3b2'; const fresh = performance.now() - gate.t < 2500; return gate.state === 'ok' ? (fresh ? '#1d9e62' : '#7cc9a3') : (fresh ? '#e0443a' : '#ef9b94'); }
 
+// Texte posé à plat sur le mur du fond (plan y = 0) : la police suit la perspective.
+function wallText(text, x, z, size, color, weight = 600) {
+  const [px, py] = P(x, 0.03, z), k = 40;
+  ctx.save(); ctx.transform(tw / 2 / k, tw / 4 / k, 0, tw / 2 / k, px, py);
+  ctx.font = `${weight} ${size}px ${getComputedStyle(document.documentElement).getPropertyValue('--display')}`;
+  ctx.fillStyle = color; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(text, 0, 0); ctx.restore();
+}
 function drawRoom() {
-  poly([P(0, 0), P(GX, 0), P(GX, GY), P(0, GY)], '#f7f8fb');
-  ctx.strokeStyle = '#eceff4'; ctx.lineWidth = 1;
-  for (let i = 1; i < GX; i++) { ctx.beginPath(); ctx.moveTo(...P(i, 0)); ctx.lineTo(...P(i, GY)); ctx.stroke(); }
-  for (let j = 1; j < GY; j++) { ctx.beginPath(); ctx.moveTo(...P(0, j)); ctx.lineTo(...P(GX, j)); ctx.stroke(); }
-  poly([P(0, 0), P(0, GY), P(0, GY, WH), P(0, 0, WH)], '#e4e8ef');
-  poly([P(0, 0), P(GX, 0), P(GX, 0, WH), P(0, 0, WH)], '#d9dfe8');
-  leftQuad(6.2, 9.4, 1.1, 2.6, '#ffffff');
-  // Mur kanban : reflète l'état réel de la mission
+  // Parquet de chêne clair : lames et joints décalés
+  poly([P(0, 0), P(GX, 0), P(GX, GY), P(0, GY)], '#f2e6d6');
+  ctx.strokeStyle = 'rgba(150,110,70,.13)'; ctx.lineWidth = 1;
+  for (let j = .55, row = 0; j < GY; j += .55, row++) {
+    ctx.beginPath(); ctx.moveTo(...P(0, j)); ctx.lineTo(...P(GX, j)); ctx.stroke();
+    for (let x = row % 2 ? 1.6 : .5; x < GX; x += 3.1) { ctx.beginPath(); ctx.moveTo(...P(x, j - .55)); ctx.lineTo(...P(x, j)); ctx.stroke(); }
+  }
+  // Lumière du jour qui entre par la fenêtre
+  ctx.globalAlpha = .5; poly([P(0, 5.9), P(0, 9.7), P(2.6, 10.3), P(2.6, 6.5)], '#fff6dc'); ctx.globalAlpha = 1;
+  // Murs, plinthes et épaisseur
+  poly([P(0, 0), P(0, GY), P(0, GY, WH), P(0, 0, WH)], '#eef1f6');
+  poly([P(0, 0), P(GX, 0), P(GX, 0, WH), P(0, 0, WH)], '#e3e8f0');
+  poly([P(.02, 0), P(.02, GY), P(.02, GY, .14), P(.02, 0, .14)], '#d6dce6');
+  wallQuad(0, GX, 0, .14, '#ccd3de');
+  poly([P(0, 0, WH), P(0, GY, WH), P(-.18, GY, WH), P(-.18, -.18, WH), P(GX, -.18, WH), P(GX, 0, WH)], '#c9d1dc');
+  // Grande fenêtre sur le mur gauche
+  leftQuad(5.9, 9.7, .85, 2.75, '#ffffff');
+  const [gx0, gy0] = P(.02, 6.1, 2.6), [, gy1] = P(.02, 6.1, 1);
+  const sky = ctx.createLinearGradient(gx0, gy0, gx0, gy1); sky.addColorStop(0, '#bcdcff'); sky.addColorStop(1, '#eaf5ff');
+  leftQuad(6.05, 9.55, 1, 2.6, sky);
+  leftQuad(7.75, 7.85, 1, 2.6, '#ffffff'); leftQuad(6.05, 9.55, 1.75, 1.82, '#ffffff');
+  // Enseigne et tableau de mission sur le mur du fond
+  wallText('QG', .9, 2.55, 34, '#2f5bff', 600);
+  wallText('DU BUREAU', .95, 1.95, 9, '#677184', 500);
   wallQuad(4.2, 10.2, .9, 2.8, '#ffffff');
-  const perCol = Math.max(1, ...COLS.map(([k]) => S.stages.filter(s => colOf(s.id) === k).length));
+  wallQuad(4.2, 10.2, 2.68, 2.8, '#19202d');
+  // Tapis du coin réunion, sous la table des spécialistes
+  poly([P(.7, 8.4), P(4.4, 8.4), P(4.4, 11.1), P(.7, 11.1)], '#dde5ff');
+  poly([P(.9, 8.6), P(4.2, 8.6), P(4.2, 10.9), P(.9, 10.9)], '#e8eeff');
+  // Tapis d'accueil du client
+  poly([P(12.4, 5.3), P(13.8, 5.3), P(13.8, 6.7), P(12.4, 6.7)], '#fbe3a0');
+  const cols = ['todo', 'active', 'audit', 'ok'];
+  const perCol = Math.max(1, ...cols.map(k => S.stages.filter(s => colOf(s.id) === k).length));
   const h = Math.min(.3, 1.5 / perCol);
-  COLS.forEach(([k], ci) => {
+  cols.forEach((k, ci) => {
     const x0 = 4.4 + ci * 1.45;
-    wallQuad(x0, x0 + 1.3, 2.55, 2.68, '#c9d1dd');
+    wallQuad(x0, x0 + 1.3, 2.5, 2.6, {todo: '#c9d1dd', active: '#f3b545', audit: '#6e8bff', ok: '#59c08d'}[k]);
     S.stages.filter(s => colOf(s.id) === k).forEach((s, i) => {
       const c = gates[s.id].retries && k !== 'ok' ? '#ef9b94' : {todo: '#c9d1dd', active: '#f3b545', audit: '#6e8bff', ok: '#59c08d'}[k];
       wallQuad(x0 + .1, x0 + 1.2, 2.4 - i * h, 2.4 - (i + 1) * h + .04, c);
@@ -389,24 +441,41 @@ const speed = () => 3.2 * (live ? 2 : +$('speed').value);
 function drawAgent(a, now) {
   const [sx, sy] = P(a.x, a.y), s = tw / 40, moving = a.path.length > 0;
   const bob = moving && !reduce ? Math.abs(Math.sin(now / 90)) * 3 * s : 0;
-  const alpha = a.called ? 1 : .38;
+  const alpha = a.called ? 1 : .35;
   ctx.globalAlpha = alpha;
-  ctx.fillStyle = 'rgba(20,30,50,.14)'; ctx.beginPath(); ctx.ellipse(sx, sy, 10 * s, 4.5 * s, 0, 0, 7); ctx.fill();
+  // ombre douce, et halo de couleur quand l'agent vient d'agir
+  const sh = ctx.createRadialGradient(sx, sy, 0, sx, sy, 12 * s); sh.addColorStop(0, 'rgba(40,30,20,.22)'); sh.addColorStop(1, 'rgba(40,30,20,0)');
+  ctx.fillStyle = sh; ctx.beginPath(); ctx.ellipse(sx, sy, 12 * s, 5.5 * s, 0, 0, 7); ctx.fill();
   if (now - a.flash < 900) { ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.globalAlpha = 1 - (now - a.flash) / 900; ctx.beginPath(); ctx.ellipse(sx, sy, (12 + (now - a.flash) / 40) * s, (5.5 + (now - a.flash) / 90) * s, 0, 0, 7); ctx.stroke(); ctx.globalAlpha = alpha; }
   const by = sy - bob;
-  ctx.fillStyle = a.color; ctx.beginPath(); ctx.roundRect(sx - 7 * s, by - 20 * s, 14 * s, 18 * s, 6 * s); ctx.fill();
-  ctx.fillStyle = shade(a.color, -.2); ctx.beginPath(); ctx.roundRect(sx - 7 * s, by - 9 * s, 14 * s, 7 * s, [0, 0, 6 * s, 6 * s]); ctx.fill();
-  ctx.fillStyle = a.color; ctx.beginPath(); ctx.arc(sx, by - 27 * s, 9 * s, 0, 7); ctx.fill();
-  ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(sx + 2.5 * s, by - 28 * s, 5.5 * s, 3.6 * s, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#1a2130'; ctx.beginPath(); ctx.arc(sx + 1.2 * s, by - 28 * s, 1.3 * s, 0, 7); ctx.arc(sx + 4.6 * s, by - 28 * s, 1.3 * s, 0, 7); ctx.fill();
-  if (a.id === 'pdg') { ctx.fillStyle = '#1a2130'; ctx.fillRect(sx - 6 * s, by - 38 * s, 12 * s, 3 * s); ctx.fillRect(sx - 4 * s, by - 45 * s, 8 * s, 7 * s); }
+  // corps arrondi avec reflet
+  const body = ctx.createLinearGradient(sx - 8 * s, 0, sx + 8 * s, 0); body.addColorStop(0, shade(a.color, .12)); body.addColorStop(1, shade(a.color, -.18));
+  ctx.fillStyle = body; ctx.beginPath(); ctx.roundRect(sx - 7.5 * s, by - 21 * s, 15 * s, 19 * s, [7 * s, 7 * s, 5 * s, 5 * s]); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.beginPath(); ctx.roundRect(sx - 3 * s, by - 15 * s, 6 * s, 4 * s, 2 * s); ctx.fill();
+  // antenne
+  ctx.strokeStyle = shade(a.color, -.3); ctx.lineWidth = 1.4 * s; ctx.beginPath(); ctx.moveTo(sx, by - 35 * s); ctx.lineTo(sx, by - 41 * s); ctx.stroke();
+  ctx.fillStyle = a.activity ? '#ffb020' : shade(a.color, .35); ctx.beginPath(); ctx.arc(sx, by - 42 * s, 2.2 * s, 0, 7); ctx.fill();
+  // tête, visière, yeux qui clignent
+  const head = ctx.createRadialGradient(sx - 3 * s, by - 31 * s, 1, sx, by - 27 * s, 10 * s); head.addColorStop(0, shade(a.color, .3)); head.addColorStop(1, a.color);
+  ctx.fillStyle = head; ctx.beginPath(); ctx.arc(sx, by - 27 * s, 9 * s, 0, 7); ctx.fill();
+  ctx.fillStyle = '#1b2433'; ctx.beginPath(); ctx.roundRect(sx - 4 * s, by - 31.5 * s, 12 * s, 8 * s, 4 * s); ctx.fill();
+  const seed = a.id.split('').reduce((n, c) => n + c.charCodeAt(0), 0), blink = !reduce && ((now / 1000 + seed % 7) % 4.3) < .12;
+  ctx.fillStyle = '#7fe3ff';
+  if (blink) { ctx.fillRect(sx - 1.4 * s, by - 27.6 * s, 3 * s, .9 * s); ctx.fillRect(sx + 3.2 * s, by - 27.6 * s, 3 * s, .9 * s); }
+  else { ctx.beginPath(); ctx.arc(sx + .1 * s, by - 27.4 * s, 1.5 * s, 0, 7); ctx.arc(sx + 4.7 * s, by - 27.4 * s, 1.5 * s, 0, 7); ctx.fill(); }
+  if (a.id === 'pdg') { ctx.fillStyle = '#19202d'; ctx.beginPath(); ctx.ellipse(sx, by - 35 * s, 10 * s, 2.4 * s, 0, 0, 7); ctx.fill(); ctx.beginPath(); ctx.roundRect(sx - 5 * s, by - 44 * s, 10 * s, 9 * s, 2 * s); ctx.fill(); ctx.fillStyle = '#d93b30'; ctx.fillRect(sx - 5 * s, by - 38.5 * s, 10 * s, 2 * s); }
+  // étiquette : pastille blanche ombrée, point de couleur du rôle
   if (a.called || a === pinned) {
-    ctx.font = `600 ${Math.max(9, 10 * s)}px ${FONT}`;
-    const w = ctx.measureText(a.name).width + 10;
-    ctx.fillStyle = a === pinned ? a.color : 'rgba(255,255,255,.92)'; ctx.beginPath(); ctx.roundRect(sx - w / 2, sy + 4 * s, w, 15, 7); ctx.fill();
-    ctx.fillStyle = a === pinned ? '#fff' : '#1a2130'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.name, sx, sy + 4 * s + 8);
+    ctx.font = `600 ${Math.max(10, 11 * s)}px ${FONT}`;
+    const w = ctx.measureText(a.name).width + 22, lx = sx - w / 2, ly = sy + 5 * s;
+    ctx.shadowColor = 'rgba(20,30,50,.12)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1;
+    ctx.fillStyle = a === pinned ? a.color : '#ffffff'; ctx.beginPath(); ctx.roundRect(lx, ly, w, 18, 9); ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = a === pinned ? '#ffffff' : a.color; ctx.beginPath(); ctx.arc(lx + 9, ly + 9, 3, 0, 7); ctx.fill();
+    ctx.fillStyle = a === pinned ? '#fff' : '#19202d'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(a.name, lx + 16, ly + 9.5);
   }
-  if (a.activity) { ctx.globalAlpha = reduce ? 1 : .55 + .45 * Math.sin(now / 200); ctx.fillStyle = '#e8960c'; ctx.beginPath(); ctx.arc(sx + 10 * s, by - 38 * s, 4 * s, 0, 7); ctx.fill(); }
+  // au travail : l'antenne s'allume et pulse
+  if (a.activity && !reduce) { ctx.globalAlpha = .35 + .35 * Math.sin(now / 180); ctx.fillStyle = '#ffb020'; ctx.beginPath(); ctx.arc(sx, by - 42 * s, 5 * s, 0, 7); ctx.fill(); }
   ctx.globalAlpha = 1;
   a.sx = sx; a.sy = by - 18 * s;
 }
@@ -419,7 +488,6 @@ function drawBubble(now) {
   const maxW = Math.min(300, W * .55), lines = [];
   let cur = '';
   for (let w of bubble.text.split(' ')) {
-    // un mot plus large que la bulle (URL…) est coupé au caractère
     while (ctx.measureText(w).width > maxW) {
       let k = w.length; while (k > 1 && ctx.measureText(w.slice(0, k)).width > maxW) k--;
       if (cur) { lines.push(cur); cur = ''; }
@@ -429,7 +497,7 @@ function drawBubble(now) {
     if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t;
   }
   if (cur) lines.push(cur);
-  if (lines.length > 6) { lines.length = 6; lines.push('… (suite dans le fil)'); }
+  if (lines.length > 4) { lines.length = 4; lines.push('… (suite dans Coulisses)'); }
   const bw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 24, bh = lines.length * 19 + 16;
   const bx = Math.max(6, Math.min(W - bw - 6, a.sx - bw / 2)), byy = Math.max(6, a.sy - 34 - bh);
   ctx.shadowColor = 'rgba(20,30,50,.15)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 3;
@@ -438,11 +506,10 @@ function drawBubble(now) {
   ctx.fillStyle = bubble.color; ctx.fillRect(bx, byy + 8, 3, bh - 16);
   ctx.beginPath(); ctx.moveTo(a.sx - 6, byy + bh); ctx.lineTo(a.sx + 6, byy + bh); ctx.lineTo(a.sx, byy + bh + 7); ctx.fillStyle = '#ffffff'; ctx.fill();
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  lines.forEach((l, i) => { ctx.fillStyle = i === 6 ? '#6b7587' : '#1a2130'; ctx.fillText(l, bx + 13, byy + 9 + i * 19); });
+  lines.forEach((l, i) => { ctx.fillStyle = i === 4 ? '#677184' : '#19202d'; ctx.fillText(l, bx + 13, byy + 9 + i * 19); });
   ctx.globalAlpha = 1;
 }
 
-// ---------- Boucle ----------
 let lastFrame = performance.now();
 function frame(now) {
   const dt = Math.min(.05, (now - lastFrame) / 1000); lastFrame = now;
@@ -457,34 +524,28 @@ function frame(now) {
   ctx.clearRect(0, 0, W, H);
   drawRoom();
   // ponytail: tri par profondeur x+y, suffisant pour une pièce sans chevauchement complexe
-  const items = furniture.concat(Object.values(agents).map(a => ({d: a.x + a.y + .5, draw: () => drawAgent(a, now)})));
-  items.sort((p, q) => p.d - q.d).forEach(it => it.draw());
+  furniture.concat(Object.values(agents).map(a => ({d: a.x + a.y + .5, draw: () => drawAgent(a, now)}))).sort((p, q) => p.d - q.d).forEach(it => it.draw());
   drawBubble(now);
-  // en direct, si plusieurs échanges attendent, on accélère pour rester proche du temps réel
   const backlog = S.events.length - idx, gap = live ? (backlog > 2 ? 600 : 1400) : 2800 / +$('speed').value;
   if (playing && now - lastStep > gap) { lastStep = now; step(); }
-  renderAgent(pinned || current || agents.pdg);
   requestAnimationFrame(frame);
 }
 
 // ---------- Lecture de la mission ----------
-let idx = 0, playing = false, lastStep = 0, gates = {}, curStage = null, live = false, played = {questions: new Set(), livrable: 0};
+let idx = 0, playing = false, lastStep = 0, gates = {}, curStage = null, live = false, livrableMax = 0;
 const colOf = s => { const g = gates[s]; return !g || g.state === 'pending' ? 'todo' : g.state === 'ko' ? 'active' : g.state; };
 
 function step() {
   if (idx >= S.events.length) { setPlaying(false); return; }
-  const e = S.events[idx++], now = performance.now(), tos = e.to ? [].concat(e.to) : [];
+  const e = S.events[idx++], now = performance.now(), to = tos(e);
   if (e.type === 'hire' && e.hire && !agents[e.hire.id]) hire(e.hire);
   const A = agents[e.from] || agents.pdg;
-  const color = e.type === 'ok' ? '#1d9e62' : e.type === 'ko' ? '#e0443a' : A.color;
+  const color = e.type === 'ok' ? '#1d9e62' : e.type === 'ko' ? '#d93b30' : A.color;
   Object.values(agents).forEach(a => { if (a !== A && (a.x !== a.home[0] || a.y !== a.home[1])) setDest(a, a.home); });
-  [e.from, ...tos].forEach(id => agents[id] && (agents[id].called = true));
+  [e.from, ...to].forEach(id => agents[id] && (agents[id].called = true));
   let travel = 0;
-  if (tos.length && tos[0] !== e.from && agents[tos[0]]) {
-    setDest(A, meetPoint(agents[tos[0]]));
-    travel = reduce ? 0 : pathLen(A) / speed() * 1000;
-  }
-  tos.forEach(id => { if (agents[id]) { agents[id].recv++; setTimeout(() => { if (agents[id]) agents[id].flash = performance.now(); }, travel); } });
+  if (to.length && to[0] !== e.from && agents[to[0]]) { setDest(A, meetPoint(agents[to[0]])); travel = reduce ? 0 : pathLen(A) / speed() * 1000; }
+  to.forEach(id => { if (agents[id]) { agents[id].recv++; setTimeout(() => { if (agents[id]) agents[id].flash = performance.now(); }, travel); } });
   A.sent++; A.last = e.text; A.flash = now; current = A;
   A.activity = e.type === 'work' ? e.text : null;
   bubble = {id: A.id, text: e.text, color, t0: now + travel};
@@ -496,52 +557,163 @@ function step() {
     else if (e.type === 'ko') { g.state = 'ko'; g.retries++; gate = {state: 'ko', t: now}; }
     else if (g.state !== 'ok') g.state = 'active';
   }
-  if (curStage && tos.includes('aud') && ['active', 'ko'].includes(gates[curStage].state)) gates[curStage].state = 'audit';
-  if (e.type === 'question') played.questions.add(e.question);
-  if (e.type === 'deliverable') played.livrable = Math.max(played.livrable, e.livrable);
-  addFeed(e, A, tos);
-  renderNow(); renderStats(); renderQuestions(); renderLivrables(); refreshPick();
+  if (curStage && to.includes('aud') && ['active', 'ko'].includes(gates[curStage].state)) gates[curStage].state = 'audit';
+  if (e.type === 'deliverable') livrableMax = Math.max(livrableMax, e.livrable);
+  addFeed(e, A, to);
+  addChat(e);
+  renderNow(); renderTop(); renderLivrables(); renderWho();
   if (idx >= S.events.length) setPlaying(false);
 }
 
-function addFeed(e, A, tos) {
-  if (idx === 1) $('feed').innerHTML = '';
-  const li = document.createElement('li');
-  li.className = (e.type || '') + (e.from === 'client' ? ' client' : '');
-  const name = id => (ROLES[id] || {name: id}).name;
-  const dest = tos.length ? ' → ' + tos.map(name).join(', ') : {ok: ' · audit validé', ko: ' · audit rejeté', work: ' · au travail', deliverable: ' · nouvelle version du livrable', hire: ' · embauche'}[e.type] || '';
+function addFeed(e, A, to) {
+  const li = el('li', e.type || '');
   li.innerHTML = `<i style="background:${esc(A.color)}"></i><div><div class="who"></div><div class="msg"></div></div>`;
+  const dest = to.length ? ' → ' + to.map(nameOf).join(', ') : {ok: ' · audit validé', ko: ' · audit rejeté', work: ' · au travail', deliverable: ' · nouvelle version du rendu', hire: ' · embauche'}[e.type] || '';
   li.querySelector('.who').textContent = A.name + dest + (e.t ? ' · ' + e.t : '');
   li.querySelector('.msg').textContent = e.text;
   $('feed').prepend(li);
 }
 
-const fmtDur = sec => sec == null ? '—' : sec < 60 ? `${Math.round(sec)} s` : sec < 3600 ? `${Math.round(sec / 60)} min` : `${Math.floor(sec / 3600)} h ${String(Math.round(sec % 3600 / 60)).padStart(2, '0')}`;
-function renderStats() {
-  const done = S.events.slice(0, idx), ts = done.map(e => e.ts).filter(Boolean);
-  $('sAgents').textContent = Object.values(agents).filter(a => (a.sent || a.recv) && a.id !== 'client').length;
-  $('sMsgs').textContent = `${idx} / ${S.events.length}`;
-  $('sKo').textContent = Object.values(gates).reduce((n, g) => n + g.retries, 0);
-  $('sDur').textContent = ts.length > 1 ? fmtDur(ts[ts.length - 1] - ts[0]) : '—';
-  const ok = Object.values(gates).filter(g => g.state === 'ok');
-  $('sFirst').textContent = ok.length ? `${ok.filter(g => !g.retries).length} / ${ok.length}` : '—';
-  $('progress').style.width = (S.events.length ? idx / S.events.length * 100 : 0) + '%';
-  $('kanban').innerHTML = COLS.map(([k, t]) => {
-    const cards = S.stages.filter(s => colOf(s.id) === k);
-    return `<div class="col"><h3>${t} <span>${cards.length}</span></h3>${cards.map(s => {
-      const g = gates[s.id], dur = g.start && g.end ? fmtDur(g.end - g.start) : '';
-      const tag = g.retries && k !== 'ok' ? '<small class="ko">renvoyé</small>' : g.retries ? `<small>${g.retries} renvoi${g.retries > 1 ? 's' : ''}</small>` : '';
-      return `<div class="kcard ${k}">${esc(s.name)}${tag}${dur ? `<small>${dur}</small>` : ''}</div>`;
-    }).join('')}</div>`;
-  }).join('');
+// ---------- Conversation avec le PDG ----------
+// Elle ne montre que ce qui te concerne : tes messages (avec leur suivi), ce que l'équipe t'adresse, les questions, les nouvelles versions du rendu.
+const qCards = new Map(), statusEls = new Map();
+function longText(container, text) {
+  const b = el('div', 'bubble', text.length > 360 ? text.slice(0, 340) + '…' : text);
+  container.appendChild(b);
+  if (text.length > 360) {
+    const more = el('button', 'more', 'Afficher tout'); more.type = 'button';
+    more.onclick = () => { const open = more.textContent === 'Afficher tout'; b.textContent = open ? text : text.slice(0, 340) + '…'; more.textContent = open ? 'Réduire' : 'Afficher tout'; };
+    container.appendChild(more);
+  }
 }
+function addChat(e) {
+  const to = tos(e);
+  let li = null;
+  if (e.from === 'client') {
+    li = el('li', 'm you');
+    li.appendChild(el('span', 'by', 'Toi' + (e.t ? ' · ' + e.t : '')));
+    longText(li, e.text);
+    if (e.msg) { const st = el('span', 'status'); statusEls.set(e.msg, st); li.appendChild(st); }
+  } else if (e.type === 'question') {
+    li = el('li', 'm them');
+    li.appendChild(el('span', 'by', nameOf(e.from) + (e.t ? ' · ' + e.t : '')));
+    const card = el('div', 'q'); qCards.set(e.question, card); li.appendChild(card);
+  } else if (to.includes('client')) {
+    li = el('li', 'm them' + (e.type === 'deliver' ? ' deliver' : ''));
+    li.appendChild(el('span', 'by', nameOf(e.from) + (e.t ? ' · ' + e.t : '')));
+    longText(li, e.text);
+    if (e.type === 'deliver' && S.livrables.length) li.appendChild(noteButton('Voir le rendu final'));
+  } else if (e.type === 'deliverable') {
+    li = el('li', 'm note');
+    li.appendChild(noteButton('Nouvelle version du rendu : ' + e.text + ' · voir'));
+  }
+  if (!li) return;
+  const box = $('msgs'), stick = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  box.appendChild(li);
+  renderQuestions(); renderStatuses();
+  if (stick) box.scrollTop = box.scrollHeight;
+}
+function noteButton(text) {
+  const b = el('button', null, text); b.type = 'button';
+  b.onclick = () => { showTab('rendu'); $('livPick').value = $('livPick').options[0] ? $('livPick').options[0].value : ''; showLivrable(); };
+  return b;
+}
+
+function renderStatuses() {
+  for (const [n, st] of statusEls) {
+    const m = S.consignes.find(c => c.id === n);
+    if (!m) { st.textContent = ''; continue; }
+    const roles = Object.entries(m.roles), done = roles.filter(([, v]) => v === 'appliqué').map(([r]) => nameOf(r));
+    st.className = 'status' + (m.status === 'appliqué' ? ' done' : '');
+    st.textContent = m.status === 'reçu' ? 'Envoyé · en attente du PDG'
+      : m.status === 'lu' ? 'Lu par le PDG'
+      : m.status === 'appliqué' ? '✓ Appliqué par ' + done.join(', ')
+      : 'Transmis à ' + roles.map(([r]) => nameOf(r)).join(', ') + (done.length ? ' · déjà appliqué par ' + done.join(', ') : '');
+  }
+}
+
+function renderQuestions() {
+  for (const [id, card] of qCards) {
+    const q = S.questions.find(x => x.id === id); if (!q) continue;
+    const key = JSON.stringify([q.answer, q.closed, live]); if (card.dataset.key === key) continue; card.dataset.key = key;
+    card.innerHTML = ''; card.className = 'q' + (q.answer || q.closed ? ' settled' : '');
+    card.appendChild(el('p', null, q.text));
+    if (q.answer) card.appendChild(el('div', 'done', '✓ Ta réponse : ' + q.answer));
+    else if (q.closed) card.appendChild(el('div', 'closed', 'Question close : ' + q.closed));
+    else if (live) {
+      const opts = el('div', 'opts');
+      q.options.forEach(o => { const b = el('button', 'opt', o); b.type = 'button'; b.onclick = () => sendAnswer(q.id, o, false, card); opts.appendChild(b); });
+      const free = el('form', 'free'), inp = el('input'), go = el('button', null, 'Répondre');
+      inp.placeholder = 'Autre réponse…'; inp.maxLength = 500; inp.setAttribute('aria-label', 'Réponse libre'); go.type = 'submit';
+      free.append(inp, go);
+      free.onsubmit = ev => { ev.preventDefault(); if (inp.value.trim()) sendAnswer(q.id, inp.value.trim(), true, card); };
+      card.append(opts, free);
+    } else card.appendChild(el('div', 'closed', 'Sans réponse'));
+  }
+  const waiting = S.questions.filter(q => !q.answer && !q.closed && qCards.has(q.id)).length;
+  $('waitPill').hidden = !waiting || !live;
+  $('waitPill').textContent = waiting > 1 ? `${waiting} questions pour toi` : '1 question pour toi';
+}
+
+async function post(path, body) {
+  const r = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json', 'X-QG-Token': TOKEN}, body: JSON.stringify(body)});
+  if (!r.ok) throw r.status;
+}
+const RELOAD = 'Le QG a été relancé avec une autre clé : recharge la page (Cmd + R), puis renvoie ton message.';
+async function sendAnswer(id, choice, other, card) {
+  card.querySelectorAll('button, input').forEach(b => b.disabled = true);
+  try { await post('answer', {id, choice, other}); fetchState(); }
+  catch (code) { card.querySelectorAll('button, input').forEach(b => b.disabled = false); $('note').textContent = code === 409 ? 'Cette question a déjà été réglée.' : code === 403 ? RELOAD : 'Réponse non envoyée : le QG ne répond pas. Réessaie dans un instant.'; }
+}
+$('chat').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const text = $('chatText').value.trim(); if (!text) return;
+  $('chatText').value = ''; autosize(); $('note').textContent = '';
+  try { await post('say', {text}); fetchState(); }
+  catch (code) { $('chatText').value = text; autosize(); $('note').textContent = code === 403 ? RELOAD : 'Message non envoyé : le QG ne répond pas. Réessaie dans un instant.'; }
+});
+function autosize() { const t = $('chatText'); t.style.height = 'auto'; t.style.height = Math.min(160, t.scrollHeight) + 'px'; $('chatCount').textContent = `${t.value.length} / 4000`; }
+$('chatText').addEventListener('input', autosize);
+$('chatText').addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $('chat').requestSubmit(); } });
+
+// ---------- Barre du haut, activité, fiche d'un agent ----------
+const fmtDur = sec => sec == null ? '' : sec < 60 ? `${Math.round(sec)} s` : sec < 3600 ? `${Math.round(sec / 60)} min` : `${Math.floor(sec / 3600)} h ${String(Math.round(sec % 3600 / 60)).padStart(2, '0')}`;
+function renderTop() {
+  $('steps').innerHTML = '';
+  S.stages.forEach(s => {
+    const g = gates[s.id], li = el('li', g.state === 'pending' ? '' : g.state, s.name);
+    li.title = g.state === 'ok' ? `Validé${g.retries ? ` après ${g.retries} renvoi${g.retries > 1 ? 's' : ''}` : ' du premier coup'}${g.start && g.end ? ' · ' + fmtDur(g.end - g.start) : ''}` : {pending: 'À faire', active: 'En cours', audit: 'En audit', ko: 'Renvoyé en correction'}[g.state];
+    $('steps').appendChild(li);
+  });
+  const ts = S.events.slice(0, idx).map(e => e.ts).filter(Boolean), ko = Object.values(gates).reduce((n, g) => n + g.retries, 0);
+  $('meta').textContent = [ts.length > 1 ? fmtDur(ts[ts.length - 1] - ts[0]) : '', ko ? `${ko} renvoi${ko > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
+}
+function renderNow() {
+  $('now').innerHTML = '';
+  Object.values(agents).filter(a => a.activity).forEach(a => {
+    const s = el('span'); s.innerHTML = `<i style="background:${esc(a.color)}"></i>`;
+    s.append(el('b', null, a.name), el('em', null, a.activity)); $('now').appendChild(s);
+  });
+}
+function renderWho() {
+  $('whoCard').hidden = !pinned; if (!pinned) return;
+  $('whoName').textContent = pinned.name; $('whoName').style.color = pinned.color;
+  $('whoRole').textContent = pinned.role;
+  $('whoLast').textContent = pinned.last ? 'Dernier mot : ' + pinned.last : 'N\'a pas encore pris la parole.';
+}
+cv.addEventListener('click', ev => {
+  const r = cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
+  let best = null, bd = 30 * tw / 40 + 6;
+  for (const a of Object.values(agents)) { const d = Math.hypot(a.sx - mx, a.sy - my); if (d < bd) { bd = d; best = a; } }
+  pinned = best; renderWho();
+});
+$('whoClose').onclick = () => { pinned = null; renderWho(); };
 
 // Embauche : un renfort clone le rôle de base (teinte plus claire), entre par l'accueil et rejoint un poste voisin.
 let hired = [];
 function lighten(hex, k) { const n = parseInt(hex.slice(1), 16); return '#' + [n >> 16, n >> 8 & 255, n & 255].map(c => Math.round(c + (255 - c) * k).toString(16).padStart(2, '0')).join(''); }
 function hire(h) {
   const base = ROLES[h.like] || ROLES.pdg, n = hired.filter(id => ROLES[id].like === h.like).length + 1;
-  // décalage en travers de l'axe de profondeur, pour que le renfort ne se cache pas derrière son modèle
   const [dx, dy] = n % 2 ? [1.1, -.3] : [-.3, 1.1];
   let home = [Math.min(GX - .6, base.home[0] + dx * Math.ceil(n / 2)), Math.min(GY - .5, base.home[1] + dy * Math.ceil(n / 2))];
   if (blocked(...home)) home = meetPoint({home: base.home});
@@ -551,193 +723,99 @@ function hire(h) {
   hired.push(h.id);
 }
 
-function renderNow() {
-  const busy = Object.values(agents).filter(a => a.activity);
-  $('now').innerHTML = busy.length ? '' : '<li class="empty">Personne n\'est en train de travailler.</li>';
-  busy.forEach(a => {
-    const li = document.createElement('li');
-    li.innerHTML = `<i style="background:${esc(a.color)}"></i><div><b></b> <span></span></div>`;
-    li.querySelector('b').textContent = a.name; li.querySelector('span').textContent = a.activity;
-    $('now').appendChild(li);
-  });
+// ---------- Rendu : versions successives et changements ----------
+let livMode = 'text', livKey = '', livReq = 0, livText = '';
+function showTab(which) {
+  const r = which === 'rendu';
+  $('tabRendu').setAttribute('aria-selected', r); $('tabCoulisses').setAttribute('aria-selected', !r);
+  $('paneRendu').hidden = !r; $('paneCoulisses').hidden = r;
+  if (r) $('tabRendu').querySelector('.dotnew')?.remove();
 }
-
-// Fiche agent : clic sur le robot ou choix au clavier dans la liste.
-let pickKey = '';
-function refreshPick() {
-  const list = Object.values(agents).filter(a => a.called || a === pinned), key = list.map(a => a.id).join();
-  if (key === pickKey) return; pickKey = key;
-  $('agentPick').innerHTML = '<option value="">Agent actif (suit les échanges)</option>' + list.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
-  $('agentPick').value = pinned ? pinned.id : '';
-}
-$('agentPick').onchange = () => { pinned = agents[$('agentPick').value] || null; shownKey = ''; };
-let shownKey = '';
-function renderAgent(a) {
-  const st = a.path.length ? ['En déplacement', 'move'] : a === current && bubble ? ['En train d\'échanger', 'talk'] : a.activity ? ['Au travail', 'talk'] : a.called ? ['À son poste', ''] : ['En réserve', ''];
-  const key = a.id + st[0] + a.sent + a.recv;
-  if (key === shownKey) return; shownKey = key;
-  $('aDot').style.background = a.color; $('aName').textContent = a.name;
-  $('aStatus').textContent = st[0]; $('aStatus').className = 'pill ' + st[1];
-  $('aRole').textContent = a.role;
-  $('aCount').textContent = `${a.sent} envoyé${a.sent > 1 ? 's' : ''}, ${a.recv} reçu${a.recv > 1 ? 's' : ''}`;
-  $('aLast').textContent = a.last || '—';
-}
-cv.addEventListener('click', ev => {
-  const r = cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
-  let best = null, bd = 30 * tw / 40 + 6;
-  for (const a of Object.values(agents)) { const d = Math.hypot(a.sx - mx, a.sy - my); if (d < bd) { bd = d; best = a; } }
-  pinned = best; shownKey = ''; pickKey = ''; refreshPick();
-});
-
-// ---------- Questions du PDG ----------
-function renderQuestions() {
-  // en direct, une question sans réponse s'affiche tout de suite, même si son échange n'est pas encore rejoué
-  const qs = S.questions.filter(q => played.questions.has(q.id) || (live && !q.answer));
-  $('askCard').hidden = !qs.length;
-  $('askCard').classList.toggle('ask', qs.some(q => !q.answer));
-  $('asks').innerHTML = '';
-  qs.slice().reverse().forEach(q => {
-    const div = document.createElement('div'); div.className = 'q';
-    div.innerHTML = '<p></p>';
-    div.querySelector('p').textContent = q.text;
-    if (q.answer) {
-      const d = document.createElement('div'); d.className = 'done'; d.textContent = `Ta réponse : ${q.answer}` + (q.answered_t ? ` (${q.answered_t})` : ''); div.appendChild(d);
-    } else if (live) {
-      const opts = document.createElement('div'); opts.className = 'opts';
-      q.options.forEach(o => {
-        const b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.textContent = o;
-        b.onclick = () => sendAnswer(q.id, o, opts);
-        opts.appendChild(b);
-      });
-      div.appendChild(opts);
-    } else {
-      const d = document.createElement('div'); d.className = 'wait'; d.textContent = 'Sans réponse'; div.appendChild(d);
-    }
-    $('asks').appendChild(div);
-  });
-}
-async function post(path, body) {
-  const r = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json', 'X-QG-Token': TOKEN}, body: JSON.stringify(body)});
-  if (!r.ok) throw r.status;
-}
-const RELOAD = 'Le QG a été relancé avec une autre clé : recharge la page (Cmd + R), puis renvoie ton message.';
-const failText = (code, what) => code === 403 ? RELOAD : `${what} non envoyé${what === 'Réponse' ? 'e' : ''} : le serveur du QG ne répond pas. Réessaie dans un instant.`;
-async function sendAnswer(id, choice, box) {
-  box.querySelectorAll('button').forEach(b => b.disabled = true);
-  try { await post('answer', {id, choice}); fetchState(); }
-  catch (code) { box.querySelectorAll('button').forEach(b => b.disabled = false); $('note').textContent = code === 409 ? 'Cette question a déjà reçu une réponse.' : failText(code, 'Réponse'); }
-}
-
-// ---------- Consignes du client : reçu → lu → transmis (par rôle) → appliqué ----------
-const ST = {'reçu': 'reçu, en attente du PDG', 'lu': 'lu par le PDG', 'transmis': 'transmis', 'appliqué': 'appliqué'};
-let consKey = '';
-function renderCons() {
-  const key = JSON.stringify(S.consignes); if (key === consKey) return; consKey = key;
-  $('consCard').hidden = !S.consignes.length;
-  $('cons').innerHTML = '';
-  S.consignes.slice().reverse().forEach(m => {
-    const li = document.createElement('li'); li.className = m.status;
-    li.innerHTML = '<div class="head"><span class="num"></span><span class="st"></span></div><div class="txt"></div><div class="roles"></div>';
-    li.querySelector('.num').textContent = `n° ${m.id} · ${m.t}`;
-    li.querySelector('.st').textContent = ST[m.status] || m.status;
-    li.querySelector('.txt').textContent = m.text;
-    Object.entries(m.roles).forEach(([role, state]) => {
-      const c = document.createElement('span'); c.className = 'chip' + (state === 'appliqué' ? ' done' : '');
-      c.innerHTML = `<i style="background:${esc((ROLES[role] || {}).color || '#999')}"></i>`;
-      c.append(`${(ROLES[role] || {name: role}).name} · ${state}`);
-      li.querySelector('.roles').appendChild(c);
-    });
-    $('cons').appendChild(li);
-  });
-}
-$('chat').addEventListener('submit', async ev => {
-  ev.preventDefault();
-  const text = $('chatText').value.trim(); if (!text) return;
-  $('chatText').value = '';
-  try { await post('say', {text}); fetchState(); }
-  catch (code) { $('chatText').value = text; $('note').textContent = failText(code, 'Message'); }
-});
-
-// ---------- Livrable : versions successives et changements ----------
-let livMode = 'text', livKey = '', livReq = 0;
+$('tabRendu').onclick = () => showTab('rendu');
+$('tabCoulisses').onclick = () => showTab('coulisses');
 function renderLivrables() {
-  const list = S.livrables.filter(v => v.n <= played.livrable);
-  $('livCard').hidden = !list.length;
-  const key = list.map(v => v.n).join();
+  const list = S.livrables.filter(v => v.n <= livrableMax), key = list.map(v => v.n).join();
   if (!list.length || key === livKey) return; livKey = key;
-  $('livPick').innerHTML = list.slice().reverse().map(v => `<option value="${+v.n}">${esc(v.name)} · version ${+v.version}${v.label ? ' · ' + esc(v.label) : ''} · ${esc(v.t || '')}${v.words != null ? ' · ' + v.words + ' mots' : ''}</option>`).join('');
+  $('renduHead').hidden = false;
+  $('livPick').innerHTML = list.slice().reverse().map((v, i) => `<option value="${+v.n}">${i === 0 ? 'Dernière version · ' : ''}${esc(v.name)} · v${+v.version}${v.label ? ' · ' + esc(v.label) : ''}${v.t ? ' · ' + esc(v.t) : ''}</option>`).join('');
+  if ($('paneRendu').hidden && !$('tabRendu').querySelector('.dotnew')) $('tabRendu').appendChild(el('span', 'dotnew'));
   showLivrable();
 }
 async function showLivrable() {
   const v = S.livrables.find(x => x.n === +$('livPick').value); if (!v) return;
-  const want = livMode === 'diff' ? 'diff_text' : 'content', req = ++livReq;
-  if (v.binary && livMode === 'text') { $('livView').textContent = `Fichier non texte (${v.name}) : pas d'aperçu. Il est enregistré dans le dossier livrables du projet, sous ${v.file}.`; return; }
-  let text = v[want];
+  const req = ++livReq, view = $('livView');
+  view.className = livMode === 'diff' ? 'diff' : '';
+  if (v.binary && livMode === 'text') { view.textContent = `Fichier non texte (${v.name}) : pas d'aperçu ici.`; $('count').textContent = ''; livText = ''; return; }
+  let text = v[livMode === 'diff' ? 'diff_text' : 'content'];
   if (text == null && live) {
     try { const r = await fetch('livrables/' + encodeURIComponent(livMode === 'diff' ? v.diff : v.file), {cache: 'no-store'}); text = r.ok ? await r.text() : null; } catch { text = null; }
   }
-  if (req !== livReq) return;  // un affichage plus récent a été demandé entre-temps
-  const view = $('livView'); view.textContent = '';
+  if (req !== livReq) return;
+  view.textContent = '';
   if (text == null) { view.textContent = 'Contenu indisponible.'; return; }
-  if (livMode !== 'diff') { view.textContent = text; return; }
+  if (livMode !== 'diff') {
+    livText = text; view.textContent = text;
+    $('count').textContent = `${[...text.trim()].length} caractères · ${text.trim().split(/\s+/).filter(Boolean).length} mots`;
+    return;
+  }
   if (!text.trim()) { view.textContent = 'Première version : aucun changement à afficher.'; return; }
   text.split('\n').forEach(l => {
     if (l.startsWith('---') || l.startsWith('+++')) return;
-    const span = document.createElement('span');
-    span.className = l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : l.startsWith('@@') ? 'hunk' : '';
-    span.textContent = (l.startsWith('@@') ? '…' : l) + '\n';
-    view.appendChild(span);
+    view.appendChild(el('span', l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : l.startsWith('@@') ? 'hunk' : '', (l.startsWith('@@') ? '…' : l) + '\n'));
   });
 }
 $('livPick').onchange = showLivrable;
 for (const [id, mode] of [['livText', 'text'], ['livDiff', 'diff']]) $(id).onclick = () => {
   livMode = mode; $('livText').setAttribute('aria-pressed', mode === 'text'); $('livDiff').setAttribute('aria-pressed', mode === 'diff'); showLivrable();
 };
+$('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText(livText); $('copy').textContent = 'Copié ✓'; }
+  catch { const r = document.createRange(); r.selectNodeContents($('livView')); getSelection().removeAllRanges(); getSelection().addRange(r); $('copy').textContent = 'Sélectionné : Cmd + C'; }
+  setTimeout(() => { $('copy').textContent = 'Copier'; }, 2000);
+};
 
 // ---------- Commandes ----------
 function setPlaying(v) { playing = v; $('play').textContent = v ? '❚❚ Pause' : idx >= S.events.length ? '▶ Rejouer' : '▶ Lecture'; }
 function header() {
-  $('topic').textContent = S.topic || ''; $('note').textContent = S.note || '';
-  $('label').textContent = live ? '● En direct' : (S.label || 'Session'); $('label').classList.remove('off');
-  $('chat').hidden = !live; $('history').hidden = !live;
-  $('next').hidden = live; $('speed').hidden = live;
+  $('topic').textContent = S.topic || '';
+  $('label').textContent = live ? '● En direct' : (S.label || 'Rejeu'); $('label').classList.remove('off');
+  $('chat').hidden = !live; $('history').hidden = !live; $('replay').hidden = live;
 }
 function reset() {
   hired.forEach(id => { delete agents[id]; delete ROLES[id]; }); hired = [];
-  idx = 0; curStage = null; bubble = null; current = null; pinned = null; gate = {state: null, t: -1e9};
-  played = {questions: new Set(), livrable: 0}; livKey = ''; pickKey = ''; consKey = '';
+  idx = 0; curStage = null; bubble = null; current = null; pinned = null; gate = {state: null, t: -1e9}; livrableMax = 0; livKey = '';
   gates = Object.fromEntries(S.stages.map(s => [s.id, {state: 'pending', retries: 0}]));
   Object.values(agents).forEach(a => Object.assign(a, {x: a.home[0], y: a.home[1], path: [], called: CORE.includes(a.id), sent: 0, recv: 0, last: '', activity: null}));
-  $('feed').innerHTML = '<li class="empty">Appuie sur Lecture pour voir le Bureau travailler.</li>';
-  shownKey = ''; renderNow(); renderStats(); renderCons(); renderQuestions(); renderLivrables(); refreshPick(); setPlaying(false);
+  $('feed').innerHTML = ''; $('msgs').innerHTML = ''; qCards.clear(); statusEls.clear();
+  $('renduHead').hidden = true;
+  $('livView').innerHTML = '<span class="empty"><b>Le rendu apparaîtra ici.</b> Dès que l\'Écrivain a une première version, elle s\'affiche dans cet onglet, puis chaque correction après audit.</span>';
+  renderNow(); renderTop(); renderWho(); renderQuestions(); setPlaying(false);
 }
 $('play').onclick = () => { if (idx >= S.events.length) reset(); setPlaying(!playing); lastStep = 0; };
-$('next').onclick = () => { setPlaying(false); step(); };
-$('reset').onclick = () => { reset(); if (live) setPlaying(true); };
+$('reset').onclick = () => reset();
 
-// ---------- Direct : état complet à la demande, signal instantané par le serveur ----------
+// ---------- Direct : état complet à la demande, signal instantané du serveur ----------
 function applyState(j) {
   normalize(j);
   if (!live || j.mission !== S.mission) {
     live = true; S = j; header(); reset();
-    // rattrapage sans animation : on n'anime que les derniers échanges, les plus anciens sont déjà dans le fil
+    // rattrapage sans animation : seuls les derniers échanges sont animés
     while (S.events.length - idx > 3) step();
     Object.values(agents).forEach(a => { a.x = a.home[0]; a.y = a.home[1]; a.path = []; });
-  }
-  else {
+    $('msgs').scrollTop = $('msgs').scrollHeight;
+  } else {
     for (const s of j.stages) gates[s.id] = gates[s.id] || {state: 'pending', retries: 0};
     if (j.events.length > S.events.length) S.events = j.events;
     Object.assign(S, {topic: j.topic, stages: j.stages, consignes: j.consignes, questions: j.questions, livrables: j.livrables});
     $('topic').textContent = S.topic;
   }
-  renderCons(); renderQuestions(); renderStats();
+  renderStatuses(); renderQuestions(); renderTop();
   if (S.events.length > idx && !playing) { setPlaying(true); lastStep = 0; }
 }
 async function fetchState() {
   try { const r = await fetch('state', {cache: 'no-store'}); if (r.ok) applyState(await r.json()); } catch {}
 }
-// Le serveur envoie un signe de vie toutes les 10 s. Sans nouvelles depuis 25 s (serveur relancé, Mac en veille,
-// connexion morte sans erreur), la page rouvre la connexion et relit l'état complet.
+// Le serveur envoie un signe de vie toutes les 10 s ; sans nouvelles depuis 25 s, la page rouvre la connexion.
 let es = null, lastSeen = 0;
 function connect() {
   if (es) es.close();
@@ -750,12 +828,11 @@ function connect() {
   es.onerror = () => {
     if (!live) return;
     $('label').textContent = 'Connexion perdue · nouvel essai…'; $('label').classList.add('off');
-    // readyState 2 : le navigateur a abandonné (clé refusée…) ; on retente nous-mêmes
     if (es.readyState === 2) { $('note').textContent = RELOAD; setTimeout(connect, 3000); }
   };
 }
 setInterval(() => { if (CAN_LIVE && Date.now() - lastSeen > 25000) connect(); }, 5000);
 
 header(); reset(); layout(); requestAnimationFrame(frame);
-if (CAN_LIVE) connect();
+if (CAN_LIVE) connect(); else { setPlaying(true); }
 </script>

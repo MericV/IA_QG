@@ -8,15 +8,18 @@ Le projet est reconnu par le dossier courant, associé à <nom> dans projets.jso
 
 Mission
   init "Sujet" [nom-du-projet]        archive la mission précédente et en démarre une (nom : 1re fois seulement)
+  topic "Nouveau sujet"               renomme la mission en cours
   stages "Cadrage|Sources|..."        déclare les étapes de la mission (par défaut : Cadrage|Sources|Rédaction|Forme|Audit final)
   FROM TO "texte" [type] [étape]      échange ; TO = "-" ou "a,b" ; type = ok|ko|deliver|work|-
   hire ID "Nom" ROLE_DE_BASE "raison" embauche d'un renfort
   livrable FICHIER [ROLE] ["libellé"] enregistre une version du livrable (et ses différences avec la précédente)
+  retro                               résume la mission (renvois, consignes, questions) pour en tirer des leçons
   export                              écrit la page rejouable de la mission dans missions/ et met à jour l'historique
   where                               dossier du projet et adresse du QG
 
 Client
-  ask "Question ?" "Choix A|Choix B"  le PDG pose une question au client (boutons dans le QG)
+  ask "Question ?" "Choix A|Choix B"  le PDG pose une question au client (boutons + réponse libre dans le QG)
+  close N "raison"                    clôt la question n° N, déjà réglée autrement (la raison est dite au client)
   ack N "réponse"                     le PDG accuse réception du message n° N
   dispatch N ROLE "consigne"          le PDG transmet le message N à un rôle
   applied N ROLE "ce qui a changé"    le rôle confirme qu'il a appliqué la consigne
@@ -144,17 +147,21 @@ def new_message(text):
         d.append({"id": len(d) + 1, "text": text, **now(), "status": "reçu", "roles": {}})
         return len(d)
     n = update(CONS, [], add)
-    append_event({"from": "client", "to": "pdg", "text": text})
+    append_event({"from": "client", "to": "pdg", "text": text, "msg": n})
     inbox({"kind": "message", "id": n, "text": text})
     return n
 
 
-def answer(qid, choice):
+def answer(qid, choice, other=False):
+    """Réponse du client : un des choix proposés, ou une réponse libre (other=True, 500 caractères max.)."""
     require_mission()
+    choice = choice.strip()
 
     def set_answer(d):
         q = next((q for q in d if q["id"] == qid), None)
-        if not q or q.get("answer") or choice not in q["options"]:
+        if not q or q.get("answer") or q.get("closed") or not choice:
+            return None
+        if not (choice in q["options"] or (other and len(choice) <= 500)):
             return None
         q["answer"] = choice
         q.update({"answered_" + k: v for k, v in now().items()})
@@ -162,7 +169,7 @@ def answer(qid, choice):
     question = update(QUEST, [], set_answer)
     if question is None:
         return False
-    append_event({"from": "client", "to": "pdg", "text": f"Réponse à « {question} » : {choice}"})
+    append_event({"from": "client", "to": "pdg", "text": f"Réponse à « {question} » : {choice}", "answer_to": qid})
     inbox({"kind": "answer", "id": qid, "text": choice, "question": question})
     return True
 
@@ -360,11 +367,37 @@ def main(a):
             time.sleep(1)
         show(msgs)
         return
+    if cmd == "retro":
+        # Matière de la rétrospective : ce qui a été rejeté, corrigé ou demandé par le client
+        d = state()
+        if not d.get("events"):
+            print("Rien à analyser : la mission ne contient aucun échange.")
+            return
+        s = stats(d)
+        print(f"Mission : {d.get('topic', '')}")
+        print(f"{s['events']} échanges · {s['agents']} rôles · {s['renvois']} renvoi(s) · audits validés du 1er coup : {s['premier_coup']}"
+              + (f" · {s['minutes']} min" if s["minutes"] is not None else ""))
+        print("Audits rejetés :")
+        for e in d["events"]:
+            if e.get("type") == "ko":
+                print(f"  - [{e.get('stage', '?')}] {e['text']}")
+        print("Consignes du client :")
+        for m in d["consignes"]:
+            print(f"  - n° {m['id']} ({m['status']}) {m['text'][:160]}")
+        print("Questions au client :")
+        for q in d["questions"]:
+            print(f"  - {q['text']} → " + (f"réponse : {q['answer']}" if q.get("answer") else f"close : {q['closed']}" if q.get("closed") else "sans réponse"))
+        print("Fin :", "remise au client" if any(e.get("type") == "deliver" for e in d["events"]) else "pas de remise (mission arrêtée ou en cours)")
+        print(f"\nÀ faire : tirer 1 à 3 leçons de méthode et les ajouter à {HOME / 'lecons.md'} (format et règles en tête du fichier).")
+        return
     if cmd == "export":
         out = export()
         print(f"Mission exportée : {out}" if out else "Rien à exporter : la mission ne contient aucun échange.")
         return
-    if cmd == "stages":
+    if cmd == "topic":
+        require_mission()
+        update(LIVE, {}, lambda d: d.__setitem__("topic", a[1]))
+    elif cmd == "stages":
         require_mission()
         names = [s.strip() for s in a[1].split("|") if s.strip()]
         if not names:
@@ -384,6 +417,19 @@ def main(a):
             raise Erreur('il faut au moins deux choix : ask "Question ?" "Choix A|Choix B"')
         qid = update(QUEST, [], lambda d: (d.append({"id": len(d) + 1, "text": a[1], "options": options, "answer": None, **now()}), len(d))[1])
         append_event({"from": "pdg", "to": "client", "type": "question", "question": qid, "text": a[1] + " (" + " / ".join(options) + ")"})
+    elif cmd == "close":
+        # close N "raison" : la question n'attend plus de réponse (déjà réglée autrement)
+        qid = int(a[1])
+
+        def close(d):
+            q = next((q for q in d if q["id"] == qid), None)
+            if not q:
+                raise Erreur(f"question n° {qid} introuvable")
+            if q.get("answer"):
+                raise Erreur(f"la question n° {qid} a déjà une réponse")
+            q["closed"] = a[2]
+        update(QUEST, [], close)
+        append_event({"from": "pdg", "to": "client", "text": a[2]})
     elif cmd == "ack":
         n = message(int(a[1]))
         append_event({"from": "pdg", "to": "client", "text": a[2]})

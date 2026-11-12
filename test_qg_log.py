@@ -115,6 +115,19 @@ try:
         assert http(url + "answer", {"id": 1, "choice": "PDF"}, {"X-QG-Token": token})[0] == 204
         assert http(url + "answer", {"id": 1, "choice": "Word"}, {"X-QG-Token": token})[0] == 409, "une seule réponse"
         assert "RÉPONSE DU CLIENT" in qg("inbox")
+        # Réponse libre, et question close parce que déjà réglée autrement
+        qg("ask", "Ton ton préféré ?", "Sobre|Enthousiaste")
+        assert http(url + "answer", {"id": 2, "choice": "Plutôt direct"}, {"X-QG-Token": token})[0] == 409, "hors choix sans « other »"
+        assert http(url + "answer", {"id": 2, "choice": "Plutôt direct", "other": True}, {"X-QG-Token": token})[0] == 204
+        qg("ask", "Longueur ?", "Courte|Longue")
+        assert "déjà une réponse" in qg("close", "2", "x", ok=False)
+        qg("close", "3", "Réglé par ton message : 500 caractères.")
+        assert http(url + "answer", {"id": 3, "choice": "Courte"}, {"X-QG-Token": token})[0] == 409, "question close"
+        qs = json.loads((ROOT / "questions.json").read_text())
+        assert qs[1]["answer"] == "Plutôt direct" and qs[2]["closed"]
+        ev = json.loads((ROOT / "qg-live.json").read_text())["events"]
+        assert any(e.get("msg") == 1 for e in ev) and any(e.get("answer_to") == 2 for e in ev), "liens message ↔ consigne"
+        qg("inbox")
         state = json.loads(http(url + "state")[1])
         assert state["questions"][0]["answer"] == "PDF" and len(state["livrables"]) == 15
         assert all("source" not in v for v in state["livrables"]), "le chemin local du livrable ne doit pas être exposé"
