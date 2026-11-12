@@ -1,10 +1,11 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>QG du Bureau</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600&family=Manrope:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
-/* Bureau isométrique vivant au centre, panneau de pilotage à droite (vue d'ensemble, fiche agent, kanban), fil des échanges en bas. Thème clair assumé, comme une maquette d'architecte. */
+/* Bureau isométrique vivant au centre, panneau de pilotage à droite (questions, activité, consignes, indicateurs, fiche agent, kanban), fil des échanges et livrable en bas. Thème clair assumé, comme une maquette d'architecte. */
 :root {
   --bg: #eceff4;
   --panel: #ffffff;
@@ -14,7 +15,7 @@
   --accent: #2f5bff;
   --ok: #1d9e62;
   --ko: #e0443a;
-  --warn: #e8960c;
+  --warn: #b86e00;
   --display: "Unbounded", "Arial Black", sans-serif;
   --body: "Manrope", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
@@ -32,8 +33,10 @@ h1 { font: 600 18px/1.1 var(--display); letter-spacing: .02em; margin: 0; }
 .topic { color: var(--dim); min-width: 0; flex: 1 1 300px; }
 .topic b { color: var(--fg); font-weight: 600; }
 .badge { font: 500 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); padding: 3px 8px; border-radius: 99px; }
+.badge.off { color: var(--ko); background: color-mix(in srgb, var(--ko) 10%, transparent); }
+header a { font: 600 12px var(--body); color: var(--accent); }
 
-.main { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 12px; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; }
 .office { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; position: relative; height: min(66vh, 600px); min-height: 380px; overflow: hidden; min-width: 0; }
 canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
 .hint { position: absolute; left: 14px; bottom: 10px; font: 400 11px var(--mono); color: var(--dim); pointer-events: none; }
@@ -44,14 +47,26 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .stat b { display: block; font: 600 20px var(--display); font-variant-numeric: tabular-nums; }
 .stat span { font-size: 12px; color: var(--dim); }
+.first { font-size: 12px; color: var(--dim); margin: 10px 0 0; }
+.first b { color: var(--fg); font-variant-numeric: tabular-nums; }
 .bar { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; margin-top: 10px; }
 .bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .4s; }
+
+.ask { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent); }
+.q { display: grid; gap: 8px; }
+.q + .q { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+.q p { margin: 0; font-weight: 600; }
+.q .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.q .opt { background: var(--accent); border-color: var(--accent); color: #fff; }
+.q .done { font-size: 13px; color: var(--ok); }
+.q .wait { font-size: 13px; color: var(--dim); }
 
 .agent-head { display: flex; align-items: center; gap: 10px; }
 .dot { width: 26px; height: 26px; border-radius: 50%; flex: none; box-shadow: inset 0 -4px 0 rgba(0,0,0,.15); }
 .agent-head b { font: 600 14px var(--display); }
 .pill { margin-left: auto; font: 500 11px var(--mono); padding: 2px 8px; border-radius: 99px; background: var(--bg); color: var(--dim); white-space: nowrap; }
 .pill.move { color: var(--warn); } .pill.talk { color: var(--accent); }
+#agentPick { width: 100%; margin: 0 0 10px; }
 dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 10px 0 0; font-size: 12px; }
 dt { font: 500 10px/1.9 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
 dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
@@ -61,17 +76,23 @@ dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .col h3 span { color: var(--fg); }
 .kcard { background: var(--bg); border-radius: 6px; padding: 5px 6px; font-size: 11px; font-weight: 600; margin-bottom: 4px; border-left: 3px solid var(--line); overflow-wrap: anywhere; }
 .kcard.active { border-color: var(--warn); } .kcard.audit { border-color: var(--accent); } .kcard.ok { border-color: var(--ok); }
-.kcard small { display: block; font: 500 9px var(--mono); color: var(--ko); }
+.kcard small { display: block; font: 500 9px var(--mono); color: var(--dim); }
+.kcard small.ko { color: var(--ko); }
 
-.bottom { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 12px; }
+.bottom { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 12px; }
 #feed { list-style: none; margin: 0; padding: 0; max-height: 340px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
 #feed li { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 10px; font-size: 14px; }
+#feed li i { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; }
 #feed li.work .msg { color: var(--dim); font-style: italic; }
 #feed li.client { background: color-mix(in srgb, #f2c230 14%, transparent); border-radius: 8px; padding: 6px 8px; }
+#feed li.question { background: color-mix(in srgb, var(--accent) 8%, transparent); border-radius: 8px; padding: 6px 8px; }
+.who { font: 500 11px var(--mono); color: var(--dim); }
+li.ok .who { color: var(--ok); } li.ko .who { color: var(--ko); }
 #chat { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
 #chat input { flex: 1 1 220px; min-width: 0; font: 500 14px var(--body); padding: 9px 12px; border: 1px solid var(--line); border-radius: 99px; background: var(--bg); color: var(--fg); }
 #chat input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 #chat .send { background: var(--accent); border-color: var(--accent); color: #fff; }
+
 #now { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 #now li { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 8px; }
 #now li i { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; animation: pulse 1.2s ease-in-out infinite; }
@@ -87,14 +108,22 @@ dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 #cons .chip { font: 500 10px var(--mono); padding: 2px 7px; border-radius: 99px; background: var(--bg); display: inline-flex; gap: 5px; align-items: center; }
 #cons .chip i { width: 7px; height: 7px; border-radius: 50%; }
 #cons .chip.done { color: var(--ok); }
-@media (prefers-reduced-motion: reduce) { #now li i { animation: none; } }
-#feed li i { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; }
-.who { font: 500 11px var(--mono); color: var(--dim); }
-li.ok .who { color: var(--ok); } li.ko .who { color: var(--ko); }
+
+.liv-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.liv-head .eyebrow { margin: 0; }
+#livPick { flex: 1 1 260px; min-width: 0; }
+.seg { display: inline-flex; gap: 4px; }
+.seg button[aria-pressed="true"] { background: var(--fg); border-color: var(--fg); color: #fff; }
+#livView { margin: 0; max-height: 440px; overflow: auto; background: var(--bg); border-radius: 10px; padding: 12px 14px; font: 12px/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+#livView .add { color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); display: block; }
+#livView .del { color: var(--ko); background: color-mix(in srgb, var(--ko) 8%, transparent); display: block; text-decoration: line-through; }
+#livView .hunk { color: var(--dim); display: block; margin-top: 8px; }
+
 .empty { color: var(--dim); font-style: italic; display: block !important; }
 .controls { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; }
 button, select { font: 600 12px var(--body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 99px; padding: 8px 14px; cursor: pointer; }
 button:hover, select:hover { border-color: var(--dim); }
+button:disabled { opacity: .5; cursor: default; }
 button:focus-visible, select:focus-visible, canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #play { background: var(--accent); border-color: var(--accent); color: #fff; min-width: 100px; }
 .note { color: var(--dim); font-size: 12px; margin: 8px 0 0; width: 100%; }
@@ -103,6 +132,7 @@ button:focus-visible, select:focus-visible, canvas:focus-visible { outline: 2px 
   .main, .bottom { grid-template-columns: minmax(0, 1fr); }
   .office { height: 400px; min-height: 0; }
 }
+@media (prefers-reduced-motion: reduce) { #now li i { animation: none; } .bar i { transition: none; } }
 </style>
 
 <div class="app">
@@ -110,14 +140,19 @@ button:focus-visible, select:focus-visible, canvas:focus-visible { outline: 2px 
     <h1>QG du Bureau</h1>
     <div class="topic">Mission : <b id="topic"></b></div>
     <span class="badge" id="label"></span>
+    <a id="history" href="missions/" hidden>Historique des missions</a>
   </header>
 
   <div class="main">
     <div class="office">
-      <canvas id="office" tabindex="0" role="img" aria-label="Bureau en vue isométrique : chaque rôle est un petit robot qui se déplace pour échanger avec les autres"></canvas>
-      <div class="hint">Clique sur un agent pour voir sa fiche</div>
+      <canvas id="office" tabindex="0" role="img" aria-label="Bureau en vue isométrique : chaque rôle est un petit robot qui se déplace pour échanger avec les autres. Le fil des échanges reprend tout ce qui s'y passe."></canvas>
+      <div class="hint">Clique sur un agent, ou choisis-le dans la fiche agent</div>
     </div>
     <div class="side">
+      <section class="card ask" id="askCard" hidden>
+        <p class="eyebrow">Le PDG te demande</p>
+        <div id="asks"></div>
+      </section>
       <section class="card">
         <p class="eyebrow">En ce moment</p>
         <ul id="now"><li class="empty">Personne n'est en train de travailler.</li></ul>
@@ -130,14 +165,16 @@ button:focus-visible, select:focus-visible, canvas:focus-visible { outline: 2px 
         <p class="eyebrow">Vue d'ensemble</p>
         <div class="stats">
           <div class="stat"><b id="sAgents">0</b><span>agents mobilisés</span></div>
-          <div class="stat"><b id="sAudits">0</b><span>audits passés</span></div>
           <div class="stat"><b id="sMsgs">0 / 0</b><span>échanges</span></div>
           <div class="stat"><b id="sKo">0</b><span>renvois en correction</span></div>
+          <div class="stat"><b id="sDur">—</b><span>durée de la mission</span></div>
         </div>
+        <p class="first">Audits validés du premier coup : <b id="sFirst">—</b></p>
         <div class="bar"><i id="progress"></i></div>
       </section>
       <section class="card">
         <p class="eyebrow">Fiche agent</p>
+        <select id="agentPick" aria-label="Choisir l'agent à afficher"></select>
         <div class="agent-head"><span class="dot" id="aDot"></span><b id="aName"></b><span class="pill" id="aStatus"></span></div>
         <dl>
           <dt>Rôle</dt><dd id="aRole"></dd>
@@ -165,15 +202,28 @@ button:focus-visible, select:focus-visible, canvas:focus-visible { outline: 2px 
       <button id="play" type="button">▶ Lecture</button>
       <button id="next" type="button">Étape +1</button>
       <button id="reset" type="button">↺ Recommencer</button>
-      <select id="speed" aria-label="Vitesse"><option value="1">×1</option><option value="2" selected>×2</option><option value="4">×4</option></select>
+      <select id="speed" aria-label="Vitesse de lecture"><option value="1">×1</option><option value="2" selected>×2</option><option value="4">×4</option></select>
       <p class="note" id="note"></p>
     </section>
   </div>
+
+  <section class="card" id="livCard" hidden>
+    <div class="liv-head">
+      <p class="eyebrow">Livrable</p>
+      <select id="livPick" aria-label="Version du livrable"></select>
+      <div class="seg" role="group" aria-label="Affichage">
+        <button id="livText" type="button" aria-pressed="true">Texte</button>
+        <button id="livDiff" type="button" aria-pressed="false">Changements</button>
+      </div>
+    </div>
+    <pre id="livView"></pre>
+  </section>
 </div>
 
-<!-- Journal de session : seul bloc à remplacer pour rejouer une vraie mission. -->
+<!-- Journal de session : remplacé par qg_log.py export pour rejouer une vraie mission. -->
 <script id="session" type="application/json">
 {
+  "mission": "exemple",
   "topic": "Synthèse d'une page : ITIL 4 et COBIT 2019, quelles différences ?",
   "label": "Session d'exemple",
   "note": "Session d'exemple pour montrer le fonctionnement. Les échanges sont illustratifs.",
@@ -197,19 +247,34 @@ button:focus-visible, select:focus-visible, canvas:focus-visible { outline: 2px 
     {"from":"pdg","to":"cor","text":"Passe sur la forme : orthographe, ton, mise en page.","stage":"forme"},
     {"from":"cor","to":"pdg","text":"Neuf corrections, ton harmonisé, tient sur une page."},
     {"from":"aud","type":"ok","text":"Audit de forme validé.","stage":"forme"},
-    {"from":"aud","type":"ok","text":"Audit final : les 5 règles sont respectées. Aucune zone non vérifiée.","stage":"final"},
-    {"from":"pdg","to":"client","type":"deliver","text":"Livrable remis, avec ses 2 sources.","stage":"final"}
+    {"from":"aud","type":"ok","text":"Audit final : les 5 règles sont respectées. Aucune zone non vérifiée.","stage":"audit-final"},
+    {"from":"pdg","to":"client","type":"deliver","text":"Livrable remis, avec ses 2 sources.","stage":"audit-final"}
   ]
 }
 </script>
 
 <script>
-const S = JSON.parse(document.getElementById('session').textContent);
+// Jeton injecté par qg_server.py ; s'il est resté tel quel, la page est un rejeu sans serveur.
+const TOKEN = '__QG_TOKEN__';
+const CAN_LIVE = TOKEN !== '__QG' + '_TOKEN__';
 const $ = id => document.getElementById(id);
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const slug = s => String(s).normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+const DEFAULT_STAGES = ['Cadrage', 'Sources', 'Rédaction', 'Forme', 'Audit final'].map(n => ({id: slug(n), name: n}));
+function normalize(s) {
+  s.stages = s.stages && s.stages.length ? s.stages : DEFAULT_STAGES;
+  for (const k of ['events', 'consignes', 'questions', 'livrables']) s[k] = s[k] || [];
+  return s;
+}
+let S = normalize(JSON.parse($('session').textContent));
+const stageId = x => (S.stages.find(s => s.id === x || s.name === x || s.id === slug(x)) || {}).id;
 
 // Rôles : couleur, poste (coordonnées du sol isométrique), mission.
-const ROLES = {
+// Objets sans prototype : un identifiant comme « constructor » ne peut pas tomber sur une propriété héritée.
+const dict = o => Object.assign(Object.create(null), o);
+const ROLES = dict({
   pdg:    {name: 'PDG', color: '#2f5bff', home: [8.2, 4.2], role: 'Cadre la demande, répartit le travail, tranche, valide.'},
   aud:    {name: 'Auditeur', color: '#e0443a', home: [11.6, 8.9], role: 'Contrôle chaque étape. Zéro invention, tout est sourcé.'},
   bib:    {name: 'Bibliothécaire', color: '#f08a24', home: [2.1, 3.4], role: 'Cherche, vérifie et cite les sources.'},
@@ -223,12 +288,9 @@ const ROLES = {
   ing:    {name: 'Ingénieur', color: '#4a5568', home: [3.4, 10.6], role: 'Code et outils techniques.'},
   jur:    {name: 'Juriste', color: '#5b6cff', home: [2.2, 10.9], role: 'RGPD, conformité, contrats.'},
   cdp:    {name: 'Chef de projet', color: '#7cb342', home: [1.0, 10.6], role: 'Planning, échéances, coordination.'},
-};
+});
 const CORE = ['pdg', 'aud', 'bib', 'ecr', 'cor', 'client'];
-const STAGES = [['cadrage', 'Cadrage'], ['sources', 'Sources'], ['redaction', 'Rédaction'], ['forme', 'Forme'], ['final', 'Audit final']];
 const COLS = [['todo', 'À faire'], ['active', 'En cours'], ['audit', 'En audit'], ['ok', 'Validé']];
-
-$('topic').textContent = S.topic; $('label').textContent = S.label || 'Session'; $('note').textContent = S.note || '';
 
 // ---------- Projection isométrique ----------
 const cv = $('office'), ctx = cv.getContext('2d');
@@ -243,14 +305,15 @@ function layout() {
   oy = (H - ((GX + GY) * tw / 4 + WH * tw / 2)) / 2 + WH * tw / 2;
 }
 new ResizeObserver(layout).observe(cv);
+const FONT = getComputedStyle(document.documentElement).getPropertyValue('--body');
 
 function shade(hex, k) {
   const n = parseInt(hex.slice(1), 16), f = c => Math.max(0, Math.min(255, Math.round(c * (1 + k))));
   return `rgb(${f(n >> 16)},${f(n >> 8 & 255)},${f(n & 255)})`;
 }
-function poly(pts, fill, stroke) {
+function poly(pts, fill) {
   ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
-  ctx.fillStyle = fill; ctx.fill(); if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
+  ctx.fillStyle = fill; ctx.fill();
 }
 function box(x, y, w, d, h, col, z = 0) {
   poly([P(x, y + d, z), P(x + w, y + d, z), P(x + w, y + d, z + h), P(x, y + d, z + h)], shade(col, -.12));
@@ -260,101 +323,122 @@ function box(x, y, w, d, h, col, z = 0) {
 const wallQuad = (x0, x1, z0, z1, fill) => poly([P(x0, .02, z0), P(x1, .02, z0), P(x1, .02, z1), P(x0, .02, z1)], fill);
 const leftQuad = (y0, y1, z0, z1, fill) => poly([P(.02, y0, z0), P(.02, y1, z0), P(.02, y1, z1), P(.02, y0, z1)], fill);
 
-// Mobilier : chaque élément a une profondeur pour l'ordre de dessin.
+// Mobilier : profondeur pour l'ordre de dessin, et emprise au sol pour que les robots le contournent.
 const WOOD = '#b98a5e', WHITE = '#f4f6f9', STEEL = '#c3cad4', DARK = '#2b3342';
 const furniture = [
-  // Bibliothèque contre le mur gauche
   {d: 4, draw: () => { box(.1, 1.2, .8, 4.2, 2.4, '#d9c3a5'); [[1.4, '#e0443a'], [2.0, '#2f5bff'], [2.6, '#1d9e62'], [3.2, '#f08a24'], [3.8, '#7b4cf0'], [4.4, '#f2c230']].forEach(([y, c], i) => box(.85, y, .12, .45, .55, c, .25 + (i % 3) * .7)); }},
-  // Bureau du PDG + écrans
   {d: 13.3, draw: () => { box(7, 5, 2.8, 1.3, .75, WOOD); box(7.5, 5.15, 1.6, .12, .7, DARK, .75); box(9.25, 5.3, .35, .35, .25, '#f4f6f9', .75); }},
-  // Plante
   {d: 13.5, draw: () => { box(12.6, .5, .6, .6, .5, '#dfe3ea'); box(12.7, .6, .4, .4, .7, '#3f9a5a', .5); }},
-  // Poste de l'Écrivain
   {d: 14.3, draw: () => { box(5.2, 7.9, 1.9, 1.1, .7, WHITE); box(5.5, 8.05, .9, .6, .06, '#fffbe8', .7); box(5.6, 8.1, .9, .6, .06, '#fff3c4', .76); }},
-  // Poste du Correcteur
   {d: 6.3, draw: () => { box(11, 2.6, 1.8, 1, .7, WHITE); box(11.4, 2.75, .9, .1, .5, DARK, .7); }},
-  // Portique d'audit
   {d: 17.5, draw: () => { const c = gateColor(); box(10.6, 7.6, .3, .45, 1.9, STEEL); box(12.3, 7.6, .3, .45, 1.9, STEEL); box(10.6, 7.6, 2, .45, .22, c, 1.9); }},
-  // Table de réunion des spécialistes
   {d: 11.9, draw: () => { box(1.2, 9.0, 2.6, 1.3, .65, '#e6e9ef'); }},
-  // Tapis d'accueil du client
   {d: 0, draw: () => poly([P(12.4, 5.3), P(13.8, 5.3), P(13.8, 6.7), P(12.4, 6.7)], '#fbe9a8')},
 ];
+const BLOCKS = [[.1, 1.2, .8, 4.2], [7, 5, 2.8, 1.3], [12.6, .5, .6, .6], [5.2, 7.9, 1.9, 1.1], [11, 2.6, 1.8, 1], [10.6, 7.6, .3, .45], [12.3, 7.6, .3, .45], [1.2, 9, 2.6, 1.3]];
+const HUBS = [[6.4, 6.9], [10, 6.9], [4.6, 6], [9.9, 3.9], [4.5, 3.5], [10.2, 9.8], [5, 10.9], [12.8, 4.2]];
+const blocked = (x, y) => x < .3 || y < .3 || x > GX - .3 || y > GY - .3 || BLOCKS.some(([bx, by, w, d]) => x > bx - .3 && x < bx + w + .3 && y > by - .3 && y < by + d + .3);
+const clear = (a, b) => { for (let i = 1; i <= 24; i++) { const t = i / 24; if (blocked(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)) return false; } return true; };
+// ponytail: contournement par points de passage fixes (pas de A*), suffisant pour une seule pièce meublée
+function route(a, b) {
+  if (clear(a, b)) return [b];
+  for (const c of [[b[0], a[1]], [a[0], b[1]], ...HUBS]) if (!blocked(...c) && clear(a, c) && clear(c, b)) return [c, b];
+  for (const c of HUBS) for (const d of HUBS) if (c !== d && clear(a, c) && clear(c, d) && clear(d, b)) return [c, d, b];
+  return [b];
+}
+function meetPoint(B) {
+  for (const [dx, dy] of [[.9, .7], [-.9, .7], [.9, -.7], [-.9, -.7], [1.1, 0], [0, 1.1], [-1.1, 0], [0, -1.1]]) {
+    const p = [B.home[0] + dx, B.home[1] + dy]; if (!blocked(...p)) return p;
+  }
+  return [B.home[0] + .9, B.home[1] + .7];
+}
+
 let gate = {state: null, t: -1e9};
 function gateColor() { if (!gate.state) return '#9aa3b2'; const fresh = performance.now() - gate.t < 2500; return gate.state === 'ok' ? (fresh ? '#1d9e62' : '#7cc9a3') : (fresh ? '#e0443a' : '#ef9b94'); }
 
 function drawRoom() {
   poly([P(0, 0), P(GX, 0), P(GX, GY), P(0, GY)], '#f7f8fb');
   ctx.strokeStyle = '#eceff4'; ctx.lineWidth = 1;
-  for (let i = 1; i < GX; i++) { const [a, b] = [P(i, 0), P(i, GY)]; ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke(); }
-  for (let j = 1; j < GY; j++) { const [a, b] = [P(0, j), P(GX, j)]; ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke(); }
+  for (let i = 1; i < GX; i++) { ctx.beginPath(); ctx.moveTo(...P(i, 0)); ctx.lineTo(...P(i, GY)); ctx.stroke(); }
+  for (let j = 1; j < GY; j++) { ctx.beginPath(); ctx.moveTo(...P(0, j)); ctx.lineTo(...P(GX, j)); ctx.stroke(); }
   poly([P(0, 0), P(0, GY), P(0, GY, WH), P(0, 0, WH)], '#e4e8ef');
   poly([P(0, 0), P(GX, 0), P(GX, 0, WH), P(0, 0, WH)], '#d9dfe8');
-  // Tableau blanc au mur gauche
   leftQuad(6.2, 9.4, 1.1, 2.6, '#ffffff');
   // Mur kanban : reflète l'état réel de la mission
   wallQuad(4.2, 10.2, .9, 2.8, '#ffffff');
+  const perCol = Math.max(1, ...COLS.map(([k]) => S.stages.filter(s => colOf(s.id) === k).length));
+  const h = Math.min(.3, 1.5 / perCol);
   COLS.forEach(([k], ci) => {
     const x0 = 4.4 + ci * 1.45;
     wallQuad(x0, x0 + 1.3, 2.55, 2.68, '#c9d1dd');
-    STAGES.filter(([s]) => colOf(s) === k).forEach(([s], i) => {
-      const c = {todo: '#c9d1dd', active: '#f3b545', audit: '#6e8bff', ok: '#59c08d'}[k];
-      wallQuad(x0 + .1, x0 + 1.2, 2.35 - i * .3, 2.12 - i * .3 + .0, gates[s].retries && k !== 'ok' ? '#ef9b94' : c);
+    S.stages.filter(s => colOf(s.id) === k).forEach((s, i) => {
+      const c = gates[s.id].retries && k !== 'ok' ? '#ef9b94' : {todo: '#c9d1dd', active: '#f3b545', audit: '#6e8bff', ok: '#59c08d'}[k];
+      wallQuad(x0 + .1, x0 + 1.2, 2.4 - i * h, 2.4 - (i + 1) * h + .04, c);
     });
   });
 }
 
 // ---------- Agents ----------
-const agents = Object.fromEntries(Object.entries(ROLES).map(([id, r]) => [id, {id, ...r, x: r.home[0], y: r.home[1], tx: r.home[0], ty: r.home[1], called: CORE.includes(id), flash: -1e9, sent: 0, recv: 0, last: ''}]));
+const makeAgent = (id, r) => ({id, ...r, x: r.home[0], y: r.home[1], path: [], called: CORE.includes(id), flash: -1e9, sent: 0, recv: 0, last: '', activity: null});
+const agents = dict(Object.fromEntries(Object.entries(ROLES).map(([id, r]) => [id, makeAgent(id, r)])));
 let bubble = null, current = null, pinned = null;
+const setDest = (a, p) => { a.path = route([a.x, a.y], p); };
+const pathLen = a => { let l = 0, x = a.x, y = a.y; for (const [px, py] of a.path) { l += Math.hypot(px - x, py - y); x = px; y = py; } return l; };
+const speed = () => 3.2 * (live ? 2 : +$('speed').value);
 
 function drawAgent(a, now) {
-  const [sx, sy] = P(a.x, a.y), s = tw / 40, moving = Math.hypot(a.tx - a.x, a.ty - a.y) > .05;
+  const [sx, sy] = P(a.x, a.y), s = tw / 40, moving = a.path.length > 0;
   const bob = moving && !reduce ? Math.abs(Math.sin(now / 90)) * 3 * s : 0;
-  ctx.globalAlpha = a.called ? 1 : .38;
+  const alpha = a.called ? 1 : .38;
+  ctx.globalAlpha = alpha;
   ctx.fillStyle = 'rgba(20,30,50,.14)'; ctx.beginPath(); ctx.ellipse(sx, sy, 10 * s, 4.5 * s, 0, 0, 7); ctx.fill();
-  if (now - a.flash < 900) { ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.globalAlpha = 1 - (now - a.flash) / 900; ctx.beginPath(); ctx.ellipse(sx, sy, (12 + (now - a.flash) / 40) * s, (5.5 + (now - a.flash) / 90) * s, 0, 0, 7); ctx.stroke(); ctx.globalAlpha = a.called ? 1 : .38; }
+  if (now - a.flash < 900) { ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.globalAlpha = 1 - (now - a.flash) / 900; ctx.beginPath(); ctx.ellipse(sx, sy, (12 + (now - a.flash) / 40) * s, (5.5 + (now - a.flash) / 90) * s, 0, 0, 7); ctx.stroke(); ctx.globalAlpha = alpha; }
   const by = sy - bob;
-  // corps
   ctx.fillStyle = a.color; ctx.beginPath(); ctx.roundRect(sx - 7 * s, by - 20 * s, 14 * s, 18 * s, 6 * s); ctx.fill();
   ctx.fillStyle = shade(a.color, -.2); ctx.beginPath(); ctx.roundRect(sx - 7 * s, by - 9 * s, 14 * s, 7 * s, [0, 0, 6 * s, 6 * s]); ctx.fill();
-  // tête + visière
   ctx.fillStyle = a.color; ctx.beginPath(); ctx.arc(sx, by - 27 * s, 9 * s, 0, 7); ctx.fill();
   ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.ellipse(sx + 2.5 * s, by - 28 * s, 5.5 * s, 3.6 * s, 0, 0, 7); ctx.fill();
   ctx.fillStyle = '#1a2130'; ctx.beginPath(); ctx.arc(sx + 1.2 * s, by - 28 * s, 1.3 * s, 0, 7); ctx.arc(sx + 4.6 * s, by - 28 * s, 1.3 * s, 0, 7); ctx.fill();
   if (a.id === 'pdg') { ctx.fillStyle = '#1a2130'; ctx.fillRect(sx - 6 * s, by - 38 * s, 12 * s, 3 * s); ctx.fillRect(sx - 4 * s, by - 45 * s, 8 * s, 7 * s); }
-  // étiquette
   if (a.called || a === pinned) {
-    ctx.font = `600 ${Math.max(9, 10 * s)}px ${getComputedStyle(document.body).getPropertyValue('--body')}`;
-    const t = a.name, w = ctx.measureText(t).width + 10;
+    ctx.font = `600 ${Math.max(9, 10 * s)}px ${FONT}`;
+    const w = ctx.measureText(a.name).width + 10;
     ctx.fillStyle = a === pinned ? a.color : 'rgba(255,255,255,.92)'; ctx.beginPath(); ctx.roundRect(sx - w / 2, sy + 4 * s, w, 15, 7); ctx.fill();
-    ctx.fillStyle = a === pinned ? '#fff' : '#1a2130'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, sx, sy + 4 * s + 8);
+    ctx.fillStyle = a === pinned ? '#fff' : '#1a2130'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(a.name, sx, sy + 4 * s + 8);
   }
-  // agent au travail : petit voyant clignotant au-dessus de la tête
   if (a.activity) { ctx.globalAlpha = reduce ? 1 : .55 + .45 * Math.sin(now / 200); ctx.fillStyle = '#e8960c'; ctx.beginPath(); ctx.arc(sx + 10 * s, by - 38 * s, 4 * s, 0, 7); ctx.fill(); }
   ctx.globalAlpha = 1;
   a.sx = sx; a.sy = by - 18 * s;
 }
 
 function drawBubble(now) {
-  if (!bubble || now < bubble.t0) return;
-  const a = agents[bubble.id], alpha = Math.min(1, (now - bubble.t0) / 200);
-  ctx.globalAlpha = alpha;
-  ctx.font = `500 14px ${getComputedStyle(document.body).getPropertyValue('--body')}`;
-  const maxW = Math.min(300, W * .55), words = bubble.text.split(' '), lines = [];
+  if (!bubble || now < bubble.t0 || !agents[bubble.id]) return;
+  const a = agents[bubble.id];
+  ctx.globalAlpha = Math.min(1, (now - bubble.t0) / 200);
+  ctx.font = `500 14px ${FONT}`;
+  const maxW = Math.min(300, W * .55), lines = [];
   let cur = '';
-  for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; }
-  lines.push(cur);
-  if (lines.length > 6) { lines.length = 6; lines[5] += '…'; }
+  for (let w of bubble.text.split(' ')) {
+    // un mot plus large que la bulle (URL…) est coupé au caractère
+    while (ctx.measureText(w).width > maxW) {
+      let k = w.length; while (k > 1 && ctx.measureText(w.slice(0, k)).width > maxW) k--;
+      if (cur) { lines.push(cur); cur = ''; }
+      lines.push(w.slice(0, k)); w = w.slice(k);
+    }
+    const t = cur ? cur + ' ' + w : w;
+    if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t;
+  }
+  if (cur) lines.push(cur);
+  if (lines.length > 6) { lines.length = 6; lines.push('… (suite dans le fil)'); }
   const bw = Math.max(...lines.map(l => ctx.measureText(l).width)) + 24, bh = lines.length * 19 + 16;
-  let bx = Math.max(6, Math.min(W - bw - 6, a.sx - bw / 2)), byy = Math.max(6, a.sy - 34 - bh);
+  const bx = Math.max(6, Math.min(W - bw - 6, a.sx - bw / 2)), byy = Math.max(6, a.sy - 34 - bh);
   ctx.shadowColor = 'rgba(20,30,50,.15)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 3;
   ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.roundRect(bx, byy, bw, bh, 10); ctx.fill();
   ctx.shadowColor = 'transparent';
   ctx.fillStyle = bubble.color; ctx.fillRect(bx, byy + 8, 3, bh - 16);
   ctx.beginPath(); ctx.moveTo(a.sx - 6, byy + bh); ctx.lineTo(a.sx + 6, byy + bh); ctx.lineTo(a.sx, byy + bh + 7); ctx.fillStyle = '#ffffff'; ctx.fill();
-  ctx.fillStyle = '#1a2130'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-  lines.forEach((l, i) => ctx.fillText(l, bx + 13, byy + 9 + i * 19));
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  lines.forEach((l, i) => { ctx.fillStyle = i === 6 ? '#6b7587' : '#1a2130'; ctx.fillText(l, bx + 13, byy + 9 + i * 19); });
   ctx.globalAlpha = 1;
 }
 
@@ -362,72 +446,93 @@ function drawBubble(now) {
 let lastFrame = performance.now();
 function frame(now) {
   const dt = Math.min(.05, (now - lastFrame) / 1000); lastFrame = now;
-  const v = 3.2 * +$('speed').value;
   for (const a of Object.values(agents)) {
-    const dx = a.tx - a.x, dy = a.ty - a.y, d = Math.hypot(dx, dy);
-    if (reduce || d < v * dt) { a.x = a.tx; a.y = a.ty; } else { a.x += dx / d * v * dt; a.y += dy / d * v * dt; }
+    let rem = speed() * dt;
+    while (a.path.length && (reduce || rem > 0)) {
+      const [px, py] = a.path[0], d = Math.hypot(px - a.x, py - a.y);
+      if (reduce || d <= rem) { a.x = px; a.y = py; a.path.shift(); rem -= d; }
+      else { a.x += (px - a.x) / d * rem; a.y += (py - a.y) / d * rem; rem = 0; }
+    }
   }
   ctx.clearRect(0, 0, W, H);
   drawRoom();
   // ponytail: tri par profondeur x+y, suffisant pour une pièce sans chevauchement complexe
-  const items = furniture.map(f => ({d: f.d, draw: f.draw})).concat(Object.values(agents).map(a => ({d: a.x + a.y + .5, draw: () => drawAgent(a, now)})));
+  const items = furniture.concat(Object.values(agents).map(a => ({d: a.x + a.y + .5, draw: () => drawAgent(a, now)})));
   items.sort((p, q) => p.d - q.d).forEach(it => it.draw());
   drawBubble(now);
   // en direct, si plusieurs échanges attendent, on accélère pour rester proche du temps réel
-  const backlog = S.events.length - idx, gap = live && backlog > 2 ? 700 : 2800 / +$('speed').value;
+  const backlog = S.events.length - idx, gap = live ? (backlog > 2 ? 600 : 1400) : 2800 / +$('speed').value;
   if (playing && now - lastStep > gap) { lastStep = now; step(); }
-  if (!pinned || pinned === current) renderAgent(current || agents.pdg); else renderAgent(pinned);
+  renderAgent(pinned || current || agents.pdg);
   requestAnimationFrame(frame);
 }
 
-// ---------- Lecture de la session ----------
-let idx = 0, playing = false, lastStep = 0, gates = {}, curStage = null, audits = 0, kos = 0;
-const colOf = s => { const g = gates[s]; return !g ? 'todo' : g.state === 'pending' ? 'todo' : g.state === 'ko' ? 'active' : g.state; };
+// ---------- Lecture de la mission ----------
+let idx = 0, playing = false, lastStep = 0, gates = {}, curStage = null, live = false, played = {questions: new Set(), livrable: 0};
+const colOf = s => { const g = gates[s]; return !g || g.state === 'pending' ? 'todo' : g.state === 'ko' ? 'active' : g.state; };
 
 function step() {
   if (idx >= S.events.length) { setPlaying(false); return; }
   const e = S.events[idx++], now = performance.now(), tos = e.to ? [].concat(e.to) : [];
   if (e.type === 'hire' && e.hire && !agents[e.hire.id]) hire(e.hire);
-  const A = agents[e.from], color = e.type === 'ok' ? '#1d9e62' : e.type === 'ko' ? '#e0443a' : A.color;
-  // tout le monde regagne son poste, sauf l'émetteur qui va voir le destinataire
-  Object.values(agents).forEach(a => { a.tx = a.home[0]; a.ty = a.home[1]; });
-  [e.from, ...tos].forEach(id => agents[id].called = true);
+  const A = agents[e.from] || agents.pdg;
+  const color = e.type === 'ok' ? '#1d9e62' : e.type === 'ko' ? '#e0443a' : A.color;
+  Object.values(agents).forEach(a => { if (a !== A && (a.x !== a.home[0] || a.y !== a.home[1])) setDest(a, a.home); });
+  [e.from, ...tos].forEach(id => agents[id] && (agents[id].called = true));
   let travel = 0;
-  if (tos.length && tos[0] !== e.from) {
-    const B = agents[tos[0]], mx = Math.min(GX - .6, B.home[0] + .9), my = Math.min(GY - .4, B.home[1] + .7);
-    A.tx = mx; A.ty = my; travel = reduce ? 0 : Math.hypot(mx - A.x, my - A.y) / (3.2 * +$('speed').value) * 1000;
+  if (tos.length && tos[0] !== e.from && agents[tos[0]]) {
+    setDest(A, meetPoint(agents[tos[0]]));
+    travel = reduce ? 0 : pathLen(A) / speed() * 1000;
   }
-  tos.forEach(id => { agents[id].recv++; setTimeout(() => agents[id].flash = performance.now(), travel); });
+  tos.forEach(id => { if (agents[id]) { agents[id].recv++; setTimeout(() => { if (agents[id]) agents[id].flash = performance.now(); }, travel); } });
   A.sent++; A.last = e.text; A.flash = now; current = A;
   A.activity = e.type === 'work' ? e.text : null;
-  renderNow();
-  bubble = {id: e.from, text: e.text, color, t0: now + travel};
-  if (e.stage) {
-    curStage = e.stage; const g = gates[e.stage];
-    if (e.type === 'ok') { g.state = 'ok'; audits++; gate = {state: 'ok', t: now}; }
-    else if (e.type === 'ko') { g.state = 'ko'; g.retries++; kos++; gate = {state: 'ko', t: now}; }
+  bubble = {id: A.id, text: e.text, color, t0: now + travel};
+  const sid = e.stage && stageId(e.stage);
+  if (sid) {
+    curStage = sid; const g = gates[sid];
+    g.start = g.start || e.ts;
+    if (e.type === 'ok') { g.state = 'ok'; g.end = e.ts; gate = {state: 'ok', t: now}; }
+    else if (e.type === 'ko') { g.state = 'ko'; g.retries++; gate = {state: 'ko', t: now}; }
     else if (g.state !== 'ok') g.state = 'active';
   }
   if (curStage && tos.includes('aud') && ['active', 'ko'].includes(gates[curStage].state)) gates[curStage].state = 'audit';
-  // fil
-  if (idx === 1) $('feed').innerHTML = '';
-  const li = document.createElement('li'); li.className = (e.type || '') + (e.from === 'client' ? ' client' : '');
-  const dest = tos.length ? ' → ' + tos.map(t => ROLES[t].name).join(', ') : e.type === 'ok' ? ' · audit validé' : e.type === 'ko' ? ' · audit rejeté' : e.type === 'work' ? ' · au travail' : '';
-  li.innerHTML = `<i style="background:${A.color}"></i><div><div class="who"></div><div class="msg"></div></div>`;
-  li.querySelector('.who').textContent = A.name + dest; li.querySelector('.msg').textContent = e.text;
-  $('feed').prepend(li);
-  renderStats();
+  if (e.type === 'question') played.questions.add(e.question);
+  if (e.type === 'deliverable') played.livrable = Math.max(played.livrable, e.livrable);
+  addFeed(e, A, tos);
+  renderNow(); renderStats(); renderQuestions(); renderLivrables(); refreshPick();
   if (idx >= S.events.length) setPlaying(false);
 }
 
+function addFeed(e, A, tos) {
+  if (idx === 1) $('feed').innerHTML = '';
+  const li = document.createElement('li');
+  li.className = (e.type || '') + (e.from === 'client' ? ' client' : '');
+  const name = id => (ROLES[id] || {name: id}).name;
+  const dest = tos.length ? ' → ' + tos.map(name).join(', ') : {ok: ' · audit validé', ko: ' · audit rejeté', work: ' · au travail', deliverable: ' · nouvelle version du livrable', hire: ' · embauche'}[e.type] || '';
+  li.innerHTML = `<i style="background:${esc(A.color)}"></i><div><div class="who"></div><div class="msg"></div></div>`;
+  li.querySelector('.who').textContent = A.name + dest + (e.t ? ' · ' + e.t : '');
+  li.querySelector('.msg').textContent = e.text;
+  $('feed').prepend(li);
+}
+
+const fmtDur = sec => sec == null ? '—' : sec < 60 ? `${Math.round(sec)} s` : sec < 3600 ? `${Math.round(sec / 60)} min` : `${Math.floor(sec / 3600)} h ${String(Math.round(sec % 3600 / 60)).padStart(2, '0')}`;
 function renderStats() {
-  $('sAgents').textContent = Object.values(agents).filter(a => a.called && a.id !== 'client').length;
-  $('sAudits').textContent = audits; $('sKo').textContent = kos;
+  const done = S.events.slice(0, idx), ts = done.map(e => e.ts).filter(Boolean);
+  $('sAgents').textContent = Object.values(agents).filter(a => (a.sent || a.recv) && a.id !== 'client').length;
   $('sMsgs').textContent = `${idx} / ${S.events.length}`;
-  $('progress').style.width = (idx / S.events.length * 100) + '%';
+  $('sKo').textContent = Object.values(gates).reduce((n, g) => n + g.retries, 0);
+  $('sDur').textContent = ts.length > 1 ? fmtDur(ts[ts.length - 1] - ts[0]) : '—';
+  const ok = Object.values(gates).filter(g => g.state === 'ok');
+  $('sFirst').textContent = ok.length ? `${ok.filter(g => !g.retries).length} / ${ok.length}` : '—';
+  $('progress').style.width = (S.events.length ? idx / S.events.length * 100 : 0) + '%';
   $('kanban').innerHTML = COLS.map(([k, t]) => {
-    const cards = STAGES.filter(([s]) => colOf(s) === k);
-    return `<div class="col"><h3>${t} <span>${cards.length}</span></h3>${cards.map(([s, n]) => `<div class="kcard ${k}">${n}${gates[s].retries && k !== 'ok' ? '<small>renvoyé</small>' : gates[s].retries ? `<small style="color:var(--dim)">${gates[s].retries} renvoi</small>` : ''}</div>`).join('')}</div>`;
+    const cards = S.stages.filter(s => colOf(s.id) === k);
+    return `<div class="col"><h3>${t} <span>${cards.length}</span></h3>${cards.map(s => {
+      const g = gates[s.id], dur = g.start && g.end ? fmtDur(g.end - g.start) : '';
+      const tag = g.retries && k !== 'ok' ? '<small class="ko">renvoyé</small>' : g.retries ? `<small>${g.retries} renvoi${g.retries > 1 ? 's' : ''}</small>` : '';
+      return `<div class="kcard ${k}">${esc(s.name)}${tag}${dur ? `<small>${dur}</small>` : ''}</div>`;
+    }).join('')}</div>`;
   }).join('');
 }
 
@@ -436,32 +541,39 @@ let hired = [];
 function lighten(hex, k) { const n = parseInt(hex.slice(1), 16); return '#' + [n >> 16, n >> 8 & 255, n & 255].map(c => Math.round(c + (255 - c) * k).toString(16).padStart(2, '0')).join(''); }
 function hire(h) {
   const base = ROLES[h.like] || ROLES.pdg, n = hired.filter(id => ROLES[id].like === h.like).length + 1;
-  const home = [Math.min(GX - .6, base.home[0] + .9 * n), Math.min(GY - .5, base.home[1] + .8 * (n % 2 ? 1 : -1))];
+  // décalage en travers de l'axe de profondeur, pour que le renfort ne se cache pas derrière son modèle
+  const [dx, dy] = n % 2 ? [1.1, -.3] : [-.3, 1.1];
+  let home = [Math.min(GX - .6, base.home[0] + dx * Math.ceil(n / 2)), Math.min(GY - .5, base.home[1] + dy * Math.ceil(n / 2))];
+  if (blocked(...home)) home = meetPoint({home: base.home});
   ROLES[h.id] = {name: h.name, color: lighten(base.color, .3 * Math.min(n, 2)), home, role: base.role + ' (renfort)', like: h.like};
-  agents[h.id] = {id: h.id, ...ROLES[h.id], x: 13.1, y: 6.0, tx: home[0], ty: home[1], called: true, flash: performance.now(), sent: 0, recv: 0, last: '', activity: null};
+  agents[h.id] = Object.assign(makeAgent(h.id, ROLES[h.id]), {x: 13.1, y: 6.0, called: true, flash: performance.now()});
+  setDest(agents[h.id], home);
   hired.push(h.id);
 }
+
 function renderNow() {
   const busy = Object.values(agents).filter(a => a.activity);
   $('now').innerHTML = busy.length ? '' : '<li class="empty">Personne n\'est en train de travailler.</li>';
   busy.forEach(a => {
     const li = document.createElement('li');
-    li.innerHTML = `<i style="background:${a.color}"></i><div><b></b> <span></span></div>`;
+    li.innerHTML = `<i style="background:${esc(a.color)}"></i><div><b></b> <span></span></div>`;
     li.querySelector('b').textContent = a.name; li.querySelector('span').textContent = a.activity;
     $('now').appendChild(li);
   });
 }
-$('chat').addEventListener('submit', async ev => {
-  ev.preventDefault();
-  const text = $('chatText').value.trim(); if (!text) return;
-  $('chatText').value = '';
-  try { const r = await fetch('say', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text})}); if (!r.ok) throw 0; pollCons(); }
-  catch { $('chatText').value = text; $('note').textContent = 'Message non envoyé : le serveur du QG ne répond pas. Réessaie dans un instant.'; }
-});
-let shownAgent = null, shownKey = '';
+
+// Fiche agent : clic sur le robot ou choix au clavier dans la liste.
+let pickKey = '';
+function refreshPick() {
+  const list = Object.values(agents).filter(a => a.called || a === pinned), key = list.map(a => a.id).join();
+  if (key === pickKey) return; pickKey = key;
+  $('agentPick').innerHTML = '<option value="">Agent actif (suit les échanges)</option>' + list.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
+  $('agentPick').value = pinned ? pinned.id : '';
+}
+$('agentPick').onchange = () => { pinned = agents[$('agentPick').value] || null; shownKey = ''; };
+let shownKey = '';
 function renderAgent(a) {
-  const moving = Math.hypot(a.tx - a.x, a.ty - a.y) > .05;
-  const st = moving ? ['En déplacement', 'move'] : a === current && bubble ? ['En train d\'échanger', 'talk'] : a.called ? ['À son poste', ''] : ['En réserve', ''];
+  const st = a.path.length ? ['En déplacement', 'move'] : a === current && bubble ? ['En train d\'échanger', 'talk'] : a.activity ? ['Au travail', 'talk'] : a.called ? ['À son poste', ''] : ['En réserve', ''];
   const key = a.id + st[0] + a.sent + a.recv;
   if (key === shownKey) return; shownKey = key;
   $('aDot').style.background = a.color; $('aName').textContent = a.name;
@@ -470,65 +582,180 @@ function renderAgent(a) {
   $('aCount').textContent = `${a.sent} envoyé${a.sent > 1 ? 's' : ''}, ${a.recv} reçu${a.recv > 1 ? 's' : ''}`;
   $('aLast').textContent = a.last || '—';
 }
-
-function setPlaying(v) { playing = v; $('play').textContent = v ? '❚❚ Pause' : idx >= S.events.length ? '▶ Rejouer' : '▶ Lecture'; }
-function reset() {
-  hired.forEach(id => { delete agents[id]; delete ROLES[id]; }); hired = [];
-  idx = 0; audits = 0; kos = 0; curStage = null; bubble = null; current = null; pinned = null; gate = {state: null, t: -1e9};
-  gates = Object.fromEntries(STAGES.map(([k]) => [k, {state: 'pending', retries: 0}]));
-  Object.values(agents).forEach(a => Object.assign(a, {x: a.home[0], y: a.home[1], tx: a.home[0], ty: a.home[1], called: CORE.includes(a.id), sent: 0, recv: 0, last: '', activity: null}));
-  renderNow();
-  $('feed').innerHTML = '<li class="empty">Appuie sur Lecture pour voir le Bureau travailler.</li>';
-  shownKey = ''; renderStats(); setPlaying(false);
-}
-$('play').onclick = () => { if (idx >= S.events.length) reset(); setPlaying(!playing); lastStep = 0; };
-$('next').onclick = () => { setPlaying(false); step(); };
-$('reset').onclick = reset;
 cv.addEventListener('click', ev => {
   const r = cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
   let best = null, bd = 30 * tw / 40 + 6;
   for (const a of Object.values(agents)) { const d = Math.hypot(a.sx - mx, a.sy - my); if (d < bd) { bd = d; best = a; } }
-  pinned = best; shownKey = '';
+  pinned = best; shownKey = ''; pickKey = ''; refreshPick();
 });
 
-// Mode direct : si qg-live.json est servi à côté de la page, on le relit en continu et on joue chaque nouvel échange.
-let live = false, liveFails = 0;
-async function poll() {
-  try {
-    const r = await fetch('qg-live.json?t=' + Date.now(), {cache: 'no-store'});
-    if (!r.ok) throw 0;
-    const j = await r.json();
-    if (!live) {
-      live = true; S.topic = j.topic; S.note = j.note || ''; S.events = [];
-      $('topic').textContent = j.topic; $('label').textContent = '● En direct'; $('note').textContent = S.note; $('chat').hidden = false; reset();
+// ---------- Questions du PDG ----------
+function renderQuestions() {
+  // en direct, une question sans réponse s'affiche tout de suite, même si son échange n'est pas encore rejoué
+  const qs = S.questions.filter(q => played.questions.has(q.id) || (live && !q.answer));
+  $('askCard').hidden = !qs.length;
+  $('askCard').classList.toggle('ask', qs.some(q => !q.answer));
+  $('asks').innerHTML = '';
+  qs.slice().reverse().forEach(q => {
+    const div = document.createElement('div'); div.className = 'q';
+    div.innerHTML = '<p></p>';
+    div.querySelector('p').textContent = q.text;
+    if (q.answer) {
+      const d = document.createElement('div'); d.className = 'done'; d.textContent = `Ta réponse : ${q.answer}` + (q.answered_t ? ` (${q.answered_t})` : ''); div.appendChild(d);
+    } else if (live) {
+      const opts = document.createElement('div'); opts.className = 'opts';
+      q.options.forEach(o => {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.textContent = o;
+        b.onclick = () => sendAnswer(q.id, o, opts);
+        opts.appendChild(b);
+      });
+      div.appendChild(opts);
+    } else {
+      const d = document.createElement('div'); d.className = 'wait'; d.textContent = 'Sans réponse'; div.appendChild(d);
     }
-    if (j.events.length > S.events.length) { S.events = j.events; if (!playing) { setPlaying(true); lastStep = 0; } }
-    pollCons();
-  } catch { if (!live && ++liveFails > 1) return; }
-  setTimeout(poll, 1500);
+    $('asks').appendChild(div);
+  });
 }
-// Consignes du client : reçu → lu → transmis (par rôle) → appliqué
+async function post(path, body) {
+  const r = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json', 'X-QG-Token': TOKEN}, body: JSON.stringify(body)});
+  if (!r.ok) throw r.status;
+}
+const RELOAD = 'Le QG a été relancé avec une autre clé : recharge la page (Cmd + R), puis renvoie ton message.';
+const failText = (code, what) => code === 403 ? RELOAD : `${what} non envoyé${what === 'Réponse' ? 'e' : ''} : le serveur du QG ne répond pas. Réessaie dans un instant.`;
+async function sendAnswer(id, choice, box) {
+  box.querySelectorAll('button').forEach(b => b.disabled = true);
+  try { await post('answer', {id, choice}); fetchState(); }
+  catch (code) { box.querySelectorAll('button').forEach(b => b.disabled = false); $('note').textContent = code === 409 ? 'Cette question a déjà reçu une réponse.' : failText(code, 'Réponse'); }
+}
+
+// ---------- Consignes du client : reçu → lu → transmis (par rôle) → appliqué ----------
 const ST = {'reçu': 'reçu, en attente du PDG', 'lu': 'lu par le PDG', 'transmis': 'transmis', 'appliqué': 'appliqué'};
 let consKey = '';
-async function pollCons() {
-  try {
-    const r = await fetch('consignes.json?t=' + Date.now(), {cache: 'no-store'}); if (!r.ok) return;
-    const list = await r.json(), key = JSON.stringify(list); if (key === consKey) return; consKey = key;
-    $('consCard').hidden = !list.length;
-    $('cons').innerHTML = '';
-    list.slice().reverse().forEach(m => {
-      const li = document.createElement('li'); li.className = m.status;
-      li.innerHTML = `<div class="head"><span class="num">n° ${m.id} · ${m.t}</span><span class="st">${ST[m.status] || m.status}</span></div><div class="txt"></div><div class="roles"></div>`;
-      li.querySelector('.txt').textContent = m.text;
-      Object.entries(m.roles).forEach(([role, state]) => {
-        const c = document.createElement('span'); c.className = 'chip' + (state === 'appliqué' ? ' done' : '');
-        c.innerHTML = `<i style="background:${(ROLES[role] || {}).color || '#999'}"></i>`;
-        c.append(`${(ROLES[role] || {name: role}).name} · ${state}`);
-        li.querySelector('.roles').appendChild(c);
-      });
-      $('cons').appendChild(li);
+function renderCons() {
+  const key = JSON.stringify(S.consignes); if (key === consKey) return; consKey = key;
+  $('consCard').hidden = !S.consignes.length;
+  $('cons').innerHTML = '';
+  S.consignes.slice().reverse().forEach(m => {
+    const li = document.createElement('li'); li.className = m.status;
+    li.innerHTML = '<div class="head"><span class="num"></span><span class="st"></span></div><div class="txt"></div><div class="roles"></div>';
+    li.querySelector('.num').textContent = `n° ${m.id} · ${m.t}`;
+    li.querySelector('.st').textContent = ST[m.status] || m.status;
+    li.querySelector('.txt').textContent = m.text;
+    Object.entries(m.roles).forEach(([role, state]) => {
+      const c = document.createElement('span'); c.className = 'chip' + (state === 'appliqué' ? ' done' : '');
+      c.innerHTML = `<i style="background:${esc((ROLES[role] || {}).color || '#999')}"></i>`;
+      c.append(`${(ROLES[role] || {name: role}).name} · ${state}`);
+      li.querySelector('.roles').appendChild(c);
     });
-  } catch {}
+    $('cons').appendChild(li);
+  });
 }
-reset(); layout(); requestAnimationFrame(frame); poll();
+$('chat').addEventListener('submit', async ev => {
+  ev.preventDefault();
+  const text = $('chatText').value.trim(); if (!text) return;
+  $('chatText').value = '';
+  try { await post('say', {text}); fetchState(); }
+  catch (code) { $('chatText').value = text; $('note').textContent = failText(code, 'Message'); }
+});
+
+// ---------- Livrable : versions successives et changements ----------
+let livMode = 'text', livKey = '', livReq = 0;
+function renderLivrables() {
+  const list = S.livrables.filter(v => v.n <= played.livrable);
+  $('livCard').hidden = !list.length;
+  const key = list.map(v => v.n).join();
+  if (!list.length || key === livKey) return; livKey = key;
+  $('livPick').innerHTML = list.slice().reverse().map(v => `<option value="${+v.n}">${esc(v.name)} · version ${+v.version}${v.label ? ' · ' + esc(v.label) : ''} · ${esc(v.t || '')}${v.words != null ? ' · ' + v.words + ' mots' : ''}</option>`).join('');
+  showLivrable();
+}
+async function showLivrable() {
+  const v = S.livrables.find(x => x.n === +$('livPick').value); if (!v) return;
+  const want = livMode === 'diff' ? 'diff_text' : 'content', req = ++livReq;
+  if (v.binary && livMode === 'text') { $('livView').textContent = `Fichier non texte (${v.name}) : pas d'aperçu. Il est enregistré dans le dossier livrables du projet, sous ${v.file}.`; return; }
+  let text = v[want];
+  if (text == null && live) {
+    try { const r = await fetch('livrables/' + encodeURIComponent(livMode === 'diff' ? v.diff : v.file), {cache: 'no-store'}); text = r.ok ? await r.text() : null; } catch { text = null; }
+  }
+  if (req !== livReq) return;  // un affichage plus récent a été demandé entre-temps
+  const view = $('livView'); view.textContent = '';
+  if (text == null) { view.textContent = 'Contenu indisponible.'; return; }
+  if (livMode !== 'diff') { view.textContent = text; return; }
+  if (!text.trim()) { view.textContent = 'Première version : aucun changement à afficher.'; return; }
+  text.split('\n').forEach(l => {
+    if (l.startsWith('---') || l.startsWith('+++')) return;
+    const span = document.createElement('span');
+    span.className = l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : l.startsWith('@@') ? 'hunk' : '';
+    span.textContent = (l.startsWith('@@') ? '…' : l) + '\n';
+    view.appendChild(span);
+  });
+}
+$('livPick').onchange = showLivrable;
+for (const [id, mode] of [['livText', 'text'], ['livDiff', 'diff']]) $(id).onclick = () => {
+  livMode = mode; $('livText').setAttribute('aria-pressed', mode === 'text'); $('livDiff').setAttribute('aria-pressed', mode === 'diff'); showLivrable();
+};
+
+// ---------- Commandes ----------
+function setPlaying(v) { playing = v; $('play').textContent = v ? '❚❚ Pause' : idx >= S.events.length ? '▶ Rejouer' : '▶ Lecture'; }
+function header() {
+  $('topic').textContent = S.topic || ''; $('note').textContent = S.note || '';
+  $('label').textContent = live ? '● En direct' : (S.label || 'Session'); $('label').classList.remove('off');
+  $('chat').hidden = !live; $('history').hidden = !live;
+  $('next').hidden = live; $('speed').hidden = live;
+}
+function reset() {
+  hired.forEach(id => { delete agents[id]; delete ROLES[id]; }); hired = [];
+  idx = 0; curStage = null; bubble = null; current = null; pinned = null; gate = {state: null, t: -1e9};
+  played = {questions: new Set(), livrable: 0}; livKey = ''; pickKey = ''; consKey = '';
+  gates = Object.fromEntries(S.stages.map(s => [s.id, {state: 'pending', retries: 0}]));
+  Object.values(agents).forEach(a => Object.assign(a, {x: a.home[0], y: a.home[1], path: [], called: CORE.includes(a.id), sent: 0, recv: 0, last: '', activity: null}));
+  $('feed').innerHTML = '<li class="empty">Appuie sur Lecture pour voir le Bureau travailler.</li>';
+  shownKey = ''; renderNow(); renderStats(); renderCons(); renderQuestions(); renderLivrables(); refreshPick(); setPlaying(false);
+}
+$('play').onclick = () => { if (idx >= S.events.length) reset(); setPlaying(!playing); lastStep = 0; };
+$('next').onclick = () => { setPlaying(false); step(); };
+$('reset').onclick = () => { reset(); if (live) setPlaying(true); };
+
+// ---------- Direct : état complet à la demande, signal instantané par le serveur ----------
+function applyState(j) {
+  normalize(j);
+  if (!live || j.mission !== S.mission) {
+    live = true; S = j; header(); reset();
+    // rattrapage sans animation : on n'anime que les derniers échanges, les plus anciens sont déjà dans le fil
+    while (S.events.length - idx > 3) step();
+    Object.values(agents).forEach(a => { a.x = a.home[0]; a.y = a.home[1]; a.path = []; });
+  }
+  else {
+    for (const s of j.stages) gates[s.id] = gates[s.id] || {state: 'pending', retries: 0};
+    if (j.events.length > S.events.length) S.events = j.events;
+    Object.assign(S, {topic: j.topic, stages: j.stages, consignes: j.consignes, questions: j.questions, livrables: j.livrables});
+    $('topic').textContent = S.topic;
+  }
+  renderCons(); renderQuestions(); renderStats();
+  if (S.events.length > idx && !playing) { setPlaying(true); lastStep = 0; }
+}
+async function fetchState() {
+  try { const r = await fetch('state', {cache: 'no-store'}); if (r.ok) applyState(await r.json()); } catch {}
+}
+// Le serveur envoie un signe de vie toutes les 10 s. Sans nouvelles depuis 25 s (serveur relancé, Mac en veille,
+// connexion morte sans erreur), la page rouvre la connexion et relit l'état complet.
+let es = null, lastSeen = 0;
+function connect() {
+  if (es) es.close();
+  fetchState();
+  lastSeen = Date.now();
+  es = new EventSource('events?token=' + encodeURIComponent(TOKEN));
+  es.onmessage = () => { lastSeen = Date.now(); fetchState(); };
+  es.addEventListener('ping', () => { lastSeen = Date.now(); });
+  es.onopen = () => { lastSeen = Date.now(); if (live) { $('label').textContent = '● En direct'; $('label').classList.remove('off'); } };
+  es.onerror = () => {
+    if (!live) return;
+    $('label').textContent = 'Connexion perdue · nouvel essai…'; $('label').classList.add('off');
+    // readyState 2 : le navigateur a abandonné (clé refusée…) ; on retente nous-mêmes
+    if (es.readyState === 2) { $('note').textContent = RELOAD; setTimeout(connect, 3000); }
+  };
+}
+setInterval(() => { if (CAN_LIVE && Date.now() - lastSeen > 25000) connect(); }, 5000);
+
+header(); reset(); layout(); requestAnimationFrame(frame);
+if (CAN_LIVE) connect();
 </script>

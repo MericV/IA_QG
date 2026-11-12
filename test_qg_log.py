@@ -1,0 +1,159 @@
+"""Test du circuit complet du QG : python3 test_qg_log.py
+
+Rejoue des missions dans un dossier temporaire (rien n'est écrit dans projets/) : journal, validation
+des saisies, consignes et questions du client, livrables (dont en parallèle et non texte), export,
+archives et historique, et la sécurité du serveur (jeton, hôte, origine, liste blanche, iframe).
+"""
+import json, os, pathlib, re, shutil, subprocess, sys, tempfile, urllib.request, urllib.error
+
+HERE = pathlib.Path(__file__).resolve().parent
+TMP = pathlib.Path(tempfile.mkdtemp())
+WORK = TMP / "mon-projet"
+WORK.mkdir()
+ENV = {**os.environ, "BUREAU_DATA": str(TMP / "bureau")}
+ROOT = TMP / "bureau" / "projets" / "test"
+
+
+def qg(*args, ok=True):
+    r = subprocess.run([sys.executable, str(HERE / "qg_log.py"), *args], cwd=WORK, env=ENV, capture_output=True, text=True)
+    assert (r.returncode == 0) == ok, f"{args} → code {r.returncode}\n{r.stdout}{r.stderr}"
+    assert "Traceback" not in r.stderr, f"{args} : trace Python brute\n{r.stderr}"
+    return r.stdout + r.stderr
+
+
+def http(url, data=None, headers=None, method=None):
+    req = urllib.request.Request(url, data=json.dumps(data).encode() if data is not None else None, headers=headers or {}, method=method)
+    try:
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return r.status, r.read().decode(), r.headers
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode(), e.headers
+
+
+def start_server():
+    srv = subprocess.Popen([sys.executable, str(HERE / "qg_server.py"), "8890"], cwd=WORK, env=ENV, stdout=subprocess.PIPE, text=True)
+    url = re.search(r"http://127\.0\.0\.1:\d+/", srv.stdout.readline()).group(0)
+    return srv, url
+
+
+def stop(srv):
+    srv.terminate()
+    srv.wait(timeout=5)
+
+
+try:
+    # Commandes avant toute mission : erreur claire, pas de trace ni d'écriture orpheline
+    assert "aucune mission" in qg("stages", "A|B", ok=False)
+    assert "aucune mission" in qg("ask", "Q ?", "A|B", ok=False)
+    qg("inbox")
+
+    # Mission et validation des saisies
+    qg("init", "Mission A", "test")
+    assert (ROOT / "missions" / "index.html").exists(), "l'historique existe dès le départ"
+    qg("stages", "Cadrage|Sources|Rédaction")
+    qg("pdg", "bib", "cherche des sources", "-", "sources")
+    assert "rôle inconnu" in qg("bibl", "pdg", "faute de frappe", ok=False)
+    assert "étape inconnue" in qg("aud", "-", "audit", "ok", "inexistante", ok=False)
+    assert "type inconnu" in qg("aud", "-", "audit", "peut-etre", ok=False)
+    assert "introuvable" in qg("dispatch", "9", "bib", "rien", ok=False)
+    assert "déjà pris" in qg("hire", "bib", "Doublon", "bib", "x", ok=False)
+    for bad in ["-", "a,b", "", "Bib2", "__proto__", "x" * 17]:
+        assert "invalide" in qg("hire", bad, "Renfort", "bib", "x", ok=False), bad
+    qg("hire", "bib2", "Bibliothécaire 2", "bib", "renfort")
+    qg("bib2", "pdg", "le renfort travaille")
+    qg("aud", "-", "audit rejeté", "ko", "Sources")
+    qg("aud", "-", "audit validé", "ok", "sources")
+    qg("pdg", "bib", "Cherche la balise <!--<script> dans la doc HTML")
+    live = json.loads((ROOT / "qg-live.json").read_text())
+    assert all("ts" in e and "t" in e for e in live["events"]), "chaque échange doit être horodaté"
+
+    # Livrables : versions, différences, fichier non texte, livraisons en parallèle
+    doc = WORK / "section.md"
+    doc.write_text("Ligne 1\nLigne 2\n")
+    qg("livrable", str(doc), "ecr", "premier jet")
+    doc.write_text("Ligne 1\nLigne 2 corrigée\n")
+    assert "Version 2" in qg("livrable", str(doc), "ecr", "après audit")
+    diff = (ROOT / "livrables" / "02-section.diff").read_text()
+    assert "+Ligne 2 corrigée" in diff and "-Ligne 2" in diff
+    (WORK / "dossier.docx").write_bytes(b"PK\x03\x04\xff\xfe binaire")
+    assert "Version 1" in qg("livrable", str(WORK / "dossier.docx"))
+    procs = []
+    for i in range(12):
+        (WORK / f"sec{i}.md").write_text(f"Section {i}\n")
+        procs.append(subprocess.Popen([sys.executable, str(HERE / "qg_log.py"), "livrable", f"sec{i}.md"], cwd=WORK, env=ENV,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True))
+    assert all(p.wait() == 0 for p in procs), [p.stderr.read() for p in procs]
+    index = json.loads((ROOT / "livrables" / "index.json").read_text())
+    assert len(index) == 15 and sorted(v["n"] for v in index) == list(range(1, 16)), "aucune version perdue en parallèle"
+
+    # Serveur : sécurité, message du client, question
+    srv, url = start_server()
+    try:
+        status, page, headers = http(url)
+        assert status == 200 and "__QG_TOKEN__" not in page
+        assert headers["X-Frame-Options"] == "DENY" and "frame-ancestors 'none'" in headers["Content-Security-Policy"]
+        token = re.search(r"const TOKEN = '([^']+)'", page).group(1)
+        port = url.split(":")[2].strip("/")
+        assert http(url + "say", {"text": "sans jeton"}, {"Content-Type": "application/json"})[0] == 403
+        assert http(url + "say", {"text": "mauvais hôte"}, {"X-QG-Token": token, "Host": f"evil.example:{port}"})[0] == 403
+        assert http(url + "say", {"text": "autre site"}, {"X-QG-Token": token, "Origin": "https://evil.example"})[0] == 403
+        assert http(url, method="HEAD", headers={"Host": "evil.example"})[0] in (403, 405)
+        for hidden in [".port", "%2Eport", ".token", "%2Etoken", "inbox.jsonl", "inbox%2Ejsonl", "%2Everrou",
+                       "qg-live.json", "consignes.json", "livrables/index.json", "livrables/%2E%2E/qg-live.json"]:
+            assert http(url + hidden)[0] == 404, f"{hidden} ne doit pas être servi"
+        assert http(url + "livrables/01-section.md")[0] == 200 and http(url + "missions/")[0] == 200
+        assert http(url + "say", {"text": "Ajoute la source X"}, {"X-QG-Token": token})[0] == 204
+        out = qg("inbox")
+        assert "MESSAGE DU CLIENT n° 1" in out and "Ajoute la source X" in out
+        qg("ack", "1", "Bien reçu")
+        assert "pas été transmise" in qg("applied", "1", "bib", "x", ok=False)
+        qg("dispatch", "1", "bib", "ajoute la source X")
+        qg("applied", "1", "bib", "source ajoutée")
+        assert json.loads((ROOT / "consignes.json").read_text())[0]["status"] == "appliqué"
+        qg("ask", "Format du rendu ?", "PDF|Word")
+        assert http(url + "answer", {"id": 1, "choice": "Excel"}, {"X-QG-Token": token})[0] == 409
+        assert http(url + "answer", {"id": 1, "choice": "PDF"}, {"X-QG-Token": token})[0] == 204
+        assert http(url + "answer", {"id": 1, "choice": "Word"}, {"X-QG-Token": token})[0] == 409, "une seule réponse"
+        assert "RÉPONSE DU CLIENT" in qg("inbox")
+        state = json.loads(http(url + "state")[1])
+        assert state["questions"][0]["answer"] == "PDF" and len(state["livrables"]) == 15
+        assert all("source" not in v for v in state["livrables"]), "le chemin local du livrable ne doit pas être exposé"
+    finally:
+        stop(srv)
+    assert not (ROOT / ".port").exists(), ".port doit disparaître à l'arrêt (SIGTERM)"
+
+    # Redémarrage : le jeton du projet ne change pas, une page ouverte reste valable
+    srv, url = start_server()
+    try:
+        assert http(url + "say", {"text": "après redémarrage"}, {"X-QG-Token": token})[0] == 204
+    finally:
+        stop(srv)
+    qg("inbox")
+
+    # Export : le bloc JSON ne peut pas casser la page, et le livrable non texte est signalé
+    qg("pdg", "client", "livré", "deliver", "rédaction")
+    html = (pathlib.Path(qg("export").split("exportée : ")[1].strip())).read_text()
+    block = re.search(r'<script id="session" type="application/json">(.*?)</script>', html, re.S).group(1)
+    assert "<" not in block, "aucun « < » brut dans le bloc JSON"
+    data = json.loads(block)
+    assert data["topic"] == "Mission A" and any("<!--<script>" in e["text"] for e in data["events"])
+    assert any(v.get("binary") and "content" not in v for v in data["livrables"])
+    assert html.count("<script") == 2, "le script de la page doit rester intact"
+
+    # Deux missions du même jour au même sujet : deux archives distinctes
+    qg("init", "Synthese")
+    qg("pdg", "bib", "première mission")
+    qg("init", "Synthese")
+    qg("pdg", "bib", "deuxième mission")
+    qg("init", "Autre")
+    texts = [" ".join(e["text"] for e in json.loads(f.read_text())["events"]) for f in (ROOT / "missions").glob("*synthese.json")]
+    assert len(texts) == 2 and any("première" in t for t in texts) and any("deuxième" in t for t in texts)
+
+    # Historique : « Sources » rejetée une fois avant d'être validée → 0 étape validée du premier coup sur 1
+    history = (ROOT / "missions" / "index.html").read_text()
+    assert "Mission A" in history and "<td>0/1</td>" in history
+    assert json.loads((ROOT / "qg-live.json").read_text())["events"] == [] and not (ROOT / "livrables").exists()
+
+    print("test_qg_log : OK")
+finally:
+    shutil.rmtree(TMP, ignore_errors=True)
