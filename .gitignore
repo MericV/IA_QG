@@ -8,3 +8,4 @@ __pycache__/
 # Jeton secret et port du serveur de l'app
 .token
 .port
+intro/frames/
