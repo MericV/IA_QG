@@ -24,9 +24,11 @@ cd "Bureau IA"
 | `qg.html` | Page du QG : bureau animé, fil, questions du PDG, consignes, indicateurs, kanban, livrable |
 | `qg_log.py` | Journal de mission, consignes et questions du client, livrables, export, historique |
 | `qg_server.py` | Serveur local de l'app : discussions, comptes (trousseau macOS), modèles, QG en direct |
+| `moteur.py` | Moteur multi-modèles : fait travailler le Bureau avec le modèle choisi (Anthropic, OpenAI, Google, Mistral, OpenRouter, Ollama, Hermes), sans Claude Code |
 | `audit.py` | Contrôles automatiques de l'Auditeur |
 | `pdf_text.swift` | Extraction du texte d'un PDF (macOS) |
 | `test_qg_log.py` | Test du circuit complet |
+| `test_moteur.py` | Test du moteur multi-modèles avec un faux modèle |
 | `intro/` | Vidéo d'entrée dans le building (générée par `intro/entree_building.py` avec Blender) |
 | `projets/` | Données locales de chaque projet (exclues du dépôt) |
 
@@ -62,6 +64,14 @@ python3 audit.py --selftest
 swift pdf_text.swift FICHIER.pdf --pages 1-3
 ```
 
+## Moteur multi-modèles
+
+Dans l'app, chaque discussion a son modèle. Avec « Claude Code », c'est la session Claude Code qui fait travailler le Bureau. Avec un autre modèle, le serveur s'en charge seul : le PDG (le modèle) répond ou pose une question, recrute 1 à 4 rôles qui travaillent en parallèle, l'Écrivain assemble le livrable, l'Auditeur le contrôle (deux corrections au plus) et le PDG le remet. Tout s'affiche dans le QG comme d'habitude.
+
+- **Comptes :** ajoute une clé dans « Modèles et comptes » (trousseau macOS) ; la liste des modèles est lue chez le fournisseur. Ollama et Hermes n'ont pas besoin de clé ici (Hermes utilise sa propre configuration, `hermes -z`).
+- **Limite :** ces modèles n'ont pas de recherche web. Les règles de l'Auditeur leur interdisent d'inventer et leur font marquer « à vérifier » tout fait précis non garanti. Pour une mission qui exige des sources vérifiées, garde Claude Code.
+- **Appels :** requêtes HTTP de la bibliothèque standard de Python, sans dépendance à installer.
+
 ## Sécurité du QG
 
 Le serveur n'écoute que sur `127.0.0.1`, refuse les requêtes dont l’hôte n’est pas local, ne sert qu’une liste blanche de fichiers, interdit l’affichage dans une iframe et n’accepte les messages du client qu’avec le jeton secret du projet (conservé d’un démarrage à l’autre). Un autre site ouvert dans le navigateur ne peut ni lire la mission ni écrire au PDG.
@@ -70,6 +80,7 @@ Le serveur n'écoute que sur `127.0.0.1`, refuse les requêtes dont l’hôte n�
 
 ```bash
 python3 test_qg_log.py
+python3 test_moteur.py
 ```
 
 ## Licence

@@ -27,10 +27,12 @@ from urllib.parse import urlsplit, parse_qs, unquote
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 import qg_log  # noqa: E402
+import moteur  # noqa: E402
 
 HOME = qg_log.HOME
 TOKEN = None  # fixé au démarrage par serve()
-LOCK = threading.Lock()  # qg_log travaille sur une discussion à la fois : une requête à la fois
+LOCK = moteur.LOCK  # qg_log travaille sur une discussion à la fois : une requête (ou une étape du moteur) à la fois
+MODELS = {}  # modèles lus chez chaque fournisseur connecté, une fois par lancement
 KEYCHAIN = "bureau-ia"
 
 # Fournisseurs de modèles. Les modèles précis de chaque fournisseur seront lus chez lui une fois le compte ajouté.
@@ -59,6 +61,13 @@ def providers():
         p = dict(p)
         if p["kind"] == "key":
             p["status"] = "connecté" if has_key(p["id"]) else "à connecter"
+            if p["status"] == "connecté":
+                if p["id"] not in MODELS:
+                    try:
+                        MODELS[p["id"]] = moteur.list_models(p["id"])
+                    except moteur.MoteurErreur:
+                        MODELS[p["id"]] = []  # liste illisible (clé refusée, hors ligne) : on garde la liste par défaut
+                p["models"] = MODELS[p["id"]] or p["models"]
         elif p["id"] == "claude-code":
             p["status"] = "actif"
         elif p["id"] == "ollama":
@@ -70,7 +79,8 @@ def providers():
             except OSError:
                 p["status"] = "non installé"
         elif p["id"] == "hermes":
-            p["status"] = "détecté" if shutil.which("hermes") or (pathlib.Path.home() / ".hermes" / "hermes-agent").exists() else "non installé"
+            p["status"] = "détecté" if shutil.which("hermes") else "non installé"
+            p["models"] = [moteur.HERMES_DEFAULT] if p["status"] == "détecté" else []
         out.append(p)
     return out
 
@@ -255,6 +265,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.send_error(400)
         except qg_log.Erreur as e:
             return self.send_json({"erreur": str(e)}, 409)
+        if rest in ("/say", "/answer", "/dismiss", "/model"):
+            moteur.kick(name)  # discussion confiée à un autre modèle : le moteur multi-modèles s'en charge
         self.send_response(204)
         self.end_headers()
 
@@ -271,6 +283,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             qg_log.update(qg_log.LIVE, {}, lambda d: (d.clear(), d.update(qg_log.new_mission(topic, model))))
             qg_log.write_history()
             qg_log.new_message(text)
+        moteur.kick(name)
         return self.send_json({"id": name}, 201)
 
     def add_account(self, msg):
@@ -311,6 +324,8 @@ def serve(start=8766):
     server.daemon_threads = True
     portfile = qg_log.DATA / ".port"
     portfile.write_text(str(port))
+    for live in (qg_log.DATA / "projets").glob("*/qg-live.json"):  # messages arrivés pendant l'arrêt du serveur
+        moteur.kick(live.parent.name)
     print(f"QG : http://127.0.0.1:{port}/" + (f"#{current}" if current else ""), flush=True)
     try:
         server.serve_forever()

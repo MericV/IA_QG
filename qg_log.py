@@ -433,6 +433,9 @@ def main(a):
         while True:
             for d in sorted((DATA / "projets").glob("*/qg-live.json")):
                 use_project(d.parent.name)
+                # une discussion confiée à un autre modèle est traitée par le moteur multi-modèles du serveur
+                if read(LIVE, {}).get("model", DEFAULT_MODEL).get("provider") != "claude-code":
+                    continue
                 if (msgs := unread()):
                     print(f"=== Discussion « {d.parent.name} » ({read(LIVE, {}).get('topic', '')}) : préfixer les commandes par BUREAU_PROJET={d.parent.name}")
                     show(msgs)
@@ -560,9 +563,11 @@ def main(a):
         if len(a) > 4:
             ev["stage"] = check_stage(a[4])
         append_event(ev)
-    show(unread())
+    if not QUIET:  # le moteur multi-modèles lit lui-même la boîte de réception
+        show(unread())
 
 
+QUIET = False
 set_root()
 
 if __name__ == "__main__":

@@ -123,6 +123,8 @@ try:
         assert http(url + "model", {"provider": "anthropic", "model": "claude-opus-5-5"}, {"X-QG-Token": token})[0] == 204
         assert json.loads((ROOT / "qg-live.json").read_text())["model"]["model"] == "claude-opus-5-5"
         assert http(url + "model", {"provider": "pirate", "model": "x"}, {"X-QG-Token": token})[0] == 400
+        # retour à Claude Code : sinon le moteur multi-modèles du serveur lit lui-même les messages de la discussion
+        assert http(url + "model", {"provider": "claude-code", "model": "Claude Code (moteur actuel)"}, {"X-QG-Token": token})[0] == 204
         assert http(url + "dismiss", {"id": "bib2"}, {"Content-Type": "application/json"})[0] == 403
         assert http(url + "dismiss", {"id": "bib2", "reason": "plus utile"}, {"X-QG-Token": token})[0] == 204
         assert "FIN AU CONTRAT" in qg("inbox"), "le PDG est prévenu"

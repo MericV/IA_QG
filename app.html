@@ -267,10 +267,10 @@ function fillModels(select, current) {
   }
 }
 function engineNotice(model) {
-  // Seul Claude Code fait travailler le Bureau pour l'instant : on le dit au lieu de laisser croire le contraire.
+  // Hors Claude Code, c'est le moteur multi-modèles de l'app qui fait travailler le Bureau, sans accès au web.
   const other = model && model.provider !== 'claude-code';
   $('notice').hidden = !other;
-  $('notice').textContent = other ? `${model.model} sera utilisé dès que le moteur multi-modèles sera branché ; pour l'instant, Claude Code travaille.` : '';
+  $('notice').textContent = other ? `${model.model} fait travailler le Bureau (sans recherche web : les faits non garantis sont marqués « à vérifier »).` : '';
 }
 async function loadProviders() {
   try { providersList = await (await fetch('/api/providers', {cache: 'no-store'})).json(); } catch { providersList = []; }
