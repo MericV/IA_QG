@@ -20,6 +20,7 @@ cd "Bureau IA"
 | `vivier.md` | Vivier de rôles où le PDG recrute l'équipe de chaque mission ; il s'enrichit des rôles inventés utiles |
 | `lecons.md` | Mémoire de méthode : leçons tirées des missions passées, lues au début de chaque mission et complétées à la fin |
 | `briefs.md` | Modèles de brief pour les agents (recherche, contre-vérification, rédaction, critique) |
+| `Bureau.command` | Double-clic : démarre le serveur si besoin et ouvre l'app dans le navigateur |
 | `app.html` | L'app : barre latérale repliable, discussions, nouvelle discussion, Modèles et comptes, intro vidéo |
 | `qg.html` | Page du QG : bureau animé, fil, questions du PDG, consignes, indicateurs, kanban, livrable |
 | `qg_log.py` | Journal de mission, consignes et questions du client, livrables, export, historique |
@@ -52,7 +53,7 @@ Toujours depuis la racine du projet sur lequel le Bureau travaille (`B=~/.claude
 | `qg_log.py close N "raison"` | Clôt une question déjà réglée par un message du client |
 | `qg_log.py export` | Page rejouable de la mission + historique (`missions/index.html`) |
 | `qg_log.py where` | Dossier du projet et adresse du QG |
-| `python3 $B/qg_server.py` | Lance le QG (premier port libre à partir de 8766) |
+| `python3 $B/qg_server.py` | Lance le QG (premier port libre à partir de 8766) ; ou double-clic sur `Bureau.command` |
 
 Permanents : `pdg` (PDG) et `aud` (Auditeur) ; le client est `client`. Tous les autres rôles sont recrutés avec `recruit` (identifiants du vivier comme `bib`, `ecr`, ou identifiants inventés).
 
@@ -69,12 +70,13 @@ swift pdf_text.swift FICHIER.pdf --pages 1-3
 Dans l'app, chaque discussion a son modèle. Avec « Claude Code », c'est la session Claude Code qui fait travailler le Bureau. Avec un autre modèle, le serveur s'en charge seul : le PDG (le modèle) répond ou pose une question, recrute 1 à 4 rôles qui travaillent en parallèle, l'Écrivain assemble le livrable, l'Auditeur le contrôle (deux corrections au plus) et le PDG le remet. Tout s'affiche dans le QG comme d'habitude.
 
 - **Comptes :** ajoute une clé dans « Modèles et comptes » (trousseau macOS) ; la liste des modèles est lue chez le fournisseur. Ollama et Hermes n'ont pas besoin de clé ici (Hermes utilise sa propre configuration, `hermes -z`).
-- **Limite :** ces modèles n'ont pas de recherche web. Les règles de l'Auditeur leur interdisent d'inventer et leur font marquer « à vérifier » tout fait précis non garanti. Pour une mission qui exige des sources vérifiées, garde Claude Code.
+- **Recherche web :** avec Anthropic, le moteur active la recherche web et la réflexion adaptative ; chaque fait précis est vérifié en ligne avec son adresse. Si le compte ou le modèle les refuse, l'appel repart sans elles. Les autres fournisseurs n'ont pas de recherche web : les règles de l'Auditeur leur interdisent d'inventer et leur font marquer « à vérifier » tout fait précis non garanti.
+- **Panne :** si un appel échoue, le client voit l'erreur dans le chat et son message est gardé : il est repris à son message suivant ou au redémarrage de l'app.
 - **Appels :** requêtes HTTP de la bibliothèque standard de Python, sans dépendance à installer.
 
 ## Sécurité du QG
 
-Le serveur n'écoute que sur `127.0.0.1`, refuse les requêtes dont l’hôte n’est pas local, ne sert qu’une liste blanche de fichiers, interdit l’affichage dans une iframe et n’accepte les messages du client qu’avec le jeton secret du projet (conservé d’un démarrage à l’autre). Un autre site ouvert dans le navigateur ne peut ni lire la mission ni écrire au PDG.
+Le serveur n'écoute que sur `127.0.0.1`, refuse les requêtes dont l’hôte n’est pas local, ne sert qu’une liste blanche de fichiers, interdit l’affichage dans une iframe et n’accepte les messages du client qu’avec le jeton secret du projet (conservé d’un démarrage à l’autre). Un autre site ouvert dans le navigateur ne peut ni lire la mission ni écrire au PDG. Les clés d'API sont transmises au trousseau par l'entrée standard (jamais en argument, donc invisibles dans la liste des processus), et le modèle choisi pour une discussion est contrôlé.
 
 ## Tests
 

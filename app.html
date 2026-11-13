@@ -277,10 +277,10 @@ function fillModels(select, current) {
   }
 }
 function engineNotice(model) {
-  // Hors Claude Code, c'est le moteur multi-modèles de l'app qui fait travailler le Bureau, sans accès au web.
+  // Hors Claude Code, c'est le moteur multi-modèles de l'app qui fait travailler le Bureau (recherche web : Anthropic seulement).
   const other = model && model.provider !== 'claude-code';
   $('notice').hidden = !other;
-  $('notice').textContent = other ? `${model.model} fait travailler le Bureau (sans recherche web : les faits non garantis sont marqués « à vérifier »).` : '';
+  $('notice').textContent = other ? model.provider === 'anthropic' ? `${model.model} fait travailler le Bureau, avec recherche web : chaque fait précis est vérifié en ligne.` : `${model.model} fait travailler le Bureau (sans recherche web : les faits non garantis sont marqués « à vérifier »).` : '';
 }
 async function loadProviders() {
   try { providersList = await (await fetch('/api/providers', {cache: 'no-store'})).json(); } catch { providersList = []; }

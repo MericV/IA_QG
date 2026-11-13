@@ -17,7 +17,7 @@ import qg_log
 LOCK = threading.Lock()  # partagé avec qg_server : qg_log travaille sur une discussion à la fois
 RUNNING = set()
 KEYCHAIN = "bureau-ia"
-TIMEOUT = 300
+TIMEOUT = 900  # une réponse longue (réflexion, recherches) peut prendre plusieurs minutes
 
 OPENAI_LIKE = {"openai": "https://api.openai.com/v1", "mistral": "https://api.mistral.ai/v1",
                "openrouter": "https://openrouter.ai/api/v1", "ollama": "http://127.0.0.1:11434/v1"}
@@ -53,14 +53,7 @@ def http(url, body=None, headers=None):
 def call(provider, model, system, user):
     """Un appel au modèle : consigne (system) + demande (user) → texte."""
     if provider == "anthropic":
-        r = http("https://api.anthropic.com/v1/messages",
-                 {"model": model, "max_tokens": 16000, "system": system, "fallbacks": "default",
-                  "messages": [{"role": "user", "content": user}]},
-                 {"x-api-key": key(provider), "anthropic-version": "2023-06-01",
-                  "anthropic-beta": "server-side-fallback-2026-07-01"})
-        if r.get("stop_reason") == "refusal":
-            raise MoteurErreur("le modèle a refusé la demande")
-        return "".join(b.get("text", "") for b in r.get("content", []) if b.get("type") == "text")
+        return anthropic(model, system, user)
     if provider == "google":
         r = http(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
                  {"systemInstruction": {"parts": [{"text": system}]}, "contents": [{"role": "user", "parts": [{"text": user}]}]},
@@ -81,6 +74,30 @@ def call(provider, model, system, user):
             raise MoteurErreur(f"Hermes n'a pas répondu (code {r.returncode}) : {r.stderr.strip()[:300]}")
         return r.stdout.strip()
     raise MoteurErreur(f"fournisseur non pris en charge : {provider}")
+
+
+def anthropic(model, system, user):
+    """Claude avec réflexion adaptative et recherche web ; sans elles si le compte ou le modèle les refuse."""
+    headers = {"x-api-key": key("anthropic"), "anthropic-version": "2023-06-01", "anthropic-beta": "server-side-fallback-2026-07-01"}
+    search = "web_search_20260209" if model.startswith(("claude-opus", "claude-sonnet")) else "web_search_20250305"
+    body = {"model": model, "max_tokens": 32000, "system": system.replace(SANS_WEB, AVEC_WEB), "fallbacks": "default",
+            "thinking": {"type": "adaptive"}, "tools": [{"type": search, "name": "web_search", "max_uses": 8}],
+            "messages": [{"role": "user", "content": user}]}
+    try:
+        r = http("https://api.anthropic.com/v1/messages", body, headers)
+    except MoteurErreur as e:
+        if "(400)" not in str(e):
+            raise
+        body = {k: v for k, v in body.items() if k not in ("thinking", "tools")} | {"system": system}
+        r = http("https://api.anthropic.com/v1/messages", body, headers)
+    for _ in range(5):  # recherche longue : l'API rend la main (pause_turn), on la relance telle quelle
+        if r.get("stop_reason") != "pause_turn":
+            break
+        body["messages"] = [body["messages"][0], {"role": "assistant", "content": r["content"]}]
+        r = http("https://api.anthropic.com/v1/messages", body, headers)
+    if r.get("stop_reason") == "refusal":
+        raise MoteurErreur("le modèle a refusé la demande")
+    return "".join(b.get("text", "") for b in r.get("content", []) if b.get("type") == "text")
 
 
 def list_models(provider):
@@ -107,12 +124,15 @@ def as_json(text):
 
 # ---------- Consignes des rôles ----------
 
+SANS_WEB = "Tu n'as pas accès au web : ne cite que des sources dont tu es certain qu'elles existent, et marque « (à vérifier) » tout fait précis que tu ne peux pas garantir."
+AVEC_WEB = "Tu as un outil de recherche web : vérifie chaque fait précis en ligne et donne l'adresse (URL) de la source à côté ; marque « (à vérifier) » ce que tu n'as pas pu confirmer."
+
 REGLES = """Règles de l'Auditeur, non négociables :
 1. Zéro invention : aucun fait, chiffre, date, citation, nom ou référence inventé.
 2. Tout est sourcé : chaque affirmation factuelle renvoie à une source identifiable ; avis et raisonnements sont présentés comme tels.
 3. Si on ne sait pas : remplacer par une information vérifiable, retirer, ou signaler « (non vérifié) ». Jamais de supposition présentée comme un fait.
 4. Respect de la consigne du client : format, longueur, public.
-Tu n'as pas accès au web : ne cite que des sources dont tu es certain qu'elles existent, et marque « (à vérifier) » tout fait précis que tu ne peux pas garantir."""
+""" + SANS_WEB
 
 PDG = """Tu es le PDG du Bureau, une petite équipe d'IA au service d'un client. Tu es son seul interlocuteur.
 Tu réfléchis à sa demande, tu cadres, et tu recrutes les rôles nécessaires (inventés si besoin), qui travaillent en parallèle.
@@ -272,6 +292,7 @@ def tour(name, msgs):
 
 
 def boucle(name):
+    msgs = []
     try:
         while True:
             with LOCK:
@@ -284,8 +305,12 @@ def boucle(name):
     except Exception as e:  # le client doit voir l'erreur dans le chat, pas un bureau figé
         with LOCK:
             RUNNING.discard(name)
+            qg_log.use_project(name)
+            seen = int(qg_log.SEEN.read_text()) if qg_log.SEEN.exists() else 0
+            qg_log.SEEN.write_text(str(max(0, seen - len(msgs))))  # messages remis en file : rien n'est perdu
         try:
-            log(name, "pdg", "client", f"Le moteur s'est arrêté : {e}. Renvoie ton message pour réessayer.", "ko")
+            log(name, "pdg", "client", f"Le moteur s'est arrêté : {e}. Ton message est gardé : il sera repris "
+                                       "à ton prochain message (ou au redémarrage de l'app).", "ko")
         except Exception:
             pass
 

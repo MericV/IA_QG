@@ -74,6 +74,9 @@ try:
     moteur.call = broken
     d, cons, _ = discussion("panne", "Bonjour")
     assert "aucune clé pour openai" in d["events"][-1]["text"] and "panne" not in moteur.RUNNING
+    with moteur.LOCK:
+        qg_log.use_project("panne")
+        assert [m["text"] for m in qg_log.unread()] == ["Bonjour"]  # message remis en file, pas perdu
 
     # 4. Une discussion Claude Code n'est jamais prise par le moteur
     with moteur.LOCK:
@@ -82,7 +85,25 @@ try:
         qg_log.update(qg_log.LIVE, {}, lambda d: (d.clear(), d.update(qg_log.new_mission("Test"))))
     assert moteur.kick("cc") is False
 
-    # 5. Lecture du JSON entouré de texte
+    # 5. Anthropic : recherche web + réflexion, reprise après pause_turn, repli sans outils si 400
+    sent = []
+    def fake_http(url, body=None, headers=None):
+        sent.append(body)
+        if len(sent) == 1:
+            raise moteur.MoteurErreur("le fournisseur a refusé l'appel (400) : outil non activé")
+        if len(sent) == 2:
+            return {"stop_reason": "end_turn", "content": [{"type": "text", "text": "sans outils"}]}
+        if len(sent) == 3:
+            return {"stop_reason": "pause_turn", "content": [{"type": "server_tool_use", "id": "x"}]}
+        return {"stop_reason": "end_turn", "content": [{"type": "thinking"}, {"type": "text", "text": "avec recherche"}]}
+    moteur.http, moteur.key = fake_http, lambda p: "cle-test"
+    assert moteur.anthropic("claude-opus-5-5", moteur.AGENT, "x") == "sans outils"
+    assert "tools" in sent[0] and "tools" not in sent[1] and moteur.SANS_WEB in sent[1]["system"]
+    assert moteur.anthropic("claude-haiku-5-5", moteur.AGENT, "x") == "avec recherche"
+    assert sent[2]["tools"][0]["type"] == "web_search_20250305" and moteur.AVEC_WEB in sent[2]["system"]
+    assert sent[3]["messages"][-1]["role"] == "assistant"  # reprise sans nouveau message du client
+
+    # 6. Lecture du JSON entouré de texte
     assert moteur.as_json('blabla {"a": 1} fin') == {"a": 1} and moteur.as_json("rien") is None
     print("test_moteur : OK")
 finally:

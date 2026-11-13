@@ -134,6 +134,17 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
 .count { font: 500 12px var(--mono); color: var(--dim); }
 #livView { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 15px/1.65 var(--body); }
 #livView.diff { font: 13px/1.6 var(--mono); }
+#livView.md { white-space: normal; }
+#livView.md :is(h1, h2, h3, h4) { font-family: var(--body); line-height: 1.25; margin: 1.1em 0 .4em; text-wrap: balance; }
+#livView.md h1 { font-size: 1.5em; } #livView.md h2 { font-size: 1.25em; } #livView.md :is(h3, h4) { font-size: 1.05em; }
+#livView.md :is(p, ul, ol, blockquote, table, pre) { margin: 0 0 .8em; }
+#livView.md :is(ul, ol) { padding-left: 1.4em; }
+#livView.md blockquote { border-left: 3px solid var(--dim); padding-left: .8em; color: var(--dim); }
+#livView.md code { font: .9em var(--mono); background: color-mix(in srgb, var(--dim) 15%, transparent); padding: 0 .25em; border-radius: 3px; }
+#livView.md pre { white-space: pre-wrap; font: 13px/1.5 var(--mono); }
+#livView.md table { border-collapse: collapse; display: block; overflow-x: auto; }
+#livView.md :is(th, td) { border: 1px solid color-mix(in srgb, var(--dim) 40%, transparent); padding: 4px 8px; text-align: left; }
+#livView.md a { color: inherit; }
 #livView .add { color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); display: block; }
 #livView .del { color: var(--ko); background: color-mix(in srgb, var(--ko) 8%, transparent); display: block; text-decoration: line-through; }
 #livView .hunk { color: var(--dim); display: block; margin-top: 8px; }
@@ -953,6 +964,39 @@ function renderLivrables() {
   if ($('paneRendu').hidden && !$('tabRendu').querySelector('.dotnew')) $('tabRendu').appendChild(el('span', 'dotnew'));
   showLivrable();
 }
+// Markdown → HTML, sans bibliothèque : tout est échappé d'abord, liens http(s) seulement.
+function inline(t) {
+  return esc(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, '$1<i>$2</i>')
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+function markdown(src) {
+  const out = [], lines = src.replace(/\r/g, '').split('\n');
+  for (let i = 0; i < lines.length;) {
+    const l = lines[i];
+    if (/^```/.test(l)) { const b = []; i++; while (i < lines.length && !/^```/.test(lines[i])) b.push(lines[i++]); i++; out.push(`<pre><code>${esc(b.join('\n'))}</code></pre>`); continue; }
+    let m = l.match(/^(#{1,4})\s+(.*)/);
+    if (m) { out.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`); i++; continue; }
+    if (/^\s*([-*_])\s*\1\s*\1[\s\1]*$/.test(l)) { out.push('<hr>'); i++; continue; }
+    if (/^\s*\|/.test(l) && /^\s*\|?[\s:|-]+\|/.test(lines[i + 1] || '')) {
+      const cells = r => r.trim().replace(/^\||\|$/g, '').split('|').map(c => inline(c.trim()));
+      let h = `<table><tr>${cells(l).map(c => `<th>${c}</th>`).join('')}</tr>`; i += 2;
+      while (i < lines.length && /^\s*\|/.test(lines[i])) h += `<tr>${cells(lines[i++]).map(c => `<td>${c}</td>`).join('')}</tr>`;
+      out.push(h + '</table>'); continue;
+    }
+    if (/^\s*([-*+]|\d+[.)])\s+/.test(l)) {
+      const tag = /^\s*\d/.test(l) ? 'ol' : 'ul', items = [];
+      while (i < lines.length && /^\s*([-*+]|\d+[.)])\s+/.test(lines[i])) items.push(`<li>${inline(lines[i++].replace(/^\s*([-*+]|\d+[.)])\s+/, ''))}</li>`);
+      out.push(`<${tag}>${items.join('')}</${tag}>`); continue;
+    }
+    if (/^>\s?/.test(l)) { const b = []; while (i < lines.length && /^>\s?/.test(lines[i])) b.push(inline(lines[i++].replace(/^>\s?/, ''))); out.push(`<blockquote>${b.join('<br>')}</blockquote>`); continue; }
+    if (!l.trim()) { i++; continue; }
+    const b = []; while (i < lines.length && lines[i].trim() && !/^(#{1,4}\s|```|>|\s*([-*+]|\d+[.)])\s+|\s*\|)/.test(lines[i])) b.push(inline(lines[i++]));
+    if (!b.length) b.push(inline(lines[i++]));
+    out.push(`<p>${b.join('<br>')}</p>`);
+  }
+  return out.join('');
+}
 async function showLivrable() {
   const v = S.livrables.find(x => x.n === +$('livPick').value); if (!v) return;
   const req = ++livReq, view = $('livView');
@@ -966,7 +1010,8 @@ async function showLivrable() {
   view.textContent = '';
   if (text == null) { view.textContent = 'Contenu indisponible.'; return; }
   if (livMode !== 'diff') {
-    livText = text; view.textContent = text;
+    livText = text;
+    if (/\.(md|markdown)$/i.test(v.name || v.file || '')) { view.className = 'md'; view.innerHTML = markdown(text); } else view.textContent = text;
     $('count').textContent = `${[...text.trim()].length} caractères · ${text.trim().split(/\s+/).filter(Boolean).length} mots`;
     return;
   }

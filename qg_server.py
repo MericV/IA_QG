@@ -85,6 +85,16 @@ def providers():
     return out
 
 
+def valid_model(msg):
+    """{"provider", "model"} choisi par le client, contrôlé ; None s'il est invalide."""
+    if not isinstance(msg, dict):
+        return None
+    model = {"provider": str(msg.get("provider", ""))[:40], "model": str(msg.get("model", ""))[:120].strip()}
+    if model["provider"] not in {p["id"] for p in PROVIDERS} or not model["model"] or model["model"].startswith("-"):
+        return None  # « -… » serait lu comme une option par la commande hermes
+    return model
+
+
 def discussions():
     items = []
     for live in (qg_log.DATA / "projets").glob("*/qg-live.json"):
@@ -236,6 +246,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if path == "/api/accounts/remove":
                 provider = str(msg.get("provider", ""))
                 subprocess.run(["security", "delete-generic-password", "-s", KEYCHAIN, "-a", provider], capture_output=True)
+                MODELS.pop(provider, None)
                 return self.send_json({"ok": True})
             d = self.discussion(path)
             if not d or not d[1]:
@@ -254,8 +265,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 elif rest == "/dismiss":
                     qg_log.dismiss(str(msg["id"]), str(msg.get("reason") or "décision du client")[:300], by_client=True)
                 elif rest == "/model":
-                    model = {"provider": str(msg["provider"])[:40], "model": str(msg["model"])[:120]}
-                    if model["provider"] not in {p["id"] for p in PROVIDERS}:
+                    model = valid_model(msg)
+                    if not model:
                         return self.send_error(400)
                     qg_log.require_mission()
                     qg_log.update(qg_log.LIVE, {}, lambda data: data.__setitem__("model", model))
@@ -274,7 +285,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         text = str(msg.get("text", "")).strip()[:4000]
         if not text:
             return self.send_error(400)
-        model = msg.get("model") if isinstance(msg.get("model"), dict) else None
+        model = None
+        if msg.get("model") is not None:
+            model = valid_model(msg["model"])
+            if not model:
+                return self.send_error(400)
         name = (qg_log.slug(text)[:40].strip("-") or "discussion") + "-" + os.urandom(2).hex()
         topic = text if len(text) <= 80 else text[:77].rsplit(" ", 1)[0] + "…"
         with LOCK:
@@ -288,9 +303,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def add_account(self, msg):
         provider, key = str(msg.get("provider", "")), str(msg.get("key", "")).strip()
-        if provider not in {p["id"] for p in PROVIDERS if p["kind"] == "key"} or not 10 <= len(key) <= 400 or any(c.isspace() for c in key):
+        if provider not in {p["id"] for p in PROVIDERS if p["kind"] == "key"} or not re.fullmatch(r"[A-Za-z0-9_.:+/=-]{10,400}", key):
             return self.send_json({"erreur": "fournisseur inconnu ou clé invalide"}, 400)
-        r = subprocess.run(["security", "add-generic-password", "-U", "-s", KEYCHAIN, "-a", provider, "-w", key], capture_output=True)
+        # par l'entrée standard (security -i) : la clé n'apparaît jamais dans la liste des processus
+        r = subprocess.run(["security", "-i"], input=f"add-generic-password -U -s {KEYCHAIN} -a {provider} -w {key}\n",
+                           capture_output=True, text=True)
+        MODELS.pop(provider, None)
         return self.send_json({"ok": r.returncode == 0}, 200 if r.returncode == 0 else 500)
 
     def log_message(self, *a):
