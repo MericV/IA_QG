@@ -32,7 +32,7 @@ Client
   wait                                attend un message ou une réponse, l'affiche, puis s'arrête
 Chaque écriture affiche aussi ce que le client a envoyé et qui n'a pas encore été lu.
 """
-import difflib, fcntl, html, json, os, pathlib, re, shutil, sys, time, unicodedata
+import difflib, fcntl, hashlib, html, json, os, pathlib, re, shutil, sys, tempfile, time, unicodedata
 from contextlib import contextmanager
 
 HOME = pathlib.Path(__file__).resolve().parent
@@ -91,7 +91,10 @@ def read(path, default):
 def locked():
     """Verrou exclusif du projet, partagé entre les commandes et qg_server.py. Non réentrant : ne pas imbriquer."""
     ROOT.mkdir(parents=True, exist_ok=True)
-    with open(ROOT / ".verrou", "w") as lock:
+    # hors du dossier du Bureau : iCloud Drive peut décharger un fichier de Documents et l'ouvrir expire alors
+    lock_dir = pathlib.Path(tempfile.gettempdir()) / "bureau-verrous"
+    lock_dir.mkdir(exist_ok=True)
+    with open(lock_dir / hashlib.sha1(str(ROOT.resolve()).encode()).hexdigest(), "w") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
         yield
 
@@ -433,10 +436,14 @@ def main(a):
         while True:
             for d in sorted((DATA / "projets").glob("*/qg-live.json")):
                 use_project(d.parent.name)
-                # une discussion confiée à un autre modèle est traitée par le moteur multi-modèles du serveur
-                if read(LIVE, {}).get("model", DEFAULT_MODEL).get("provider") != "claude-code":
+                try:
+                    # une discussion confiée à un autre modèle est traitée par le moteur multi-modèles du serveur
+                    if read(LIVE, {}).get("model", DEFAULT_MODEL).get("provider") != "claude-code":
+                        continue
+                    msgs = unread()
+                except (OSError, ValueError):  # fichier momentanément illisible (iCloud, écriture en cours) : au tour suivant
                     continue
-                if (msgs := unread()):
+                if msgs:
                     print(f"=== Discussion « {d.parent.name} » ({read(LIVE, {}).get('topic', '')}) : préfixer les commandes par BUREAU_PROJET={d.parent.name}")
                     show(msgs)
                     return
