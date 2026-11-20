@@ -110,6 +110,16 @@ main { grid-column: 2; grid-row: 1; display: grid; grid-template-rows: auto minm
 .job-form textarea { resize: vertical; min-height: 70px; }
 .job-form .grow { flex: 1 1 220px; }
 .job-form label { font-size: 13px; font-weight: 600; display: grid; gap: 4px; }
+.feat .head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.feat .head a { font-weight: 700; color: inherit; text-decoration: none; flex: 1 1 200px; }
+.feat .head a:hover { color: var(--accent); }
+.feat .meta { font: 500 11.5px var(--mono); color: var(--dim); }
+.feat .warn { font-size: 13px; color: var(--warn); }
+.yn { display: inline-flex; background: rgba(255,255,255,.45); border: 1px solid rgba(255,255,255,.75); border-radius: 99px; padding: 2px; }
+.yn button { border: 0; background: none; border-radius: 99px; padding: 4px 12px; font-weight: 700; font-size: 13px; color: var(--dim); }
+.yn button[aria-pressed="true"] { background: #fff; color: var(--fg); box-shadow: 0 2px 6px rgba(36,52,92,.12); }
+.yn button.yes[aria-pressed="true"] { background: linear-gradient(180deg, #43c58a, var(--ok)); color: #fff; }
+.chip[aria-pressed="true"] { background: var(--fg); color: #fff; border-color: var(--fg); }
 .job .head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .job .head b { flex: 1 1 200px; }
 .switch { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 600; }
@@ -246,6 +256,9 @@ dialog::backdrop { background: rgba(30,40,70,.18); -webkit-backdrop-filter: blur
       <button class="side-btn" id="goPilot" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/><path d="M12 7v5l3 2"/></svg><span>Pilote automatique</span>
       </button>
+      <button class="side-btn" id="goFeatures" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4v3a2 2 0 1 0 4 0V3h3v7h-3a2 2 0 1 0 0 4h3v7h-7v-3a2 2 0 1 0-4 0v3H3v-7h3a2 2 0 1 0 0-4H3V3z"/></svg><span>Fonctionnalités</span><b class="badge" id="featCount" hidden></b>
+      </button>
       <button class="side-btn" id="openSettings" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Modèles et comptes</span>
       </button>
@@ -311,6 +324,14 @@ dialog::backdrop { background: rgba(30,40,70,.18); -webkit-backdrop-filter: blur
           <span class="lead" id="jobMsg" style="font-size: 13px"></span>
         </form>
         <div id="jobs"></div>
+      </div>
+    </section>
+    <section class="view" id="featView" hidden>
+      <div class="view-inner">
+        <h1>Fonctionnalités</h1>
+        <p class="lead">Des projets libres sur GitHub qui pourraient enrichir le Bureau. Rien n'est ajouté sans ton accord : chaque choix est sur « Non » au départ. Ce que tu passes à « Oui » est noté comme à intégrer ; l'intégration se fait ensuite avec Claude Code (« intègre les fonctionnalités choisies »).</p>
+        <div class="row" id="featFilters" style="display: flex; gap: 6px; flex-wrap: wrap"></div>
+        <div id="featBody"></div>
       </div>
     </section>
     <iframe id="frame" title="QG de la discussion" hidden></iframe>
@@ -444,18 +465,18 @@ const alertLine = text => { $('notice').hidden = false; $('notice').textContent 
 
 // ---------- Navigation : accueil ou discussion ----------
 let shown = null;
-const VIEWS = {boite: 'inboxView', pilote: 'pilotView'};
+const VIEWS = {boite: 'inboxView', pilote: 'pilotView', fonctions: 'featView'};
 function route(force) {
   const id = location.hash.slice(1), d = items.find(x => x.id === id);
   renderList();
-  $('goInbox').toggleAttribute('aria-current', id === 'boite'); $('goPilot').toggleAttribute('aria-current', id === 'pilote');
-  if ($('goInbox').hasAttribute('aria-current')) $('goInbox').setAttribute('aria-current', 'page');
-  if ($('goPilot').hasAttribute('aria-current')) $('goPilot').setAttribute('aria-current', 'page');
+  for (const [btn, key] of [['goInbox', 'boite'], ['goPilot', 'pilote'], ['goFeatures', 'fonctions']]) {
+    if (id === key) $(btn).setAttribute('aria-current', 'page'); else $(btn).removeAttribute('aria-current');
+  }
   for (const [k, v] of Object.entries(VIEWS)) $(v).hidden = id !== k;
   if (VIEWS[id]) {
     shown = null; $('frame').hidden = true; $('frame').removeAttribute('src'); $('home').hidden = true;
-    $('title').textContent = id === 'boite' ? 'Boîte de réception' : 'Pilote automatique'; $('modelPick').hidden = true; $('notice').hidden = true;
-    if (id === 'boite') renderInbox(); else loadJobs();
+    $('title').textContent = {boite: 'Boîte de réception', pilote: 'Pilote automatique', fonctions: 'Fonctionnalités'}[id]; $('modelPick').hidden = true; $('notice').hidden = true;
+    if (id === 'boite') renderInbox(); else if (id === 'pilote') loadJobs(); else loadFeatures();
     if (matchMedia('(max-width: 720px)').matches && !force) setCollapsed(true);
     return;
   }
@@ -613,5 +634,38 @@ function renderJobs() {
 async function loadJobs() { try { jobs = await (await fetch('/api/pilote', {cache: 'no-store'})).json(); } catch { jobs = []; } renderJobs(); }
 $('goPilot').onclick = () => { location.hash = 'pilote'; };
 
-loadProviders().then(resetForm); loadList(); loadInbox(); setInterval(loadList, 4000); setInterval(loadInbox, 5000);
+// ---------- Fonctionnalités ----------
+let feats = [], featCat = 'Toutes';
+function renderFeatures() {
+  const cats = ['Toutes', ...new Set(feats.map(f => f.categorie))], chosen = feats.filter(f => f.ajouter).length;
+  $('featCount').hidden = !chosen; $('featCount').textContent = chosen;
+  $('featFilters').innerHTML = '';
+  cats.forEach(c => { const b = el('button', 'chip', c); b.type = 'button'; b.setAttribute('aria-pressed', c === featCat); b.onclick = () => { featCat = c; renderFeatures(); }; $('featFilters').append(b); });
+  const body = $('featBody'); body.innerHTML = '';
+  body.append(el('p', 'lead', chosen ? `${chosen} fonctionnalité${chosen > 1 ? 's' : ''} à intégrer.` : 'Aucune fonctionnalité choisie pour l\'instant.'));
+  for (const cat of cats.slice(1).filter(c => featCat === 'Toutes' || c === featCat)) {
+    const list = feats.filter(f => f.categorie === cat), g = el('div', 'group'), h = el('h2', null, cat);
+    h.append(el('span', 'n', list.length)); g.append(h);
+    for (const f of list) {
+      const card = el('div', 'item feat'); card.style.setProperty('--c', f.ajouter ? 'var(--ok)' : 'var(--glass-edge)');
+      const head = el('div', 'head'), a = el('a', null, f.nom); a.href = f.url; a.target = '_blank'; a.rel = 'noopener';
+      const yn = el('div', 'yn'); yn.setAttribute('role', 'group'); yn.setAttribute('aria-label', `Ajouter ${f.nom} au projet`);
+      for (const [label, val] of [['Non', false], ['Oui', true]]) {
+        const b = el('button', val ? 'yes' : '', label); b.type = 'button'; b.setAttribute('aria-pressed', f.ajouter === val);
+        b.onclick = async () => { if (f.ajouter === val) return; try { await post('/api/features', {id: f.id, ajouter: val}); f.ajouter = val; renderFeatures(); } catch (e) { card.append(el('p', 'warn', e.message)); } };
+        yn.append(b);
+      }
+      head.append(a, yn);
+      card.append(head, el('p', null, f.apport));
+      if (f.attention) card.append(el('p', 'warn', '⚠︎ ' + f.attention));
+      card.append(el('div', 'meta', `${f.depot} · licence ${f.licence} · ${f.etoiles.toLocaleString('fr-FR')} étoiles`));
+      g.append(card);
+    }
+    body.append(g);
+  }
+}
+async function loadFeatures() { try { feats = await (await fetch('/api/features', {cache: 'no-store'})).json(); } catch { feats = []; } renderFeatures(); }
+$('goFeatures').onclick = () => { location.hash = 'fonctions'; };
+
+loadProviders().then(resetForm); loadFeatures(); loadList(); loadInbox(); setInterval(loadList, 4000); setInterval(loadInbox, 5000);
 </script>

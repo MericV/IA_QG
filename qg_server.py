@@ -18,6 +18,8 @@ API (écritures : jeton secret + origine locale)
   GET  /api/pilote               tâches du pilote automatique
   POST /api/pilote               {"id"?, "titre", "consigne", "frequence", "heure", "jour", "toutes_h", "model", "actif"}  crée ou modifie
   POST /api/pilote/remove · /api/pilote/run   {"id"}  supprime · lance tout de suite
+  GET  /api/features             fonctionnalités proposées (dépôts GitHub) et ton choix pour chacune (non par défaut)
+  POST /api/features             {"id", "ajouter"}  enregistre ton choix
   GET  /d/<d>/state · /d/<d>/events (SSE) · /d/<d>/livrables/… · /d/<d>/missions/…
   POST /d/<d>/say · /d/<d>/answer · /d/<d>/model {"provider", "model"} · /d/<d>/dismiss {"id", "reason"?}
 
@@ -245,6 +247,30 @@ def pilote_loop():
         time.sleep(30)
 
 
+# ---------- Fonctionnalités : dépôts GitHub qu'on pourrait ajouter au Bureau ; ton choix, « non » par défaut ----------
+FEATURES = HOME / "features.json"             # la liste, dans le dépôt
+CHOIX = qg_log.DATA / "features-choix.json"   # tes choix, sur ton Mac seulement
+
+
+def features():
+    with LOCK:
+        choix = qg_log.read(CHOIX, {})
+    items = qg_log.read(FEATURES, {}).get("fonctionnalites", [])
+    return [{**f, "ajouter": choix.get(f["id"]) is True} for f in items]
+
+
+def choose_feature(fid, ajouter):
+    if fid not in {f["id"] for f in qg_log.read(FEATURES, {}).get("fonctionnalites", [])}:
+        raise ValueError("fonctionnalité inconnue")
+    with LOCK:
+        choix = qg_log.read(CHOIX, {})
+        if ajouter:
+            choix[fid] = True
+        else:
+            choix.pop(fid, None)
+        qg_log.write_json(CHOIX, choix)
+
+
 def discussions():
     items = []
     for live in (qg_log.DATA / "projets").glob("*/qg-live.json"):
@@ -335,6 +361,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.send_json(discussions())
         if path == "/api/providers":
             return self.send_json(providers())
+        if path == "/api/features":
+            return self.send_json(features())
         if path == "/api/inbox":
             return self.send_json(inbox())
         if path == "/api/pilote":
@@ -400,6 +428,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.add_account(msg)
             if path == "/api/pilote":
                 return self.send_json(save_job(msg))
+            if path == "/api/features":
+                choose_feature(str(msg.get("id", "")), msg.get("ajouter") is True)
+                return self.send_json({"ok": True})
             if path == "/api/pilote/remove":
                 with LOCK:
                     qg_log.write_json(PILOTE, [j for j in qg_log.read(PILOTE, []) if j["id"] != str(msg.get("id"))])

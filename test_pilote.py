@@ -76,6 +76,17 @@ try:
     # 6. Tâche en pause : jamais lancée
     S.save_job({**job, "actif": False})
     assert not S.pilote_due(time.time() + 10 ** 9)
+    # 7. Fonctionnalités : toutes à « non » au départ, choix enregistré, identifiant inconnu refusé
+    assert S.features() and not any(f["ajouter"] for f in S.features())
+    S.choose_feature("ollama", True)
+    assert [f["id"] for f in S.features() if f["ajouter"]] == ["ollama"]
+    S.choose_feature("ollama", False)
+    assert not any(f["ajouter"] for f in S.features())
+    try:
+        S.choose_feature("../etc", True)
+        raise AssertionError("identifiant inconnu accepté")
+    except ValueError:
+        pass
     print("test_pilote : OK")
 finally:
     shutil.rmtree(TMP, ignore_errors=True)

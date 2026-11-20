@@ -21,7 +21,8 @@ cd "Bureau IA"
 | `lecons.md` | Mémoire de méthode : leçons tirées des missions passées, lues au début de chaque mission et complétées à la fin |
 | `briefs.md` | Modèles de brief pour les agents (recherche, contre-vérification, rédaction, critique) |
 | `Bureau.command` | Double-clic : démarre le serveur si besoin et ouvre l'app dans le navigateur |
-| `app.html` | L'app : barre latérale repliable, discussions, nouvelle discussion, Boîte de réception, Pilote automatique, Modèles et comptes, intro vidéo |
+| `app.html` | L'app : barre latérale repliable, discussions, nouvelle discussion, Boîte de réception, Pilote automatique, Fonctionnalités, Modèles et comptes, intro vidéo |
+| `features.json` | Fonctionnalités proposées : dépôts GitHub vérifiés qui pourraient enrichir le Bureau (le choix du client, « non » par défaut, reste dans `features-choix.json`, exclu du dépôt) |
 | `qg.html` | Page du QG : un étage sur le toit d'une tour (salles vitrées, atrium, café, terrasse ; ville, jour et nuit selon l'heure), pôles et leur état, caméra (molette ou + et − pour zoomer, glisser pour se déplacer, double-clic), fil, questions du PDG, consignes, kanban, livrable |
 | `qg_log.py` | Journal de mission, consignes et questions du client, livrables, export, historique |
 | `qg_server.py` | Serveur local de l'app : discussions, comptes (trousseau macOS), modèles, QG en direct |
@@ -79,6 +80,8 @@ Dans l'app, chaque discussion a son modèle. Avec « Claude Code », c'est la se
 
 - **Boîte de réception** (barre latérale de l'app) : toutes discussions confondues, les décisions à prendre (réponse en un clic), ce qui est bloqué, les messages qui attendent une session Claude Code et ce qui a été livré dans la semaine. La pastille compte ce qui attend ta décision.
 - **Pilote automatique** : des missions récurrentes (chaque jour, chaque semaine, toutes les N heures). À l'heure prévue, le serveur envoie la consigne au PDG dans la discussion de la tâche, créée au premier lancement puis réutilisée. Les tâches sont dans `pilote.json` (exclu du dépôt). Elles tournent tant que l'app est ouverte et le Mac éveillé ; une tâche manquée part une fois au retour de l'app. Avec « Claude Code », le message attend une session où le Bureau est activé ; avec un autre modèle, le moteur s'en charge seul.
+
+- **Fonctionnalités** : une liste de projets libres sur GitHub (modèles, documents, recherche web, voix, mémoire, visuels, automatisation), chacun avec ce qu'il apporterait et ses points d'attention. Tout est sur « Non » au départ ; ce que tu passes à « Oui » est noté à intégrer, et l'intégration se fait ensuite avec Claude Code.
 
 ## Sécurité du QG
 

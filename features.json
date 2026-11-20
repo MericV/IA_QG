@@ -1,0 +1,247 @@
+{
+ "verifie_le": "2026-11-20",
+ "fonctionnalites": [
+  {
+   "id": "ollama",
+   "categorie": "Modèles et agents",
+   "nom": "Ollama",
+   "depot": "ollama/ollama",
+   "url": "https://github.com/ollama/ollama",
+   "apport": "Faire tourner des modèles sur ton Mac, sans clé ni coût par appel. Le moteur du Bureau sait déjà l'appeler : il suffit de l'installer.",
+   "attention": "",
+   "licence": "MIT",
+   "etoiles": 187731
+  },
+  {
+   "id": "hermes-agent",
+   "categorie": "Modèles et agents",
+   "nom": "Hermes Agent",
+   "depot": "NousResearch/hermes-agent",
+   "url": "https://github.com/NousResearch/hermes-agent",
+   "apport": "L'agent de Nous Research, déjà prévu dans « Modèles et comptes » (commande hermes).",
+   "attention": "Installation à lancer par toi.",
+   "licence": "MIT",
+   "etoiles": 264882
+  },
+  {
+   "id": "litellm",
+   "categorie": "Modèles et agents",
+   "nom": "LiteLLM",
+   "depot": "BerriAI/litellm",
+   "url": "https://github.com/BerriAI/litellm",
+   "apport": "Une seule interface pour plus de 100 fournisseurs de modèles, avec suivi des coûts : pourrait remplacer les appels écrits à la main dans le moteur.",
+   "attention": "Ajoute une dépendance Python ; aujourd'hui le Bureau n'en a aucune.",
+   "licence": "voir le dépôt",
+   "etoiles": 63608
+  },
+  {
+   "id": "llm",
+   "categorie": "Modèles et agents",
+   "nom": "llm",
+   "depot": "simonw/llm",
+   "url": "https://github.com/simonw/llm",
+   "apport": "Interroger de nombreux modèles en ligne de commande : pratique pour essayer un modèle avant de le confier au Bureau.",
+   "attention": "",
+   "licence": "Apache-2.0",
+   "etoiles": 12787
+  },
+  {
+   "id": "servers",
+   "categorie": "Modèles et agents",
+   "nom": "Serveurs MCP",
+   "depot": "modelcontextprotocol/servers",
+   "url": "https://github.com/modelcontextprotocol/servers",
+   "apport": "Serveurs MCP de référence (fichiers, Git, mémoire…) pour donner de vrais outils aux agents du Bureau.",
+   "attention": "",
+   "licence": "voir le dépôt",
+   "etoiles": 92131
+  },
+  {
+   "id": "markitdown",
+   "categorie": "Documents",
+   "nom": "MarkItDown",
+   "depot": "microsoft/markitdown",
+   "url": "https://github.com/microsoft/markitdown",
+   "apport": "Convertir PDF, Word, PowerPoint et Excel en Markdown : le Bureau pourrait lire les documents que tu lui joins.",
+   "attention": "",
+   "licence": "MIT",
+   "etoiles": 197168
+  },
+  {
+   "id": "docling",
+   "categorie": "Documents",
+   "nom": "Docling",
+   "depot": "docling-project/docling",
+   "url": "https://github.com/docling-project/docling",
+   "apport": "Lecture fine des documents (mise en page, tableaux) pour préparer les sources d'une mission.",
+   "attention": "",
+   "licence": "MIT",
+   "etoiles": 70813
+  },
+  {
+   "id": "pandoc",
+   "categorie": "Documents",
+   "nom": "Pandoc",
+   "depot": "jgm/pandoc",
+   "url": "https://github.com/jgm/pandoc",
+   "apport": "Exporter les livrables en Word (avec de vraies notes de bas de page), PDF ou PowerPoint.",
+   "attention": "Licence GPL : à utiliser comme outil externe, sans copier son code.",
+   "licence": "GPL-2.0",
+   "etoiles": 47010
+  },
+  {
+   "id": "python-docx",
+   "categorie": "Documents",
+   "nom": "python-docx",
+   "depot": "python-openxml/python-docx",
+   "url": "https://github.com/python-openxml/python-docx",
+   "apport": "Créer et retoucher des fichiers Word en Python, à partir des livrables.",
+   "attention": "",
+   "licence": "MIT",
+   "etoiles": 5776
+  },
+  {
+   "id": "searxng",
+   "categorie": "Recherche web",
+   "nom": "SearXNG",
+   "depot": "searxng/searxng",
+   "url": "https://github.com/searxng/searxng",
+   "apport": "Un moteur de recherche à héberger soi-même : donnerait la recherche web aux modèles qui n'en ont pas (OpenAI, Mistral, Ollama…).",
+   "attention": "Licence AGPL ; s'installe avec Docker.",
+   "licence": "AGPL-3.0",
+   "etoiles": 39729
+  },
+  {
+   "id": "crawl4ai",
+   "categorie": "Recherche web",
+   "nom": "Crawl4AI",
+   "depot": "unclecode/crawl4ai",
+   "url": "https://github.com/unclecode/crawl4ai",
+   "apport": "Lire des pages web proprement (en Markdown) pour que le Bibliothécaire cite le texte exact de ses sources.",
+   "attention": "",
+   "licence": "Apache-2.0",
+   "etoiles": 87593
+  },
+  {
+   "id": "firecrawl",
+   "categorie": "Recherche web",
+   "nom": "Firecrawl",
+   "depot": "firecrawl/firecrawl",
+   "url": "https://github.com/firecrawl/firecrawl",
+   "apport": "Recherche et extraction de pages web par une API.",
+   "attention": "Service payant au-delà d'un quota ; licence AGPL si on l'héberge.",
+   "licence": "AGPL-3.0",
+   "etoiles": 204772
+  },
+  {
+   "id": "browser-use",
+   "categorie": "Recherche web",
+   "nom": "Browser Use",
+   "depot": "browser-use/browser-use",
+   "url": "https://github.com/browser-use/browser-use",
+   "apport": "Faire naviguer un agent dans un vrai navigateur (sites dynamiques, formulaires).",
+   "attention": "Agit sur des sites : à encadrer de près.",
+   "licence": "MIT",
+   "etoiles": 121586
+  },
+  {
+   "id": "whisper-cpp",
+   "categorie": "Voix",
+   "nom": "whisper.cpp",
+   "depot": "ggml-org/whisper.cpp",
+   "url": "https://github.com/ggml-org/whisper.cpp",
+   "apport": "Dicter tes messages au PDG : transcription de la voix sur ton Mac, rapide et sans service extérieur.",
+   "attention": "",
+   "licence": "MIT",
+   "etoiles": 55362
+  },
+  {
+   "id": "whisper",
+   "categorie": "Voix",
+   "nom": "Whisper",
+   "depot": "openai/whisper",
+   "url": "https://github.com/openai/whisper",
+   "apport": "Même usage en Python ; plus lourd à installer que whisper.cpp.",
+   "attention": "",
+   "licence": "MIT",
+   "etoiles": 113157
+  },
+  {
+   "id": "chroma",
+   "categorie": "Mémoire et suivi",
+   "nom": "Chroma",
+   "depot": "chroma-core/chroma",
+   "url": "https://github.com/chroma-core/chroma",
+   "apport": "Une mémoire longue : retrouver par le sens les passages des missions et livrables passés.",
+   "attention": "",
+   "licence": "Apache-2.0",
+   "etoiles": 29715
+  },
+  {
+   "id": "langfuse",
+   "categorie": "Mémoire et suivi",
+   "nom": "Langfuse",
+   "depot": "langfuse/langfuse",
+   "url": "https://github.com/langfuse/langfuse",
+   "apport": "Suivre chaque appel de modèle (coût, durée, erreurs), utile quand le moteur tournera avec de vraies clés.",
+   "attention": "S'héberge avec Docker.",
+   "licence": "voir le dépôt",
+   "etoiles": 37670
+  },
+  {
+   "id": "mermaid",
+   "categorie": "Visuels",
+   "nom": "Mermaid",
+   "depot": "mermaid-js/mermaid",
+   "url": "https://github.com/mermaid-js/mermaid",
+   "apport": "Des schémas écrits en texte (organigrammes, chronologies) affichés dans l'onglet Rendu.",
+   "attention": "",
+   "licence": "MIT",
+   "etoiles": 91176
+  },
+  {
+   "id": "excalidraw",
+   "categorie": "Visuels",
+   "nom": "Excalidraw",
+   "depot": "excalidraw/excalidraw",
+   "url": "https://github.com/excalidraw/excalidraw",
+   "apport": "Un tableau blanc façon croquis pour les plans et maquettes du Studio design.",
+   "attention": "",
+   "licence": "MIT",
+   "etoiles": 136012
+  },
+  {
+   "id": "three-js",
+   "categorie": "Visuels",
+   "nom": "three.js",
+   "depot": "mrdoob/three.js",
+   "url": "https://github.com/mrdoob/three.js",
+   "apport": "Une vraie 3D pour le bureau du QG (caméra libre, lumières, ombres).",
+   "attention": "Demande de réécrire tout le dessin du bureau.",
+   "licence": "MIT",
+   "etoiles": 119005
+  },
+  {
+   "id": "n8n",
+   "categorie": "Automatisation",
+   "nom": "n8n",
+   "depot": "n8n-io/n8n",
+   "url": "https://github.com/n8n-io/n8n",
+   "apport": "Relier le Bureau à tes outils (mail, agenda, Drive) pour lancer des missions ou en recevoir les résultats.",
+   "attention": "Licence « fair-code » ; à héberger.",
+   "licence": "voir le dépôt",
+   "etoiles": 211506
+  },
+  {
+   "id": "craft-anything",
+   "categorie": "Automatisation",
+   "nom": "Craft Anything",
+   "depot": "storytold/craft-anything",
+   "url": "https://github.com/storytold/craft-anything",
+   "apport": "Étudier comment un logiciel fonctionne et en construire sa propre version.",
+   "attention": "Version alpha ; ne pas s'en servir pour recopier un produit existant.",
+   "licence": "Apache-2.0",
+   "etoiles": 39112
+  }
+ ]
+}

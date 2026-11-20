@@ -93,3 +93,7 @@ Toutes les commandes se lancent **depuis la racine du projet de l'utilisateur** 
    4. `python3 $B/qg_log.py applied N ROLE "…"` seulement quand la consigne a réellement changé le travail ;
    5. une information non sourcée du client est signalée dans l'`ack` et passe d'abord par un rôle de recherche (à recruter si besoin).
 7. **Fin de mission :** `python3 $B/qg_log.py export` écrit la page rejouable dans `missions/` et met à jour l'historique (`missions/index.html`). Publier cette page avec l'outil Artifact si le client veut la partager.
+
+## Fonctionnalités choisies
+
+Quand le client demande d'« intégrer les fonctionnalités choisies », lire `$B/features-choix.json` (identifiants passés à « Oui ») et `$B/features.json` (dépôt, apport, points d'attention). N'intégrer que celles-là, une par une, en demandant avant toute installation ou nouvelle dépendance.

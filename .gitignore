@@ -10,3 +10,4 @@ __pycache__/
 .port
 intro/frames/
 pilote.json
+features-choix.json
