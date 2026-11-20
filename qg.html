@@ -50,6 +50,11 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
 .board-btn { font: 600 12px var(--body); padding: 4px 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--panel); color: inherit; }
 .board-btn:hover { border-color: var(--accent); color: var(--accent); }
 .steps li.ok { color: #fff; background: var(--ok); border-color: var(--ok); }
+.crew { font: 600 12px var(--body); padding: 4px 10px; border-radius: 99px; background: var(--panel); border: 1px solid var(--line); white-space: nowrap; }
+.crew i { font-style: normal; color: #1d9e62; }
+.ap-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.ap-act { font: 600 13px var(--body); padding: 6px 12px; border-radius: 99px; border: 1px solid var(--line); background: var(--bg); color: inherit; }
+.ap-act:disabled { opacity: .6; }
 .meta { font: 500 12px var(--mono); color: var(--dim); white-space: nowrap; }
 .badge { font: 600 11px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); padding: 4px 9px; border-radius: 99px; white-space: nowrap; }
 .badge.off { color: var(--ko); background: color-mix(in srgb, var(--ko) 10%, transparent); }
@@ -229,6 +234,7 @@ form#chat .hint { display: flex; justify-content: space-between; font-size: 11px
     <div class="topic" id="topic"></div>
     <ol class="steps" id="steps" aria-label="Étapes de la mission"></ol>
     <button class="board-btn" id="boardBtn" type="button" title="Toutes les tâches : à faire, en cours, en contrôle, faites">📋 Tableau</button>
+    <span class="crew" id="crew" title="Rôles au travail en ce moment, et l'heure au QG"></span>
     <span class="meta" id="meta"></span>
     <span class="badge" id="label"></span>
     <a id="history" href="missions/" hidden>Missions passées</a>
@@ -242,7 +248,7 @@ form#chat .hint { display: flex; justify-content: space-between; font-size: 11px
   <main class="grid">
     <section class="left">
       <div class="card office">
-        <canvas id="office" tabindex="0" role="img" aria-label="Le bureau : chaque rôle est un petit robot qui se déplace pour échanger. Les échanges détaillés sont dans l'onglet Coulisses."></canvas>
+        <canvas id="office" tabindex="0" role="img" aria-label="Le bureau, sur le toit d'une tour, réparti en pôles (Direction, Recherche, Rédaction, Relecture, Contrôle qualité, Atelier des experts) : chaque rôle est un petit robot qui se déplace pour échanger. Les échanges détaillés sont dans l'onglet Coulisses."></canvas>
         <div class="now" id="now"></div>
       </div>
       <div class="split h" id="splitH" role="separator" aria-orientation="horizontal" aria-label="Redimensionner le bureau et le rendu (glisser, ou flèches haut et bas)" tabindex="0">
@@ -366,18 +372,22 @@ const VIVIER = new Set(Object.keys(ROLES)), ROLES_INIT = JSON.parse(JSON.stringi
 const nameOf = id => (ROLES[id] || {name: id}).name;
 
 // ---------- Projection isométrique ----------
-const cv = $('office'), ctx = cv.getContext('2d');
+const cv = $('office');
+let ctx = cv.getContext('2d');
 const GX = 14, GY = 11.5, WH = 3.2;
+const XB = GX + 2.4, YB = GY + 2.4;  // la terrasse, sur les deux côtés ouverts du bureau
 let W = 0, H = 0, tw = 40, ox = 0, oy = 0;
 const P = (x, y, z = 0) => [ox + (x - y) * tw / 2, oy + (x + y) * tw / 4 - z * tw / 2];
 function layout() {
   const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  tw = Math.min(W * .94 / ((GX + GY) / 2), H * .86 / ((GX + GY) / 4 + WH / 2));
-  ox = W / 2 - (GX - GY) * tw / 4;
-  oy = (H - ((GX + GY) * tw / 4 + WH * tw / 2)) / 2 + WH * tw / 2 - 10;
+  const span = (XB + YB + .6) / 4 + WH / 2 + .9;
+  tw = Math.min(W * .96 / ((XB + YB + .6) / 2), H * .94 / span);
+  ox = W / 2 - (XB - YB) * tw / 4;
+  oy = (H - span * tw / 2) / 2 + WH * tw / 2 + 6;
+  buildBg();
 }
-new ResizeObserver(layout).observe(cv);
+
 const FONT = getComputedStyle(document.documentElement).getPropertyValue('--body');
 
 function shade(hex, k) {
@@ -446,6 +456,10 @@ const furniture = [
   // Coin réunion : tapis et table ronde-ish des spécialistes
   {d: 11.9, draw: () => { floorShadow(1.2, 9, 2.6, 1.3); box(1.25, 9.05, 2.5, 1.2, .62, '#a9b3c2'); box(1.2, 9.0, 2.6, 1.3, .06, '#f6f7fa', .62); }},
   {d: 2.2, draw: () => plant(13.2, 10.9, .9)},
+  // Terrasse : jardinières, arbres, transats
+  ...[[GX + 1.3, .6, 1.3], [GX + 1.3, 4.2, 1], [GX + 1.3, 8.4, 1.2], [1.2, GY + 1.3, 1.1], [5.6, GY + 1.3, 1], [9.8, GY + 1.3, 1.3], [XB - 1.1, YB - 1.1, 1.6]].map(([x, y, k]) => ({d: x + y, draw: () => plant(x, y, k)})),
+  ...[[GX + .9, 5.7], [GX + .9, 6.7]].map(([x, y]) => ({d: x + y, draw: () => { floorShadow(x, y, 1.1, .5); box(x, y, 1.1, .5, .22, '#f3efe8'); box(x + .8, y, .3, .5, .34, '#e4ddd1', .22); }})),
+  {d: 7 + GY + 1.6, draw: () => { floorShadow(7, GY + 1, .9, .9); box(7.35, GY + 1.35, .2, .2, .55, '#9aa3b0'); box(7, GY + 1, .9, .9, .06, OAK, .55); }},
 ];
 const BLOCKS = [[.1, 1.2, .8, 4.2], [7, 5, 2.8, 1.3], [12.6, .5, .6, .6], [5.2, 7.9, 1.9, 1.1], [11, 2.6, 1.8, 1], [10.6, 7.6, .3, .45], [12.3, 7.6, .3, .45], [1.2, 9, 2.6, 1.3], [.4, .4, .5, .5], [13.15, 10.85, .5, .5]];
 const HUBS = [[6.4, 6.9], [10, 6.9], [4.6, 6], [9.9, 3.9], [4.5, 3.5], [10.2, 9.8], [5, 10.9], [12.8, 4.2]];
@@ -464,6 +478,130 @@ function meetPoint(B) {
   }
   return [B.home[0] + .9, B.home[1] + .7];
 }
+// ---------- La tour : terrasse, façade, ville et ciel selon l'heure réelle ----------
+const hash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
+const mix = (a, b, t) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');
+function sun() {
+  const d = new Date(), h = d.getHours() + d.getMinutes() / 60;
+  // 0 = plein jour, 1 = pleine nuit ; aube de 6 h à 8 h, soir de 18 h à 21 h
+  const night = h < 6 || h >= 21 ? 1 : h < 8 ? (8 - h) / 2 : h >= 18 ? (h - 18) / 3 : 0;
+  return {night, label: night > .7 ? 'nuit' : night > 0 ? (h < 12 ? 'aube' : 'soir') : 'jour', time: d.toTimeString().slice(0, 5)};
+}
+let sunNow = sun();
+// Tours voisines, toujours les mêmes ; celles placées devant restent sous la terrasse pour ne pas la cacher
+const TOWERS = [];
+for (let i = 0; i < 400 && TOWERS.length < 46; i++) {
+  const w = 1.8 + hash(i + 99) * 2.6, d = 1.8 + hash(i + 7) * 2.6, x = -16 + hash(i + 1) * (XB + 30), y = -16 + hash(i + 50) * (YB + 30);
+  if (x + w > -2 && x < XB + 2 && y + d > -2 && y < YB + 2) continue;
+  if (TOWERS.some(t => x < t.x + t.w + .7 && x + w + .7 > t.x && y < t.y + t.d + .7 && y + d + .7 > t.y)) continue;
+  const front = x + w / 2 + y + d / 2 > (XB + YB) / 2;
+  TOWERS.push({x, y, w, d, top: front ? -3 - hash(i + 3) * 9 : -7 + hash(i + 3) * 13, seed: i});
+}
+const bgc = document.createElement('canvas');
+function tower(t, n) {
+  const {x, y, w, d, top} = t, base = top - 34, me = !!t.me;
+  const wall = mix(me ? '#dfe4ec' : '#b4c2d6', me ? '#2b3446' : '#131a2a', n);
+  poly([P(x, y + d, top), P(x + w, y + d, top), P(x + w, y + d, base), P(x, y + d, base)], shade(wall, -.04));
+  poly([P(x + w, y, top), P(x + w, y + d, top), P(x + w, y + d, base), P(x + w, y, base)], shade(wall, -.2));
+  if (!me) poly([P(x, y, top), P(x + w, y, top), P(x + w, y + d, top), P(x, y + d, top)], shade(wall, .12));
+  const fh = me ? 1.15 : .85, ww = me ? .7 : .34, step = me ? .95 : .58, wh = me ? .7 : .48;
+  const pane = (pts, r) => {
+    const day = mix('#d6e5f5', '#9db4d1', r), lit = r > .93 ? '#fff3c9' : '#ffc874', dark = '#222c43';
+    poly(pts, mix(day, r > (me ? .35 : .55) ? lit : dark, n));
+  };
+  for (let z = top - (me ? .75 : .4), row = 0; z - wh > base && row < 40; z -= fh, row++) {
+    for (let u = x + .3, c = 0; u + ww < x + w - .2; u += step, c++) pane([P(u, y + d + .01, z), P(u + ww, y + d + .01, z), P(u + ww, y + d + .01, z - wh), P(u, y + d + .01, z - wh)], hash(t.seed * 31 + row * 7.3 + c));
+    for (let v = y + .3, c = 0; v + ww < y + d - .2; v += step, c++) pane([P(x + w + .01, v, z), P(x + w + .01, v + ww, z), P(x + w + .01, v + ww, z - wh), P(x + w + .01, v, z - wh)], hash(t.seed * 17 + row * 5.1 + c + 500));
+  }
+}
+function buildBg() {
+  const dpr = devicePixelRatio || 1, main = ctx, n = sunNow.night;
+  bgc.width = W * dpr; bgc.height = H * dpr;
+  ctx = bgc.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const top = n < .5 ? mix('#8ec2ef', '#56649f', n * 2) : mix('#56649f', '#070c1a', (n - .5) * 2);
+  const low = n < .5 ? mix('#e8f3fb', '#f4b27c', n * 2) : mix('#f4b27c', '#1b2645', (n - .5) * 2);
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, top); g.addColorStop(1, low); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  if (n > .6) for (let i = 0; i < 90; i++) { ctx.fillStyle = `rgba(255,255,255,${(.3 + hash(i) * .6) * (n - .6) * 2.5})`; ctx.fillRect(hash(i + 300) * W, hash(i + 600) * H * .5, 1.4, 1.4); }
+  TOWERS.concat({x: -.3, y: -.3, w: XB + .3, d: YB + .3, top: -.35, seed: 999, me: true})
+    .sort((a, b) => (a.x + a.w / 2 + a.y + a.d / 2) - (b.x + b.w / 2 + b.y + b.d / 2)).forEach(t => tower(t, n));
+  ctx = main;
+}
+function drawTerrace() {
+  poly([P(-.3, -.3), P(XB, -.3), P(XB, YB), P(-.3, YB)], '#d8d2c8');
+  poly([P(GX, -.3), P(XB, -.3), P(XB, YB), P(GX, YB)], '#c49a6c');
+  poly([P(-.3, GY), P(GX, GY), P(GX, YB), P(-.3, YB)], '#c49a6c');
+  ctx.strokeStyle = 'rgba(90,60,30,.25)'; ctx.lineWidth = 1;
+  for (let x = GX + .3; x < XB; x += .3) { ctx.beginPath(); ctx.moveTo(...P(x, -.3)); ctx.lineTo(...P(x, YB)); ctx.stroke(); }
+  for (let y = GY + .3; y < YB; y += .3) { ctx.beginPath(); ctx.moveTo(...P(-.3, y)); ctx.lineTo(...P(GX, y)); ctx.stroke(); }
+  poly([P(XB, -.3), P(XB, YB), P(XB, YB, -.35), P(XB, -.3, -.35)], '#8f9aab');
+  poly([P(-.3, YB), P(XB, YB), P(XB, YB, -.35), P(-.3, YB, -.35)], '#aab3c1');
+}
+function drawParapet() {
+  ctx.globalAlpha = .2;
+  poly([P(XB, -.3), P(XB, YB), P(XB, YB, .9), P(XB, -.3, .9)], '#d4ebff');
+  poly([P(-.3, YB), P(XB, YB), P(XB, YB, .9), P(-.3, YB, .9)], '#d4ebff');
+  ctx.globalAlpha = 1; ctx.strokeStyle = '#eef2f7'; ctx.lineWidth = Math.max(1.5, tw / 22);
+  ctx.beginPath(); ctx.moveTo(...P(XB, -.3, .9)); ctx.lineTo(...P(XB, YB, .9)); ctx.lineTo(...P(-.3, YB, .9)); ctx.stroke();
+}
+// Lampes du bureau : la nuit, des halos chauds sur chaque poste
+const LAMPS = [[8.4, 5.6], [6.1, 8.4], [11.9, 3.1], [1.6, 3.2], [2.5, 9.6], [11.6, 7.8], [13, 6], [4.6, 5.6], [10.2, 10.4]];
+function nightLights() {
+  const n = sunNow.night; if (!n) return;
+  ctx.globalCompositeOperation = 'source-atop'; ctx.fillStyle = `rgba(14,20,46,${.5 * n})`; ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const [x, y] of LAMPS) {
+    const [lx, ly] = P(x, y, .4), r = tw * 2.2, g = ctx.createRadialGradient(lx, ly, 0, lx, ly, r);
+    g.addColorStop(0, `rgba(255,178,96,${.32 * n})`); g.addColorStop(1, 'rgba(255,178,96,0)'); ctx.fillStyle = g; ctx.fillRect(lx - r, ly - r, 2 * r, 2 * r);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+// ---------- Pôles : chaque rôle travaille dans le pôle de son métier ----------
+const POLES = [
+  {name: 'Direction', color: '#2f5bff', x0: 6.2, y0: 0, x1: 10.6, y1: 7.2},
+  {name: 'Recherche', color: '#f08a24', x0: 0, y0: 0, x1: 6.2, y1: 7.2},
+  {name: 'Relecture', color: '#1d9e62', x0: 10.6, y0: 0, x1: GX, y1: 4.6},
+  {name: 'Accueil', color: '#f2c230', x0: 10.6, y0: 4.6, x1: GX, y1: 7.2, quiet: true},
+  {name: 'Rédaction', color: '#7b4cf0', x0: 4.6, y0: 7.2, x1: 9, y1: GY},
+  {name: 'Contrôle qualité', color: '#d93b30', x0: 9, y0: 7.2, x1: GX, y1: GY},
+  {name: 'Atelier des experts', color: '#14a3b8', x0: 0, y0: 7.2, x1: 4.6, y1: GY},
+];
+const POLE_WORDS = [['Recherche', /cherch|biblio|source|veille|document|enquet|scout|donnee|fact/], ['Relecture', /relect|correct|orthograph|style|edit|traduc/],
+  ['Rédaction', /ecri|redact|plume|contenu|copy|design|graph|mise-en-page|illustr/], ['Contrôle qualité', /audit|verif|control|jurid|droit|conform|clinique|qualite|valid|test/]];
+function poleFor(h) {
+  const t = slug(`${h.name || ''} ${h.mission || ''} ${h.id}`), m = POLE_WORDS.find(([, re]) => re.test(t));
+  return POLES.find(p => p.name === (m ? m[0] : 'Atelier des experts'));
+}
+const inPole = (p, a) => a.home[0] >= p.x0 && a.home[0] < p.x1 && a.home[1] >= p.y0 && a.home[1] < p.y1;
+const busy = a => !a.leaving && a.id !== 'client' && !!(a.activity || (hired.includes(a.id) && !released.has(a.id) && !dismissed.has(a.id)));
+function drawPoles() {
+  const s = Math.max(.85, Math.min(1.2, tw / 40));
+  for (const p of POLES) {
+    if (p.quiet) continue;
+    const n = Object.values(agents).filter(a => inPole(p, a) && busy(a)).length, status = n ? `${n} au travail` : 'au calme';
+    if (!n && tw < 26) continue;  // petit écran : seulement les pôles qui travaillent
+    const [x, y] = P((p.x0 + p.x1) / 2, (p.y0 + p.y1) / 2, 1.7);
+    ctx.font = `700 ${Math.round(11 * s)}px ${FONT}`; const w1 = ctx.measureText(p.name).width;
+    ctx.font = `500 ${Math.round(10.5 * s)}px ${FONT}`; const w2 = ctx.measureText(status).width;
+    const w = w1 + w2 + 30 * s, h = 20 * s, lx = x - w / 2, ly = y - h / 2;
+    ctx.fillStyle = 'rgba(17,23,38,.78)'; ctx.beginPath(); ctx.roundRect(lx, ly, w, h, h / 2); ctx.fill();
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.font = `700 ${Math.round(11 * s)}px ${FONT}`; ctx.fillStyle = '#ffffff'; ctx.fillText(p.name, lx + 9 * s, y + .5);
+    ctx.fillStyle = n ? '#3ddc84' : '#8a93a6'; ctx.beginPath(); ctx.arc(lx + 9 * s + w1 + 8 * s, y, 3 * s, 0, 7); ctx.fill();
+    ctx.font = `500 ${Math.round(10.5 * s)}px ${FONT}`; ctx.fillStyle = n ? '#d6f7e4' : '#aab2c3'; ctx.fillText(status, lx + w1 + 23 * s, y + .5);
+  }
+}
+function renderCrew() {
+  const n = Object.values(agents).filter(busy).length, icon = {jour: '☀️', aube: '🌅', soir: '🌇', nuit: '🌙'}[sunNow.label];
+  $('crew').innerHTML = '';
+  $('crew').append(el('i', null, '● '), `${n} au travail · ${icon} ${sunNow.time} ${sunNow.label}`);
+}
+setInterval(() => {
+  const s = sun(), redraw = Math.round(s.night * 20) !== Math.round(sunNow.night * 20);
+  sunNow = s; if (redraw) buildBg(); renderCrew();
+}, 20000);
+new ResizeObserver(layout).observe(cv);
+
 let gate = {state: null, t: -1e9};
 function gateColor() { if (!gate.state) return '#9aa3b2'; const fresh = performance.now() - gate.t < 2500; return gate.state === 'ok' ? (fresh ? '#1d9e62' : '#7cc9a3') : (fresh ? '#e0443a' : '#ef9b94'); }
 
@@ -482,6 +620,9 @@ function drawRoom() {
     ctx.beginPath(); ctx.moveTo(...P(0, j)); ctx.lineTo(...P(GX, j)); ctx.stroke();
     for (let x = row % 2 ? 1.6 : .5; x < GX; x += 3.1) { ctx.beginPath(); ctx.moveTo(...P(x, j - .55)); ctx.lineTo(...P(x, j)); ctx.stroke(); }
   }
+  // Chaque pôle a sa teinte au sol
+  for (const pl of POLES) { ctx.globalAlpha = .07; poly([P(pl.x0 + .08, pl.y0 + .08), P(pl.x1 - .08, pl.y0 + .08), P(pl.x1 - .08, pl.y1 - .08), P(pl.x0 + .08, pl.y1 - .08)], pl.color); }
+  ctx.globalAlpha = 1;
   // Lumière du jour qui entre par la fenêtre
   ctx.globalAlpha = .5; poly([P(0, 5.9), P(0, 9.7), P(2.6, 10.3), P(2.6, 6.5)], '#fff6dc'); ctx.globalAlpha = 1;
   // Murs, plinthes et épaisseur
@@ -617,9 +758,14 @@ function frame(now) {
     }
   }
   ctx.clearRect(0, 0, W, H);
+  drawTerrace();
   drawRoom();
   // ponytail: tri par profondeur x+y, suffisant pour une pièce sans chevauchement complexe
   furniture.concat(Object.values(agents).map(a => ({d: a.x + a.y + .5, draw: () => drawAgent(a, now)}))).sort((p, q) => p.d - q.d).forEach(it => it.draw());
+  drawParapet();
+  nightLights();
+  ctx.globalCompositeOperation = 'destination-over'; ctx.drawImage(bgc, 0, 0, W, H); ctx.globalCompositeOperation = 'source-over';
+  drawPoles();
   Object.values(agents).forEach(drawLabel);
   drawBubble(now);
   const backlog = S.events.length - idx, gap = live ? (backlog > 2 ? 600 : 1400) : 2800 / +$('speed').value;
@@ -793,6 +939,7 @@ function renderTop() {
     $('steps').appendChild(li);
   });
   const ts = S.events.slice(0, idx).map(e => e.ts).filter(Boolean), ko = Object.values(gates).reduce((n, g) => n + g.retries, 0);
+  renderCrew();
   $('meta').textContent = [ts.length > 1 ? fmtDur(ts[ts.length - 1] - ts[0]) : '', ko ? `${ko} renvoi${ko > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
 }
 function renderNow() {
@@ -852,6 +999,19 @@ function renderWho() {
   $('agentPanel').style.setProperty('--c', r.color);
   $('apName').textContent = r.name; $('apStatus').textContent = st[0]; $('apStatus').className = 'st ' + st[1];
   const body = $('apBody'); body.innerHTML = '';
+  if (id === 'pdg' && live) {
+    const acts = el('div', 'ap-acts');
+    [['Statut', 'Statut : où en est la mission ?'], ['Qu\'est-ce qui bloque ?', 'Qu\'est-ce qui bloque en ce moment ?'], ['Plan du jour', 'Quel est le plan pour aujourd\'hui ?']].forEach(([label, text]) => {
+      const b = el('button', 'ap-act', label); b.type = 'button';
+      b.onclick = async () => {
+        b.disabled = true;
+        try { await post('say', {text}); b.textContent = label + ' : envoyé ✓'; fetchState(); }
+        catch (code) { b.disabled = false; $('note').textContent = code === 403 ? RELOAD : 'Message non envoyé : le QG ne répond pas.'; }
+      };
+      acts.append(b);
+    });
+    body.append(section('Demander au PDG (la réponse arrive dans la conversation)', acts));
+  }
   body.append(section('Mission', el('p', null, m.mission || r.role || '—')));
   if (m.why) body.append(section('Pourquoi le PDG l\'a recruté', el('p', null, m.why)));
   if (!perm) body.append(section('Brief complet (ses instructions exactes)', m.brief ? el('pre', 'ap-brief', m.brief) : el('p', 'empty', 'Brief non communiqué pour ce rôle.')));
@@ -895,10 +1055,18 @@ const SPOTS = [[3.2, 6.8], [9.8, 9.6], [12.3, 4.1], [4.4, 5.0], [3.0, 6.6], [9.8
 // Place libre à l'écran (projection isométrique) : un robot et son étiquette occupent une zone large et haute,
 // donc deux postes éloignés au sol peuvent se recouvrir à l'écran. Ellipse : large pour l'étiquette, haute pour le corps.
 const apart = (a, b, k = 1) => (((a[0] - a[1]) - (b[0] - b[1])) / (3.6 * k)) ** 2 + (((a[0] + a[1]) - (b[0] + b[1])) / (6.4 * k)) ** 2 > 1;
-function freeSpot() {
-  const taken = Object.values(agents).map(a => a.home);
-  return SPOTS.find(p => !blocked(...p) && taken.every(h => apart(h, p)))
-    || SPOTS.find(p => !blocked(...p) && taken.every(h => apart(h, p, .6))) || meetPoint({home: [7, 8]});
+function freeSpot(pole) {
+  const taken = Object.values(agents).map(a => a.home), ok = (p, k = 1) => !blocked(...p) && taken.every(h => apart(h, p, k));
+  if (pole) {
+    const pts = [], c = [(pole.x0 + pole.x1) / 2, (pole.y0 + pole.y1) / 2];
+    for (let x = pole.x0 + .6; x < pole.x1 - .4; x += .7) for (let y = pole.y0 + .6; y < pole.y1 - .4; y += .7) pts.push([x, y]);
+    pts.sort((a, b) => Math.hypot(a[0] - c[0], a[1] - c[1]) - Math.hypot(b[0] - c[0], b[1] - c[1]));
+    const p = pts.find(q => ok(q)) || pts.find(q => ok(q, .6)); if (p) return p;
+    // pôle plein : on se serre, au point le plus éloigné des autres plutôt que de changer de pôle
+    const far = q => Math.min(9, ...taken.map(h => Math.hypot(h[0] - q[0], h[1] - q[1])));
+    const q = pts.filter(q => !blocked(...q)).sort((a, b) => far(b) - far(a))[0]; if (q) return q;
+  }
+  return SPOTS.find(q => ok(q)) || SPOTS.find(q => ok(q, .6)) || meetPoint({home: [7, 8]});
 }
 function lighten(hex, k) { const n = parseInt(hex.slice(1), 16); return '#' + [n >> 16, n >> 8 & 255, n & 255].map(c => Math.round(c + (255 - c) * k).toString(16).padStart(2, '0')).join(''); }
 function hire(h) {
@@ -911,7 +1079,7 @@ function hire(h) {
     if (blocked(...home)) home = freeSpot();
     color = lighten(base.color, .3 * Math.min(n, 2)); role = base.role + ' (renfort)';
   } else {
-    color = PALETTE[[...h.id].reduce((n, c) => n + c.charCodeAt(0), 0) % PALETTE.length]; home = freeSpot(); role = 'Rôle recruté pour cette mission.';
+    color = PALETTE[[...h.id].reduce((n, c) => n + c.charCodeAt(0), 0) % PALETTE.length]; home = freeSpot(poleFor(h)); role = 'Rôle recruté pour cette mission.';
   }
   if (Object.values(agents).some(a => Math.hypot(a.home[0] - home[0], a.home[1] - home[1]) < .5)) home = freeSpot();
   ROLES[h.id] = {name: h.name || h.id, color, home, role: h.mission || role, like: h.like};

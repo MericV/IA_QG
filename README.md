@@ -22,7 +22,7 @@ cd "Bureau IA"
 | `briefs.md` | Modèles de brief pour les agents (recherche, contre-vérification, rédaction, critique) |
 | `Bureau.command` | Double-clic : démarre le serveur si besoin et ouvre l'app dans le navigateur |
 | `app.html` | L'app : barre latérale repliable, discussions, nouvelle discussion, Modèles et comptes, intro vidéo |
-| `qg.html` | Page du QG : bureau animé, fil, questions du PDG, consignes, indicateurs, kanban, livrable |
+| `qg.html` | Page du QG : bureau sur le toit d'une tour (ville, jour et nuit selon l'heure), pôles et leur état, fil, questions du PDG, consignes, kanban, livrable |
 | `qg_log.py` | Journal de mission, consignes et questions du client, livrables, export, historique |
 | `qg_server.py` | Serveur local de l'app : discussions, comptes (trousseau macOS), modèles, QG en direct |
 | `moteur.py` | Moteur multi-modèles : fait travailler le Bureau avec le modèle choisi (Anthropic, OpenAI, Google, Mistral, OpenRouter, Ollama, Hermes), sans Claude Code |
