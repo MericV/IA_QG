@@ -559,7 +559,9 @@ function clampView() {
   view.dx = Math.max(-mx, Math.min(mx, view.dx)); view.dy = Math.max(-my, Math.min(my, view.dy));
 }
 let bgTimer = 0;
-const bgSoon = () => { clearTimeout(bgTimer); bgTimer = setTimeout(buildBg, 180); };
+let bgLast = 0;
+// pendant un déplacement : redessin au plus toutes les 150 ms (la marge couvre l'entre-deux), et un dernier à l'arrêt
+const bgSoon = () => { clearTimeout(bgTimer); bgTimer = setTimeout(() => { bgLast = performance.now(); buildBg(); }, Math.max(0, 150 - (performance.now() - bgLast))); };
 const FONT = getComputedStyle(document.documentElement).getPropertyValue('--body');
 
 function shade(hex, k) {
@@ -937,16 +939,18 @@ function tower(t, n) {
     for (let v = y + .3, c = 0; v + ww < y + d - .2; v += step, c++) pane([P(x + w + .01, v, z), P(x + w + .01, v + ww, z), P(x + w + .01, v + ww, z - wh), P(x + w + .01, v, z - wh)], hash(t.seed * 17 + row * 5.1 + c + 500));
   }
 }
-let bgView = {tw: 1, ox: 0, oy: 0};
+// Le décor est dessiné avec une marge tout autour (une demi-vue de chaque côté) : quand on déplace ou dézoome
+// le bureau, on voit déjà la ville au-delà du bord, le temps que le décor exact soit redessiné.
+let bgView = {tw: 1, ox: 0, oy: 0, m: 0};
 function buildBg() {
-  const dpr = devicePixelRatio || 1, main = ctx, n = sunNow.night;
-  bgView = {tw, ox, oy};
-  bgc.width = W * dpr; bgc.height = H * dpr;
-  ctx = bgc.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const m = Math.round(Math.max(W, H) / 2), dpr = Math.min(devicePixelRatio || 1, 1.5), main = ctx, n = sunNow.night;
+  bgView = {tw, ox, oy, m};
+  bgc.width = (W + 2 * m) * dpr; bgc.height = (H + 2 * m) * dpr;
+  ctx = bgc.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, m * dpr, m * dpr);
   const top = n < .5 ? mix('#8ec2ef', '#56649f', n * 2) : mix('#56649f', '#070c1a', (n - .5) * 2);
   const low = n < .5 ? mix('#e8f3fb', '#f4b27c', n * 2) : mix('#f4b27c', '#1b2645', (n - .5) * 2);
-  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, top); g.addColorStop(1, low); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  if (n > .6) for (let i = 0; i < 90; i++) { ctx.fillStyle = `rgba(255,255,255,${(.3 + hash(i) * .6) * (n - .6) * 2.5})`; ctx.fillRect(hash(i + 300) * W, hash(i + 600) * H * .5, 1.4, 1.4); }
+  const g = ctx.createLinearGradient(0, -m, 0, H + m); g.addColorStop(0, top); g.addColorStop(1, low); ctx.fillStyle = g; ctx.fillRect(-m, -m, W + 2 * m, H + 2 * m);
+  if (n > .6) for (let i = 0; i < 200; i++) { ctx.fillStyle = `rgba(255,255,255,${(.3 + hash(i) * .6) * (n - .6) * 2.5})`; ctx.fillRect(hash(i + 300) * (W + 2 * m) - m, hash(i + 600) * (H + 2 * m) * .5 - m, 1.4, 1.4); }
   TOWERS.concat({x: -.3, y: -.3, w: XB + .3, d: YB + .3, top: -.35, seed: 999, me: true})
     .sort((a, b) => (a.x + a.w / 2 + a.y + a.d / 2) - (b.x + b.w / 2 + b.y + b.d / 2)).forEach(t => tower(t, n));
   ctx = main;
@@ -1257,7 +1261,8 @@ function frame(now) {
   drawParapet();
   nightLights();
   ctx.globalCompositeOperation = 'destination-over';
-  const kb = tw / bgView.tw; ctx.drawImage(bgc, ox - bgView.ox * kb, oy - bgView.oy * kb, W * kb, H * kb);
+  const kb = tw / bgView.tw, bm = bgView.m;
+  ctx.drawImage(bgc, ox - (bgView.ox + bm) * kb, oy - (bgView.oy + bm) * kb, (W + 2 * bm) * kb, (H + 2 * bm) * kb);
   ctx.fillStyle = mix('#cfe3f6', '#0c1426', sunNow.night); ctx.fillRect(0, 0, W, H);
   ctx.globalCompositeOperation = 'source-over';
   // textes : seulement le nom du robot cliqué, puis les noms des pôles là où il reste de la place
