@@ -59,7 +59,8 @@ svg { width: 18px; height: 18px; flex: none; }
 .collapsed .side-btn { justify-content: center; padding: 10px 0; }
 
 /* ---------- Zone principale ---------- */
-main { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; }
+/* toujours dans la 2e colonne : sur téléphone, la barre repliée est masquée et ne doit pas lui laisser une colonne vide */
+main { grid-column: 2; grid-row: 1; display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; }
 .main-top { display: flex; align-items: center; gap: 10px; padding: 8px 14px; min-height: 52px; padding-right: max(14px, env(safe-area-inset-right, 0px)); }
 .main-top h2 { font-size: 15px; font-weight: 700; margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .model { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); padding: 7px 10px; font-size: 13px; font-weight: 600; max-width: 280px; }
@@ -150,6 +151,78 @@ dialog::backdrop { background: rgba(20,26,38,.35); }
   .shell.collapsed .side { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .shell, #intro { transition: none; } .shell.arrive { animation: none; } }
+
+/* ================= Verre liquide =================
+   Surfaces translucides et floues posées sur un fond de couleurs douces (lever de soleil sur la ville du QG) :
+   reflet en haut, liseré clair, ombre portée légère. Sans transparence si le système le demande. */
+:root {
+  --glass: rgba(255,255,255,.5);
+  --glass-strong: rgba(255,255,255,.72);
+  --glass-soft: rgba(255,255,255,.34);
+  --glass-edge: rgba(255,255,255,.7);
+  --glass-blur: blur(22px) saturate(175%);
+  --glass-shadow: 0 12px 32px rgba(36,52,92,.12), 0 1px 2px rgba(36,52,92,.08);
+  --glass-hi: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(255,255,255,.3), inset 0 0 0 1px rgba(255,255,255,.28);
+  --sheen: linear-gradient(160deg, rgba(255,255,255,.6) 0%, rgba(255,255,255,.08) 34%, rgba(255,255,255,0) 60%, rgba(255,255,255,.16) 100%);
+  --line: rgba(120,135,165,.22);
+}
+.lg-bg {
+  background:
+    radial-gradient(55vmax 45vmax at -5% -10%, #ffd7ad 0%, rgba(255,215,173,0) 62%),
+    radial-gradient(50vmax 42vmax at 105% 0%, #c3d4ff 0%, rgba(195,212,255,0) 60%),
+    radial-gradient(55vmax 50vmax at 95% 105%, #dccbff 0%, rgba(220,203,255,0) 58%),
+    radial-gradient(48vmax 44vmax at 0% 100%, #bfeadf 0%, rgba(191,234,223,0) 58%),
+    #eef1f8;
+  background-attachment: fixed;
+}
+.lg, .lg-pill {
+  background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-edge); box-shadow: var(--glass-shadow), var(--glass-hi);
+}
+.lg-sheen { position: relative; isolation: isolate; }
+.lg-sheen::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--sheen); pointer-events: none; z-index: -1; }
+.lg-tint {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 78%, #fff) 0%, var(--accent) 100%);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent), inset 0 1px 0 rgba(255,255,255,.55), inset 0 -1px 0 rgba(0,0,0,.12);
+  border-color: color-mix(in srgb, var(--accent) 70%, #fff); color: #fff;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root { --glass: rgba(255,255,255,.88); --glass-strong: rgba(255,255,255,.95); --glass-soft: rgba(255,255,255,.8); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass: #ffffff; --glass-strong: #ffffff; --glass-soft: #f7f8fb; --glass-blur: none; --sheen: none; }
+  .lg-bg { background: #eef1f5; }
+}
+
+body { background: none; }
+.side { background: rgba(255,255,255,.36); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border-right: 1px solid rgba(255,255,255,.6); box-shadow: inset -1px 0 0 rgba(255,255,255,.5), 8px 0 30px rgba(36,52,92,.06); }
+.side-btn:hover, .icon-btn:hover, #list a:hover { background: rgba(255,255,255,.45); }
+#list a[aria-current="page"], .side-btn[aria-current="page"] { background: rgba(255,255,255,.75); box-shadow: 0 4px 14px rgba(36,52,92,.1), inset 0 1px 0 #fff; }
+.search, .model, .ideas button, .chip, .job-form input, .job-form textarea, .job-form select, .prov input {
+  background: rgba(255,255,255,.55); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(255,255,255,.75); box-shadow: 0 2px 8px rgba(36,52,92,.06), inset 0 1px 0 rgba(255,255,255,.9);
+}
+.ideas button:hover, .chip:hover { background: rgba(255,255,255,.8); }
+.composer, .clear, .item, .job-form, .prov {
+  background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-edge); box-shadow: var(--glass-shadow), var(--glass-hi); position: relative; isolation: isolate;
+}
+.composer::before, .clear::before, .job-form::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--sheen); pointer-events: none; z-index: -1; }
+.composer { border-radius: 24px; background: var(--glass-strong); }
+.item { border-left: 4px solid var(--c, var(--glass-edge)); }
+.clear { background: linear-gradient(180deg, rgba(225,248,236,.75), rgba(205,240,222,.6)); }
+.send, .chip.primary, .prov .btn.primary { background: linear-gradient(180deg, #5b7fff, var(--accent)); border: 1px solid rgba(255,255,255,.4); box-shadow: 0 6px 16px rgba(47,91,255,.32), inset 0 1px 0 rgba(255,255,255,.5); color: #fff; }
+.badge { box-shadow: 0 2px 8px rgba(47,91,255,.35), inset 0 1px 0 rgba(255,255,255,.5); }
+.notice { background: rgba(255,240,214,.7); border: 1px solid rgba(255,255,255,.7); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+dialog { background: var(--glass-strong); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border: 1px solid var(--glass-edge); box-shadow: 0 30px 80px rgba(36,52,92,.3), var(--glass-hi); }
+dialog::backdrop { background: rgba(30,40,70,.18); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.dlg-head { border-color: var(--line); }
+.prov .btn { background: rgba(255,255,255,.6); border-color: rgba(255,255,255,.8); }
+.pill { background: rgba(255,255,255,.55); border: 1px solid rgba(255,255,255,.7); }
+.home h1 { background: linear-gradient(90deg, #19202d, #3a4f9c 60%, #7a4fd0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+#frame { background: transparent; }
+@media (max-width: 720px) { .shell:not(.collapsed) .side { background: rgba(255,255,255,.72); } }
+@media (prefers-reduced-transparency: reduce) { .side, dialog { background: #fff; } .home h1 { color: var(--fg); background: none; } }
 </style>
 
 <div class="shell" id="shell">
@@ -265,6 +338,7 @@ dialog::backdrop { background: rgba(20,26,38,.35); }
 </div>
 
 <script>
+document.documentElement.classList.add('lg-bg');
 const TOKEN = '__QG_TOKEN__';
 const $ = id => document.getElementById(id);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };

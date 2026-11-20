@@ -66,7 +66,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
 
 /* ---------- Grille principale ---------- */
 .grid { display: grid; grid-template-columns: minmax(0, 1fr) 12px var(--chatW, 420px); min-height: 0; }
-.left { display: grid; grid-template-rows: var(--officeH, minmax(260px, 1.15fr)) 12px minmax(0, 1fr); min-height: 0; min-width: 0; }
+.left { display: grid; grid-template-rows: var(--officeH, minmax(320px, 2fr)) 12px minmax(0, 1fr); min-height: 0; min-width: 0; }
 .grid.chat-off { grid-template-columns: minmax(0, 1fr) 12px 0; }
 .grid.chat-off .chat { display: none; }
 .left.work-off { grid-template-rows: minmax(0, 1fr) 12px 0; }
@@ -229,6 +229,91 @@ form#chat .hint { display: flex; justify-content: space-between; font-size: 11px
   .chat { height: 75vh; }
 }
 @media (prefers-reduced-motion: reduce) { .now span i { animation: none; } }
+
+/* ================= Verre liquide =================
+   Surfaces translucides et floues posées sur un fond de couleurs douces (lever de soleil sur la ville du QG) :
+   reflet en haut, liseré clair, ombre portée légère. Sans transparence si le système le demande. */
+:root {
+  --glass: rgba(255,255,255,.5);
+  --glass-strong: rgba(255,255,255,.72);
+  --glass-soft: rgba(255,255,255,.34);
+  --glass-edge: rgba(255,255,255,.7);
+  --glass-blur: blur(22px) saturate(175%);
+  --glass-shadow: 0 12px 32px rgba(36,52,92,.12), 0 1px 2px rgba(36,52,92,.08);
+  --glass-hi: inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(255,255,255,.3), inset 0 0 0 1px rgba(255,255,255,.28);
+  --sheen: linear-gradient(160deg, rgba(255,255,255,.6) 0%, rgba(255,255,255,.08) 34%, rgba(255,255,255,0) 60%, rgba(255,255,255,.16) 100%);
+  --line: rgba(120,135,165,.22);
+}
+.lg-bg {
+  background:
+    radial-gradient(55vmax 45vmax at -5% -10%, #ffd7ad 0%, rgba(255,215,173,0) 62%),
+    radial-gradient(50vmax 42vmax at 105% 0%, #c3d4ff 0%, rgba(195,212,255,0) 60%),
+    radial-gradient(55vmax 50vmax at 95% 105%, #dccbff 0%, rgba(220,203,255,0) 58%),
+    radial-gradient(48vmax 44vmax at 0% 100%, #bfeadf 0%, rgba(191,234,223,0) 58%),
+    #eef1f8;
+  background-attachment: fixed;
+}
+.lg, .lg-pill {
+  background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-edge); box-shadow: var(--glass-shadow), var(--glass-hi);
+}
+.lg-sheen { position: relative; isolation: isolate; }
+.lg-sheen::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--sheen); pointer-events: none; z-index: -1; }
+.lg-tint {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 78%, #fff) 0%, var(--accent) 100%);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent), inset 0 1px 0 rgba(255,255,255,.55), inset 0 -1px 0 rgba(0,0,0,.12);
+  border-color: color-mix(in srgb, var(--accent) 70%, #fff); color: #fff;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root { --glass: rgba(255,255,255,.88); --glass-strong: rgba(255,255,255,.95); --glass-soft: rgba(255,255,255,.8); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --glass: #ffffff; --glass-strong: #ffffff; --glass-soft: #f7f8fb; --glass-blur: none; --sheen: none; }
+  .lg-bg { background: #eef1f5; }
+}
+
+/* QG : le fond de couleurs vient de l'app quand le QG y est intégré */
+body { background: none; }
+html.lg-bg, html.lg-bg body { min-height: 100%; }
+body.embedded { background: transparent; }
+.card { background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border: 1px solid var(--glass-edge); border-radius: 22px; box-shadow: var(--glass-shadow), var(--glass-hi); position: relative; isolation: isolate; }
+.card::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--sheen); pointer-events: none; z-index: -1; }
+.office { background: #dfe9f5; }
+.office::before { display: none; }
+.office::after { content: ""; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 1px 0 rgba(255,255,255,.7), inset 0 0 0 1px rgba(255,255,255,.35); pointer-events: none; }
+.steps li, .board-btn, .crew, .btn, .rendu-head select, .split .arrow {
+  background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-edge); box-shadow: 0 2px 8px rgba(36,52,92,.08), var(--glass-hi);
+}
+.steps li.ok { background: linear-gradient(180deg, #43c58a, var(--ok)); border-color: rgba(255,255,255,.5); box-shadow: 0 4px 12px rgba(29,158,98,.28), inset 0 1px 0 rgba(255,255,255,.5); }
+.steps li.active, .steps li.audit, .steps li.ko { border-color: currentColor; }
+.board-btn:hover, .btn:hover { background: var(--glass-strong); }
+.btn.primary, form#chat button, .q .opt { background: linear-gradient(180deg, #5b7fff, var(--accent)); border: 1px solid rgba(255,255,255,.4); box-shadow: 0 6px 16px rgba(47,91,255,.3), inset 0 1px 0 rgba(255,255,255,.5); color: #fff; }
+.badge { background: color-mix(in srgb, var(--accent) 12%, rgba(255,255,255,.5)); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border: 1px solid rgba(255,255,255,.6); }
+/* commandes posées sur le bureau : du vrai verre au-dessus de la scène */
+.cam button, .now span {
+  background: rgba(255,255,255,.42); -webkit-backdrop-filter: blur(14px) saturate(180%); backdrop-filter: blur(14px) saturate(180%);
+  border: 1px solid rgba(255,255,255,.65); box-shadow: 0 6px 18px rgba(20,30,60,.18), inset 0 1px 0 rgba(255,255,255,.9);
+}
+.cam button { border-radius: 12px; width: 34px; height: 34px; }
+.cam button:hover { background: rgba(255,255,255,.65); }
+.tabs { border-bottom-color: var(--line); }
+.seg { background: rgba(255,255,255,.35); border: 1px solid rgba(255,255,255,.55); }
+.seg button[aria-pressed="true"] { background: rgba(255,255,255,.85); box-shadow: 0 2px 8px rgba(36,52,92,.12), inset 0 1px 0 #fff; }
+.chat-head, form#chat { border-color: var(--line); }
+.chat-head .av { background: linear-gradient(160deg, #6a8bff, #2f5bff); box-shadow: 0 4px 12px rgba(47,91,255,.35), inset 0 1px 0 rgba(255,255,255,.5); }
+.m.them .bubble { background: rgba(255,255,255,.62); border: 1px solid rgba(255,255,255,.75); box-shadow: 0 2px 8px rgba(36,52,92,.06); }
+.m.you .bubble { background: linear-gradient(180deg, rgba(255,246,206,.92), rgba(255,236,170,.85)); border: 1px solid rgba(255,255,255,.7); box-shadow: 0 2px 8px rgba(160,120,20,.12); }
+.m.deliver .bubble { background: linear-gradient(180deg, rgba(220,247,233,.9), rgba(196,238,216,.8)); border-color: rgba(255,255,255,.7); }
+.m.note button { background: rgba(255,255,255,.45); border-style: solid; border-color: rgba(255,255,255,.7); }
+.q { background: rgba(255,255,255,.66); border: 1.5px solid color-mix(in srgb, var(--accent) 55%, #fff); box-shadow: 0 8px 22px rgba(47,91,255,.14), inset 0 1px 0 #fff; }
+.q.settled { border-color: rgba(255,255,255,.7); box-shadow: none; }
+form#chat textarea, .q .free input { background: rgba(255,255,255,.6); border: 1px solid rgba(255,255,255,.75); box-shadow: inset 0 1px 3px rgba(36,52,92,.08); }
+.agent-panel { background: var(--glass-strong); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border-left: 1px solid var(--glass-edge); box-shadow: -18px 0 50px rgba(36,52,92,.18), inset 1px 0 0 rgba(255,255,255,.8); }
+.kb-col, .ap-brief { background: rgba(255,255,255,.4); border: 1px solid rgba(255,255,255,.6); }
+.kb-card, .org .node { background: rgba(255,255,255,.7); border-color: rgba(255,255,255,.8); box-shadow: 0 2px 8px rgba(36,52,92,.07); }
+.split::before { background: rgba(120,135,165,.35); }
+@media (prefers-reduced-transparency: reduce) { .cam button, .now span { background: #fff; -webkit-backdrop-filter: none; backdrop-filter: none; } }
 </style>
 
 <div class="app">
@@ -397,7 +482,7 @@ function layout() {
   fit.tw = Math.min(W * .97 / ((XB + YB + .6) / 2), H * .95 / span);
   fit.ox = W / 2 - (XB - YB) * fit.tw / 4;
   fit.oy = (H - span * fit.tw / 2) / 2 + WH * fit.tw / 2 + 6;
-  if (!framed && W) { framed = true; if (W < 560) view.k = Math.min(2, 560 / W); }
+  if (!framed && W) { framed = true; view.k = 2; }  // on ouvre zoomé ×2 : ⤢ montre tout l'étage
   applyView(); buildBg();
 }
 function zoomAt(k, sx = W / 2, sy = H / 2) {
@@ -733,7 +818,9 @@ function drawPoles() {
     const [x, y] = P((p.x0 + p.x1) / 2, (p.y0 + p.y1) / 2, 2.9);
     ctx.font = `700 ${Math.round(11 * s)}px ${FONT}`; const w1 = ctx.measureText(p.name).width;
     ctx.font = `500 ${Math.round(10.5 * s)}px ${FONT}`; const w2 = ctx.measureText(status).width;
-    const w = w1 + (p.quiet ? 18 * s : w2 + 30 * s), h = 20 * s, lx = x - w / 2, ly = y - h / 2;
+    const w = w1 + (p.quiet ? 18 * s : w2 + 30 * s), h = 20 * s, lx = x - w / 2, ly = y - h / 2, r = {x: lx, y: ly, w, h};
+    if (x + w / 2 < 0 || x - w / 2 > W || y < 0 || y > H || hits(r)) continue;
+    placed.push(r);
     if (p.quiet) { ctx.fillStyle = 'rgba(17,23,38,.5)'; ctx.beginPath(); ctx.roundRect(lx, ly, w, h, h / 2); ctx.fill(); ctx.font = `700 ${Math.round(11 * s)}px ${FONT}`; ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillText(p.name, lx + 9 * s, y + .5); continue; }
     ctx.fillStyle = 'rgba(17,23,38,.78)'; ctx.beginPath(); ctx.roundRect(lx, ly, w, h, h / 2); ctx.fill();
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
@@ -862,12 +949,16 @@ function drawAgent(a, now) {
 }
 
 // Étiquettes dessinées après les meubles et les robots : un nom n'est jamais caché derrière un bureau.
-function drawLabel(a) {
+let placed = [];
+const hits = r => placed.some(q => r.x < q.x + q.w + 4 && r.x + r.w + 4 > q.x && r.y < q.y + q.h + 3 && r.y + r.h + 3 > q.y);
+function drawLabel(a, must) {
   const s = Math.min(1.25, tw / 40), sx = a.fx, sy = a.fy;
   // pastille blanche ombrée, point de couleur du rôle
   if (a.called || a === pinned) {
     ctx.font = `600 ${Math.max(10, 11 * s)}px ${FONT}`;
-    const w = ctx.measureText(a.name).width + 22, lx = sx - w / 2, ly = sy + 5 * s;
+    const w = ctx.measureText(a.name).width + 22, lx = sx - w / 2, ly = sy + 5 * s, r = {x: lx, y: ly, w, h: 18};
+    if (!must && hits(r)) return;
+    placed.push(r);
     ctx.shadowColor = 'rgba(20,30,50,.12)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 1;
     ctx.fillStyle = a === pinned ? a.color : '#ffffff'; ctx.beginPath(); ctx.roundRect(lx, ly, w, 18, 9); ctx.fill();
     ctx.shadowColor = 'transparent';
@@ -929,8 +1020,11 @@ function frame(now) {
   const kb = tw / bgView.tw; ctx.drawImage(bgc, ox - bgView.ox * kb, oy - bgView.oy * kb, W * kb, H * kb);
   ctx.fillStyle = mix('#cfe3f6', '#0c1426', sunNow.night); ctx.fillRect(0, 0, W, H);
   ctx.globalCompositeOperation = 'source-over';
+  // étiquettes : la fiche ouverte et celui qui parle d'abord, puis ceux qui travaillent, puis les autres, puis les pôles
+  placed = [];
+  const rank = a => a === pinned ? 0 : a === current ? 1 : a.activity ? 2 : busy(a) ? 3 : 4;
+  Object.values(agents).sort((a, b) => rank(a) - rank(b)).forEach(a => drawLabel(a, rank(a) < 2));
   drawPoles();
-  Object.values(agents).forEach(drawLabel);
   drawBubble(now);
   const backlog = S.events.length - idx, gap = live ? (backlog > 2 ? 600 : 1400) : 2800 / +$('speed').value;
   if (playing && now - lastStep > gap) { lastStep = now; step(); }
@@ -1474,7 +1568,7 @@ $('chatToggle').onclick = () => { prefs.chatOff = !prefs.chatOff; savePrefs(); a
 $('workToggle').onclick = () => { prefs.workOff = !prefs.workOff; savePrefs(); applyPrefs(); };
 applyPrefs();
 
-if (window.top !== window.self) document.body.classList.add('embedded');
+if (window.top !== window.self) document.body.classList.add('embedded'); else document.documentElement.classList.add('lg-bg');
 header(); reset(); layout(); requestAnimationFrame(frame);
 if (CAN_LIVE) connect(); else { setPlaying(true); }
 </script>
