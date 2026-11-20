@@ -2,6 +2,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>QG du Bureau</title>
+<script>
+// Thème : « auto » suit le réglage clair/sombre de l'ordinateur ; « jour » et « nuit » le forcent. Partagé par l'app et le QG.
+const THEME = {
+  modes: ['auto', 'jour', 'nuit'],
+  pref() { try { return localStorage.getItem('qgTheme') || 'auto'; } catch { return 'auto'; } },
+  set(m) { try { localStorage.setItem('qgTheme', m); } catch {} THEME.apply(); },
+  dark() { const p = THEME.pref(); return p === 'nuit' || (p === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches); },
+  apply() { document.documentElement.dataset.theme = THEME.dark() ? 'dark' : 'light'; THEME.hooks.forEach(f => f()); },
+  label() { return {auto: '◐ Auto', jour: '☀︎ Jour', nuit: '☾ Nuit'}[THEME.pref()]; },
+  hooks: [],
+};
+THEME.apply();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => THEME.apply());
+addEventListener('storage', ev => { if (ev.key === 'qgTheme') THEME.apply(); });  // l'app et le QG intégré restent d'accord
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
 <style>
@@ -232,6 +247,40 @@ dialog::backdrop { background: rgba(30,40,70,.18); -webkit-backdrop-filter: blur
 .home h1 { background: linear-gradient(90deg, #19202d, #3a4f9c 60%, #7a4fd0); -webkit-background-clip: text; background-clip: text; color: transparent; }
 #frame { background: transparent; }
 @media (max-width: 720px) { .shell:not(.collapsed) .side { background: rgba(255,255,255,.72); } }
+.theme-btn { font: 600 12px var(--body); padding: 5px 11px; border-radius: 99px; border: 1px solid var(--glass-edge); background: var(--glass); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); color: inherit; white-space: nowrap; box-shadow: 0 2px 8px rgba(36,52,92,.08), var(--glass-hi); }
+
+/* ================= Nuit ================= */
+:root[data-theme="dark"] {
+  --bg: #0e1320; --panel: #182033; --fg: #e9edf5; --dim: #9aa5ba; --accent: #7690ff; --line: rgba(255,255,255,.1);
+  --glass: rgba(26,33,50,.58); --glass-strong: rgba(28,36,55,.8); --glass-soft: rgba(26,33,50,.4); --glass-edge: rgba(255,255,255,.13);
+  --glass-shadow: 0 14px 36px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.3);
+  --glass-hi: inset 0 1px 0 rgba(255,255,255,.14), inset 0 -1px 0 rgba(255,255,255,.04), inset 0 0 0 1px rgba(255,255,255,.05);
+  --sheen: linear-gradient(160deg, rgba(255,255,255,.1) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0) 70%, rgba(255,255,255,.04) 100%);
+  color-scheme: dark;
+}
+:root[data-theme="dark"].lg-bg, :root[data-theme="dark"] .lg-bg {
+  background:
+    radial-gradient(55vmax 45vmax at -5% -10%, #4a2f2a 0%, rgba(74,47,42,0) 62%),
+    radial-gradient(50vmax 42vmax at 105% 0%, #1f2f5c 0%, rgba(31,47,92,0) 60%),
+    radial-gradient(55vmax 50vmax at 95% 105%, #36275a 0%, rgba(54,39,90,0) 58%),
+    radial-gradient(48vmax 44vmax at 0% 100%, #173f3a 0%, rgba(23,63,58,0) 58%),
+    #0b101b;
+  background-attachment: fixed;
+}
+
+:root[data-theme="dark"] .side { background: rgba(16,21,34,.5); border-right-color: rgba(255,255,255,.08); box-shadow: inset -1px 0 0 rgba(255,255,255,.04), 8px 0 30px rgba(0,0,0,.25); }
+:root[data-theme="dark"] .side-btn:hover, :root[data-theme="dark"] .icon-btn:hover, :root[data-theme="dark"] #list a:hover { background: rgba(255,255,255,.07); }
+:root[data-theme="dark"] #list a[aria-current="page"], :root[data-theme="dark"] .side-btn[aria-current="page"] { background: rgba(255,255,255,.12); box-shadow: inset 0 1px 0 rgba(255,255,255,.1); }
+:root[data-theme="dark"] :is(.search, .model, .ideas button, .chip, .job-form input, .job-form textarea, .job-form select, .prov input, .prov .btn, .pill, .yn) { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.12); box-shadow: inset 0 1px 0 rgba(255,255,255,.06); }
+:root[data-theme="dark"] :is(.ideas button, .chip):hover { background: rgba(255,255,255,.13); }
+:root[data-theme="dark"] .chip[aria-pressed="true"] { background: var(--fg); color: #0e1320; }
+:root[data-theme="dark"] .yn button[aria-pressed="true"] { background: rgba(255,255,255,.16); color: var(--fg); }
+:root[data-theme="dark"] .clear { background: linear-gradient(180deg, rgba(30,110,74,.35), rgba(24,90,60,.28)); }
+:root[data-theme="dark"] .notice { background: rgba(120,80,20,.35); border-color: rgba(255,200,120,.2); }
+:root[data-theme="dark"] .home h1 { background: linear-gradient(90deg, #f1f4fa, #a9b8ff 60%, #c9a4ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+:root[data-theme="dark"] .icon-btn { color: var(--fg); }
+@media (max-width: 720px) { :root[data-theme="dark"] .shell:not(.collapsed) .side { background: rgba(16,21,34,.92); } }
+
 @media (prefers-reduced-transparency: reduce) { .side, dialog { background: #fff; } .home h1 { color: var(--fg); background: none; } }
 </style>
 
@@ -270,6 +319,7 @@ dialog::backdrop { background: rgba(30,40,70,.18); -webkit-backdrop-filter: blur
       <h2 id="title">Nouvelle discussion</h2>
       <span class="notice" id="notice" hidden></span>
       <select class="model" id="modelPick" aria-label="Modèle de la discussion"></select>
+      <button class="theme-btn" id="themeBtn" type="button" title="Apparence : Auto suit le thème de l'ordinateur"></button>
     </header>
     <section class="home" id="home">
       <div class="home-inner">
@@ -666,6 +716,12 @@ function renderFeatures() {
 }
 async function loadFeatures() { try { feats = await (await fetch('/api/features', {cache: 'no-store'})).json(); } catch { feats = []; } renderFeatures(); }
 $('goFeatures').onclick = () => { location.hash = 'fonctions'; };
+
+// ---------- Apparence : auto (thème de l'ordinateur), jour, nuit ----------
+const themeBtn = $('themeBtn');
+const showTheme = () => { themeBtn.textContent = THEME.label(); themeBtn.setAttribute('aria-label', `Apparence : ${THEME.label().slice(2)}. Cliquer pour changer`); };
+themeBtn.onclick = () => THEME.set(THEME.modes[(THEME.modes.indexOf(THEME.pref()) + 1) % 3]);
+THEME.hooks.push(showTheme); showTheme();
 
 loadProviders().then(resetForm); loadFeatures(); loadList(); loadInbox(); setInterval(loadList, 4000); setInterval(loadInbox, 5000);
 </script>

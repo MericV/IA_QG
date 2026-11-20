@@ -196,7 +196,7 @@ try:
     data = json.loads(block)
     assert data["topic"] == "Mission A" and any("<!--<script>" in e["text"] for e in data["events"])
     assert any(v.get("binary") and "content" not in v for v in data["livrables"])
-    assert html.count("<script") == 2, "le script de la page doit rester intact"
+    assert html.count("<script") == (HERE / "qg.html").read_text().count("<script"), "aucun script ajouté par les données"
 
     # Deux missions du même jour au même sujet : deux archives distinctes
     qg("init", "Synthese")
