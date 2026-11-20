@@ -17,8 +17,10 @@ chefs_vus = []
 seen = []
 
 
-def fake(provider, model, system, user):
+def fake(provider, model, system, user, on_usage=None):
     seen.append(threading.current_thread().name)
+    if on_usage:
+        on_usage(100, 20)  # chaque appel compte dans le coût de la mission
     if system.startswith("Tu es le PDG"):
         if "chef de la recherche" not in user.lower():
             raise AssertionError("le PDG ne voit pas l'équipe de base")
@@ -80,6 +82,7 @@ try:
     assert sum(1 for e in d["events"] if e.get("type") == "work") >= 3  # avancement visible en direct
     assert cons[0]["status"] == "appliqué" and set(cons[0]["roles"]) == {"chercheur", "chercheur2"}
     assert len(audits) == 2
+    assert d["usage"]["appels"] >= 6 and d["usage"]["entree"] == 100 * d["usage"]["appels"] and "gpt-test" in d["usage"]["modeles"]
 
     # 2 bis. Équipe par pôle : le PDG active un chef, deux experts rattachés à des chefs ; chaque chef fait la synthèse
     d, cons, livr = discussion("poles", "Organise une veille par pôle")

@@ -58,19 +58,24 @@ def http(url, body=None, headers=None):
             raise MoteurErreur(f"fournisseur injoignable : {e}") from None
 
 
-def call(provider, model, system, user):
-    """Un appel au modèle : consigne (system) + demande (user) → texte."""
+def call(provider, model, system, user, on_usage=None):
+    """Un appel au modèle : consigne (system) + demande (user) → texte. on_usage(entrée, sortie) reçoit les jetons consommés."""
+    use = on_usage or (lambda i, o: None)
     if provider == "anthropic":
-        return anthropic(model, system, user)
+        return anthropic(model, system, user, use)
     if provider == "google":
         r = http(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
                  {"systemInstruction": {"parts": [{"text": system}]}, "contents": [{"role": "user", "parts": [{"text": user}]}]},
                  {"x-goog-api-key": key(provider)})
+        u = r.get("usageMetadata", {})
+        use(u.get("promptTokenCount", 0), u.get("candidatesTokenCount", 0) + u.get("thoughtsTokenCount", 0))
         return "".join(p.get("text", "") for c in r.get("candidates", [])[:1] for p in c.get("content", {}).get("parts", []))
     if provider in OPENAI_LIKE:
         auth = {} if provider == "ollama" else {"authorization": "Bearer " + key(provider)}
         r = http(OPENAI_LIKE[provider] + "/chat/completions",
                  {"model": model, "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}, auth)
+        u = r.get("usage") or {}
+        use(u.get("prompt_tokens", 0), u.get("completion_tokens", 0))
         return r["choices"][0]["message"]["content"] or ""
     if provider == "hermes":
         cmd = ["hermes", "-z", system + "\n\n" + user] + (["-m", model] if model and model != HERMES_DEFAULT else [])
@@ -80,11 +85,12 @@ def call(provider, model, system, user):
             raise MoteurErreur("Hermes n'est pas installé (commande « hermes » introuvable)") from None
         if r.returncode not in (0,) or not r.stdout.strip():
             raise MoteurErreur(f"Hermes n'a pas répondu (code {r.returncode}) : {r.stderr.strip()[:300]}")
+        use(0, 0)  # Hermes ne dit pas ce qu'il consomme : on compte l'appel
         return r.stdout.strip()
     raise MoteurErreur(f"fournisseur non pris en charge : {provider}")
 
 
-def anthropic(model, system, user):
+def anthropic(model, system, user, use=lambda i, o: None):
     """Claude avec réflexion adaptative et recherche web ; sans elles si le compte ou le modèle les refuse."""
     headers = {"x-api-key": key("anthropic"), "anthropic-version": "2023-06-01", "anthropic-beta": "server-side-fallback-2026-07-01"}
     search = "web_search_20260209" if model.startswith(("claude-opus", "claude-sonnet")) else "web_search_20250305"
@@ -98,11 +104,14 @@ def anthropic(model, system, user):
             raise
         body = {k: v for k, v in body.items() if k not in ("thinking", "tools")} | {"system": system}
         r = http("https://api.anthropic.com/v1/messages", body, headers)
+    count = lambda r: use(r.get("usage", {}).get("input_tokens", 0), r.get("usage", {}).get("output_tokens", 0))
+    count(r)
     for _ in range(5):  # recherche longue : l'API rend la main (pause_turn), on la relance telle quelle
         if r.get("stop_reason") != "pause_turn":
             break
         body["messages"] = [body["messages"][0], {"role": "assistant", "content": r["content"]}]
         r = http("https://api.anthropic.com/v1/messages", body, headers)
+        count(r)
     if r.get("stop_reason") == "refusal":
         raise MoteurErreur("le modèle a refusé la demande")
     return "".join(b.get("text", "") for b in r.get("content", []) if b.get("type") == "text")
@@ -207,6 +216,15 @@ def snapshot(name):
         return d, last
 
 
+def pieces_of(name, d):
+    out = []
+    for pj in d.get("pieces", []):
+        f = qg_log.DATA / "projets" / name / "pieces" / pj["file"]
+        if f.exists():
+            out.append({"name": pj["name"], "text": f.read_text(encoding="utf-8")})
+    return out
+
+
 def chat_history(d, n=30):
     lines = [f"{'Client' if e['from'] == 'client' else 'PDG'} : {e['text']}" for e in d.get("events", [])
              if {e.get("from"), e.get("to")} <= {"client", "pdg"} and e.get("text")]
@@ -223,10 +241,22 @@ def describe(m):
 
 # ---------- Un tour de travail ----------
 
+def spend(name, model, tokens_in, tokens_out):
+    """Ajoute un appel et ses jetons au compteur de la mission (affiché dans le QG)."""
+    def add(d):
+        u = d.setdefault("usage", {"appels": 0, "entree": 0, "sortie": 0, "modeles": {}})
+        u["appels"] += 1; u["entree"] += tokens_in; u["sortie"] += tokens_out
+        m = u["modeles"].setdefault(model, {"appels": 0, "entree": 0, "sortie": 0})
+        m["appels"] += 1; m["entree"] += tokens_in; m["sortie"] += tokens_out
+    with LOCK:
+        qg_log.use_project(name)
+        qg_log.update(qg_log.LIVE, {}, add)
+
+
 def tour(name, msgs):
     d, current = snapshot(name)
     provider, model = d["model"]["provider"], d["model"]["model"]
-    ask = lambda system, user: call(provider, model, system, user)
+    ask = lambda system, user: call(provider, model, system, user, lambda i, o: spend(name, model, i, o))
     ids = [m["id"] for m in msgs if m.get("kind", "message") == "message"]
     for n in ids:
         log(name, "ack", n, f"Reçu. Je réfléchis avec {model}.")
@@ -238,6 +268,7 @@ def tour(name, msgs):
                 + (f"Équipe de base (chefs de pôle) :\n{base}\n\n" if base else "")
                 + f"Conversation jusqu'ici :\n{chat_history(d)}\n\n"
                 + (f"Livrable actuel :\n{current[:20000]}\n\n" if current else "")
+                + "".join(f"Pièce jointe du client « {pj['name']} » :\n{pj['text'][:15000]}\n\n" for pj in pieces_of(name, d))
                 + "Nouveau :\n" + "\n".join(describe(m) for m in msgs))
     raw = ask(PDG, contexte)
     plan = as_json(raw) or {"reponse": raw.strip()[:4000]}

@@ -20,7 +20,9 @@ API (écritures : jeton secret + origine locale)
   POST /api/pilote/remove · /api/pilote/run   {"id"}  supprime · lance tout de suite
   GET  /api/features             fonctionnalités proposées (dépôts GitHub) et ton choix pour chacune (non par défaut)
   POST /api/features             {"id", "ajouter"}  enregistre ton choix
+  GET  /d/<d>/word/<n>           version n du livrable en Word (.docx), notes de bas de page comprises
   GET  /d/<d>/state · /d/<d>/events (SSE) · /d/<d>/livrables/… · /d/<d>/missions/…
+  POST /d/<d>/attach?name=…      pièce jointe (corps = le fichier) : texte extrait, message au PDG
   POST /d/<d>/say · /d/<d>/answer · /d/<d>/model {"provider", "model"} · /d/<d>/dismiss {"id", "reason"?}
 
 Sécurité : écoute seulement sur 127.0.0.1 ; refuse tout en-tête Host non local (rebinding DNS) ; ne sert
@@ -29,7 +31,7 @@ secret (stable, conservé dans .token) et une origine locale. Les clés d'API vo
 (service « bureau-ia ») et ne sont jamais renvoyées par le serveur.
 """
 import datetime, http.server, json, mimetypes, os, re, secrets, shutil, signal, subprocess, sys, threading, time, pathlib
-from urllib.parse import urlsplit, parse_qs, unquote
+from urllib.parse import urlsplit, parse_qs, quote, unquote
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 import qg_log  # noqa: E402
@@ -271,6 +273,38 @@ def choose_feature(fid, ajouter):
         qg_log.write_json(CHOIX, choix)
 
 
+# ---------- Notifications du Mac : mission livrée, question qui t'attend, moteur arrêté ----------
+def notify(title, text):
+    if os.environ.get("BUREAU_NOTIF") == "0" or not shutil.which("osascript"):
+        return
+    subprocess.run(["osascript", "-e", "on run argv", "-e", "display notification (item 2 of argv) with title (item 1 of argv) sound name \"Glass\"",
+                    "-e", "end run", title, text[:200]], capture_output=True)
+
+
+def notify_loop():
+    """Toutes les 5 s, regarde les nouveaux échanges de chaque discussion (ceux d'avant le démarrage ne comptent pas)."""
+    seen = {d["id"]: d["events"] for d in discussions()}
+    while True:
+        time.sleep(5)
+        for d in discussions():
+            before, seen[d["id"]] = seen.get(d["id"], 0), d["events"]
+            if d["events"] <= before:
+                continue
+            try:
+                with LOCK:
+                    qg_log.use_project(d["id"])
+                    new = qg_log.read(qg_log.LIVE, {}).get("events", [])[before:]
+            except (OSError, ValueError):
+                continue
+            for e in new:
+                if e.get("type") == "deliver":
+                    notify("Bureau · mission livrée", d["topic"])
+                elif e.get("type") == "question":
+                    notify("Bureau · une question t'attend", e.get("text", ""))
+                elif e.get("type") == "ko" and e.get("to") == "client":
+                    notify("Bureau · mission arrêtée", e.get("text", ""))
+
+
 def discussions():
     items = []
     for live in (qg_log.DATA / "projets").glob("*/qg-live.json"):
@@ -389,6 +423,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if parse_qs(url.query).get("token") != [TOKEN]:
                 return self.send_error(403)
             return self.stream(root)
+        m = re.fullmatch(r"/word/(\d+)", rest)
+        if m:  # le livrable en Word, avec de vraies notes de bas de page
+            import word
+            v = next((v for v in qg_log.read(root / "livrables" / "index.json", []) if v["n"] == int(m.group(1)) and not v.get("binary")), None)
+            if not v:
+                return self.send_error(404)
+            body = word.docx((root / "livrables" / v["file"]).read_text(encoding="utf-8"))
+            filename = f"{pathlib.Path(v['name']).stem}-v{v['version']}.docx"
+            self.send_response(200)
+            self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{quote(filename)}")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            return self.wfile.write(body)
         if rest.startswith("/livrables/") and not rest.endswith("/index.json") or rest.startswith("/missions/"):
             f = inside(root, rest.lstrip("/"))
             return self.send_file(f) if f else self.send_error(404)
@@ -420,6 +468,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if not self.local() or self.headers.get("X-QG-Token") != TOKEN:
             return self.send_error(403)
         path = unquote(urlsplit(self.path).path)
+        if path.endswith("/attach"):
+            return self.attach(path, urlsplit(self.path).query)
         try:
             msg = json.loads(self.rfile.read(min(int(self.headers.get("Content-Length", 0)), 32000)) or b"{}")
             if path == "/api/discussions":
@@ -476,6 +526,25 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.send_response(204)
         self.end_headers()
 
+    def attach(self, path, query):
+        """Pièce jointe : le corps de la requête est le fichier (15 Mo au plus), son nom est dans ?name=."""
+        import pieces
+        d = self.discussion(path[:-len("/attach")])
+        size = int(self.headers.get("Content-Length") or 0)
+        filename = pathlib.Path(parse_qs(query).get("name", [""])[0]).name[:120]
+        if not d or not filename or not 0 < size <= pieces.MAX_BYTES:
+            return self.send_json({"erreur": "fichier manquant ou trop gros (15 Mo au plus)"}, 400)
+        data = self.rfile.read(size)
+        name = d[0]
+        try:
+            with LOCK:
+                qg_log.use_project(name)
+                qg_log.add_piece(filename, data)
+        except qg_log.Erreur as e:
+            return self.send_json({"erreur": str(e)}, 400)
+        moteur.kick(name)
+        return self.send_json({"ok": True})
+
     def new_discussion(self, msg):
         text = str(msg.get("text", "")).strip()[:4000]
         if not text:
@@ -531,6 +600,7 @@ def serve(start=8766):
     for live in (qg_log.DATA / "projets").glob("*/qg-live.json"):  # messages arrivés pendant l'arrêt du serveur
         moteur.kick(live.parent.name)
     threading.Thread(target=pilote_loop, daemon=True).start()
+    threading.Thread(target=notify_loop, daemon=True).start()
     print(f"QG : http://127.0.0.1:{port}/" + (f"#{current}" if current else ""), flush=True)
     try:
         server.serve_forever()

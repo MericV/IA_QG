@@ -10,7 +10,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 TMP = pathlib.Path(tempfile.mkdtemp())
 WORK = TMP / "mon-projet"
 WORK.mkdir()
-ENV = {**os.environ, "BUREAU_DATA": str(TMP / "bureau")}
+ENV = {**os.environ, "BUREAU_DATA": str(TMP / "bureau"), "BUREAU_NOTIF": "0"}  # pas de notification du Mac pendant les tests
 ROOT = TMP / "bureau" / "projets" / "test"
 
 

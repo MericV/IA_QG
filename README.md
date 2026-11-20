@@ -28,6 +28,9 @@ cd "Bureau IA"
 | `qg_server.py` | Serveur local de l'app : discussions, comptes (trousseau macOS), modèles, QG en direct |
 | `moteur.py` | Moteur multi-modèles : fait travailler le Bureau avec le modèle choisi (Anthropic, OpenAI, Google, Mistral, OpenRouter, Ollama, Hermes), sans Claude Code |
 | `audit.py` | Contrôles automatiques de l'Auditeur |
+| `pieces.py` | Pièces jointes : texte d'un PDF, Word, RTF, PowerPoint, Excel, image (Vision) ou texte, sans rien installer |
+| `ocr.swift` | Lecture du texte d'une image (Vision, macOS) |
+| `word.py` | Livrable Markdown → Word (.docx) avec de vraies notes de bas de page |
 | `pdf_text.swift` | Extraction du texte d'un PDF (macOS) |
 | `test_qg_log.py` | Test du circuit complet |
 | `test_moteur.py` | Test du moteur multi-modèles avec un faux modèle |
@@ -83,6 +86,16 @@ Dans l'app, chaque discussion a son modèle. Avec « Claude Code », c'est la se
 
 - **Fonctionnalités** : une liste de projets libres sur GitHub (modèles, documents, recherche web, voix, mémoire, visuels, automatisation), chacun avec ce qu'il apporterait et ses points d'attention. Tout est sur « Non » au départ ; ce que tu passes à « Oui » est noté à intégrer, et l'intégration se fait ensuite avec Claude Code.
 
+## Dans la conversation et le QG
+
+- **Pièces jointes** : 📎 ou glisser-déposer un document dans la conversation avec le PDG. Son texte est extrait sur le Mac (textutil, PDFKit, Vision) et devient une source de la mission (`pieces/` de la discussion).
+- **Dictée** : 🎙️ dicte le message avec la reconnaissance vocale du navigateur (selon le navigateur, l'audio peut être traité par Apple ou Google).
+- **Word** : le bouton « Word ⤓ » de l'onglet Rendu télécharge le livrable en .docx ; chaque citation [n] de la section Sources devient une vraie note de bas de page.
+- **Coût** : la barre du haut compte les appels au modèle et les jetons de la mission (moteur multi-modèles).
+- **Bulle d'action** : un clic sur un robot ouvre, à côté de lui, son statut, « Statut », « Qu'est-ce qui bloque ? » et un champ pour lui écrire (le message passe par le PDG).
+- **Notifications du Mac** : mission livrée, question qui t'attend, mission arrêtée (désactivables avec `BUREAU_NOTIF=0`).
+- **Vie du bureau** : une équipe se réunit en salle de conférence quand son chef recrute ou fait la synthèse, les rôles qui ont fini vont au café, l'écran de la salle de conférence suit le livrable et le tableau de mission fait pulser l'étape en cours.
+
 ## Sécurité du QG
 
 Le serveur n'écoute que sur `127.0.0.1`, refuse les requêtes dont l’hôte n’est pas local, ne sert qu’une liste blanche de fichiers, interdit l’affichage dans une iframe et n’accepte les messages du client qu’avec le jeton secret du projet (conservé d’un démarrage à l’autre). Un autre site ouvert dans le navigateur ne peut ni lire la mission ni écrire au PDG. Les clés d'API sont transmises au trousseau par l'entrée standard (jamais en argument, donc invisibles dans la liste des processus), et le modèle choisi pour une discussion est contrôlé.
@@ -93,6 +106,7 @@ Le serveur n'écoute que sur `127.0.0.1`, refuse les requêtes dont l’hôte n�
 python3 test_qg_log.py
 python3 test_moteur.py
 python3 test_pilote.py
+python3 test_documents.py
 ```
 
 ## Licence

@@ -76,6 +76,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-
 .top a { font-weight: 600; font-size: 13px; color: var(--accent); }
 .replay { display: flex; gap: 4px; align-items: center; }
 .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 6px 12px; font-weight: 600; font-size: 13px; }
+a.btn { text-decoration: none; color: inherit; display: inline-block; }
 .btn:hover { border-color: var(--dim); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 
@@ -134,6 +135,21 @@ button.kb-card { cursor: pointer; } button.kb-card:hover { border-color: var(--c
 canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
 .cam { position: absolute; top: 10px; right: 10px; display: grid; gap: 4px; }
 .rooms { position: absolute; top: 10px; left: 10px; }
+.pop { position: absolute; z-index: 5; width: min(300px, 80vw); transform: translate(-50%, calc(-100% - 14px)); display: grid; gap: 8px; padding: 12px;
+  border-radius: 16px; border: 1px solid var(--glass-edge, rgba(255,255,255,.7)); background: var(--glass-strong, rgba(255,255,255,.85));
+  -webkit-backdrop-filter: blur(22px) saturate(180%); backdrop-filter: blur(22px) saturate(180%); box-shadow: 0 14px 34px rgba(20,30,60,.25), inset 0 1px 0 rgba(255,255,255,.5); }
+.pop::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 12px; transform: translateX(-50%) rotate(45deg); background: inherit; border-right: 1px solid var(--glass-edge, rgba(255,255,255,.7)); border-bottom: 1px solid var(--glass-edge, rgba(255,255,255,.7)); }
+.pop-head { display: flex; gap: 8px; align-items: center; }
+.pop-head i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.pop-head b { flex: 1; font-size: 14px; }
+.pop-head button { border: 0; background: none; color: var(--dim); font-size: 14px; padding: 2px 4px; }
+.pop p { margin: 0; font-size: 13px; color: var(--dim); max-height: 5.5em; overflow: hidden; overflow-wrap: anywhere; }
+.pop-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.pop-acts button, .pop-more { border: 1px solid var(--glass-edge, var(--line)); background: rgba(255,255,255,.2); color: var(--fg); border-radius: 99px; padding: 5px 11px; font: 600 12.5px var(--body); }
+.pop form { display: flex; gap: 6px; }
+.pop input { flex: 1; min-width: 0; border: 1px solid var(--glass-edge, var(--line)); background: rgba(255,255,255,.25); color: var(--fg); border-radius: 99px; padding: 6px 11px; font-size: 13px; }
+.pop form button { border: 0; background: var(--accent); color: #fff; border-radius: 99px; padding: 6px 12px; font-weight: 700; font-size: 12.5px; }
+.pop-more { justify-self: start; background: none; color: var(--accent); border-color: transparent; padding-left: 0; }
 .rooms select { font: 700 13px var(--body); color: var(--fg); padding: 7px 30px 7px 12px; border-radius: 99px; border: 1px solid var(--glass-edge, rgba(255,255,255,.7));
   background: var(--glass, rgba(255,255,255,.6)); -webkit-backdrop-filter: blur(14px) saturate(180%); backdrop-filter: blur(14px) saturate(180%); box-shadow: 0 6px 18px rgba(20,30,60,.18), inset 0 1px 0 rgba(255,255,255,.6); max-width: min(260px, 60vw); }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -239,6 +255,9 @@ form#chat { border-top: 1px solid var(--line); padding: 10px 12px 12px; display:
 form#chat .row { display: flex; gap: 8px; align-items: flex-end; }
 form#chat textarea { flex: 1; min-width: 0; resize: none; border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: var(--bg); max-height: 160px; font-size: 14.5px; line-height: 1.45; }
 form#chat button { border: 0; background: var(--accent); color: #fff; border-radius: 12px; padding: 10px 14px; font-weight: 700; }
+form#chat button.tool { background: var(--glass, rgba(255,255,255,.6)); color: var(--fg); border: 1px solid var(--glass-edge, var(--line)); padding: 9px 10px; box-shadow: none; font-size: 16px; line-height: 1; }
+form#chat button.tool[aria-pressed="true"] { background: #e5342a; color: #fff; border-color: #e5342a; }
+form#chat.drop { outline: 2px dashed var(--accent); outline-offset: -4px; }
 form#chat .hint { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); }
 .note-line { font-size: 12px; color: var(--ko); min-height: 0; }
 
@@ -389,6 +408,7 @@ form#chat textarea, .q .free input { background: rgba(255,255,255,.6); border: 1
     <button class="board-btn" id="boardBtn" type="button" title="Toutes les tâches : à faire, en cours, en contrôle, faites">📋 Tableau</button>
     <button class="theme-btn" id="themeBtn" type="button" title="Apparence : Auto suit le thème de l'ordinateur"></button>
     <span class="crew" id="crew" title="Rôles au travail en ce moment, et l'heure au QG"></span>
+    <span class="crew" id="cost" hidden></span>
     <span class="meta" id="meta"></span>
     <span class="badge" id="label"></span>
     <a id="history" href="missions/" hidden>Missions passées</a>
@@ -404,6 +424,13 @@ form#chat textarea, .q .free input { background: rgba(255,255,255,.6); border: 1
       <div class="card office">
         <canvas id="office" tabindex="0" role="img" aria-label="Le bureau, un étage sur le toit d'une tour, réparti en pôles (Direction, Recherche, Rédaction, Relecture, Contrôle qualité, Atelier des experts) avec atrium, café, salon et salles de réunion. Molette ou boutons + et − pour zoomer, glisser pour se déplacer. Chaque rôle est un petit robot qui se déplace pour échanger. Les échanges détaillés sont dans l'onglet Coulisses."></canvas>
         <div class="now" id="now"></div>
+        <div class="pop" id="pop" hidden role="dialog" aria-labelledby="popName">
+          <div class="pop-head"><i id="popDot"></i><b id="popName"></b><button type="button" id="popClose" aria-label="Fermer">✕</button></div>
+          <p id="popInfo"></p>
+          <div class="pop-acts" id="popActs"><button type="button" data-q="statut">Statut</button><button type="button" data-q="bloque">Qu'est-ce qui bloque ?</button></div>
+          <form id="popForm"><input id="popText" maxlength="1000" autocomplete="off"><button type="submit">Envoyer</button></form>
+          <button type="button" class="pop-more" id="popMore">Fiche complète →</button>
+        </div>
         <label class="rooms"><span class="sr">Aller à une pièce</span><select id="roomPick"></select></label>
         <div class="cam" role="group" aria-label="Caméra du bureau"><button id="zin" type="button" aria-label="Zoomer">+</button><button id="zout" type="button" aria-label="Dézoomer">−</button><button id="zfit" type="button" aria-label="Voir tout l'étage">⤢</button></div>
       </div>
@@ -424,6 +451,7 @@ form#chat textarea, .q .free input { background: rgba(255,255,255,.6); border: 1
               <button id="livDiff" type="button" aria-pressed="false">Changements</button>
             </div>
             <button class="btn" id="copy" type="button">Copier</button>
+            <a class="btn" id="wordBtn" href="#" download hidden title="Le livrable en Word, avec de vraies notes de bas de page">Word ⤓</a>
             <span class="count" id="count"></span>
           </div>
           <pre id="livView"><span class="empty"><b>Le rendu apparaîtra ici.</b> Dès que l'Écrivain a une première version, elle s'affiche dans cet onglet, puis chaque correction après audit.</span></pre>
@@ -449,7 +477,10 @@ form#chat textarea, .q .free input { background: rgba(255,255,255,.6); border: 1
       <ol id="msgs" aria-live="polite"></ol>
       <form id="chat" hidden>
         <div class="row">
-          <textarea id="chatText" rows="2" maxlength="4000" placeholder="Écris au PDG…" aria-label="Message au PDG"></textarea>
+          <button class="tool" id="attachBtn" type="button" title="Joindre un document (PDF, Word, PowerPoint, Excel, image, texte) : le Bureau s'en sert comme source" aria-label="Joindre un document">📎</button>
+          <input id="attachFile" type="file" hidden multiple accept=".pdf,.docx,.doc,.rtf,.odt,.html,.htm,.txt,.md,.csv,.json,.pptx,.xlsx,.png,.jpg,.jpeg,.heic,.tiff,.gif,.webp">
+          <button class="tool" id="micBtn" type="button" title="Dicter ton message" aria-label="Dicter ton message" aria-pressed="false" hidden>🎙️</button>
+          <textarea id="chatText" rows="2" maxlength="4000" placeholder="Écris au PDG… (ou dépose un document ici)" aria-label="Message au PDG"></textarea>
           <button type="submit">Envoyer</button>
         </div>
         <div class="hint"><span>Entrée pour envoyer · Maj + Entrée pour aller à la ligne</span><span id="chatCount">0 / 4000</span></div>
@@ -1151,7 +1182,18 @@ function drawRoom() {
   // Enseigne de la Direction ; écran de la salle de réunion
   wallText('QG', .9, 2.55, 34, '#2f5bff', 600);
   wallText('DU BUREAU', .95, 1.95, 9, '#677184', 500);
-  wallQuad(17.4, 21.6, 1.05, 2.55, '#1b2230'); wallQuad(17.52, 21.48, 1.14, 2.46, mix('#7fb6ff', '#3d6fd6', .4));
+  wallQuad(17.4, 21.6, 1.05, 2.55, '#1b2230'); wallQuad(17.52, 21.48, 1.14, 2.46, '#16233f');
+  // l'écran de la salle de conférence suit le livrable en direct : titre, version, mots, avancement de la mission
+  {
+    const v = S.livrables[S.livrables.length - 1], done = S.stages.filter(st => colOf(st.id) === 'ok').length;
+    const cut = (t, n) => t.length > n ? t.slice(0, n - 1) + '…' : t;
+    wallText(v ? cut(v.name.replace(/\.[a-z]+$/, '').replace(/-/g, ' '), 26) : 'Livrable en préparation', 17.7, 2.22, 8, '#e9f0ff', 700);
+    wallText(v ? `v${v.version} · ${v.words || 0} mots${v.label ? ' · ' + cut(v.label, 16) : ''}` : 'en attente du premier jet', 17.7, 1.93, 6, '#9fb7e8', 500);
+    const st = S.stages.find(x => x.id === curStage);
+    wallText(st ? 'Étape : ' + cut(st.name, 20) : 'Étape : —', 17.7, 1.68, 6, '#9fb7e8', 500);
+    wallQuad(17.7, 21.3, 1.3, 1.4, '#2a3a5e');
+    if (S.stages.length) wallQuad(17.7, 17.7 + 3.6 * done / S.stages.length, 1.3, 1.4, '#59c08d');
+  }
   // Cadres de la Direction ; moodboard du studio design
   frameArt(5.6, 6.5, 1.55, 2.6, '#e8584a'); frameArt(6.7, 7.6, 1.55, 2.6, '#2f6fb0');
   wallQuad(31.6, 38.8, 1, 2.7, '#f4f1ea');
@@ -1168,6 +1210,10 @@ function drawRoom() {
     S.stages.filter(s => colOf(s.id) === k).forEach((s, i) => {
       const c = gates[s.id].retries && k !== 'ok' ? '#ef9b94' : {todo: '#c9d1dd', active: '#f3b545', audit: '#6e8bff', ok: '#59c08d'}[k];
       wallQuad(x0 + .08, x0 + .95, 2.4 - i * h, 2.4 - (i + 1) * h + .04, c);
+      if (s.id === curStage && !reduce) {  // l'étape en cours pulse sur le tableau
+        ctx.globalAlpha = .25 + .25 * Math.sin(performance.now() / 260);
+        wallQuad(x0 + .08, x0 + .95, 2.4 - i * h, 2.4 - (i + 1) * h + .04, '#ffffff'); ctx.globalAlpha = 1;
+      }
     });
   });
 }
@@ -1259,7 +1305,7 @@ function drawLabel(a, must, any) {
 
 function drawBubble(now) {
   // le bureau reste lisible : aucun texte sur les robots, sauf celui qu'on a cliqué (son dernier message)
-  if (!pinned || !agents[pinned.id] || !pinned.last) return;
+  if (!pinned || !agents[pinned.id] || !pinned.last || popId) return;
   const a = pinned, bubble = {text: a.last, color: a.color, t0: 0};
   ctx.globalAlpha = Math.min(1, (now - bubble.t0) / 200);
   ctx.font = `500 14px ${FONT}`;
@@ -1299,6 +1345,7 @@ function frame(now) {
   for (const a of Object.values(agents)) {
     let rem = speed() * dt;
     if (a.leaving && !a.path.length) { delete agents[a.id]; continue; }
+    if (a.away && a.awayUntil && now > a.awayUntil) backHome(a);
     while (a.path.length && (reduce || rem > 0)) {
       const [px, py] = a.path[0], d = Math.hypot(px - a.x, py - a.y);
       if (reduce || d <= rem) { a.x = px; a.y = py; a.path.shift(); rem -= d; }
@@ -1325,6 +1372,7 @@ function frame(now) {
   Object.values(agents).forEach(drawBadge);
   if (!focus) drawPoles();
   drawBubble(now);
+  if (popId) placePop();
   const backlog = S.events.length - idx, gap = live ? (backlog > 2 ? 600 : 1400) : 2800 / +$('speed').value;
   if (playing && now - lastStep > gap) { lastStep = now; step(); }
   requestAnimationFrame(frame);
@@ -1334,6 +1382,26 @@ function frame(now) {
 let idx = 0, playing = false, lastStep = 0, gates = {}, curStage = null, live = false, livrableMax = 0;
 const colOf = s => { const g = gates[s]; return !g || g.state === 'pending' ? 'todo' : g.state === 'ko' ? 'active' : g.state; };
 
+// ---------- Lieux de vie : réunion d'équipe en salle de conférence, pause au café quand la part est finie ----------
+const roomSpots = name => {
+  const p = POLES.find(q => q.name === name), pts = [];
+  for (let x = p.x0 + .7; x < p.x1 - .5; x += .8) for (let y = p.y0 + .7; y < p.y1 - .5; y += .8) if (!blocked(x, y)) pts.push([x, y]);
+  return pts;
+};
+let MEET = null, CAFE = null;
+function goAway(a, place, ms) {
+  if (!a || a.leaving) return;
+  const spots = place === 'meet' ? (MEET ||= roomSpots('Salle de conférence')) : (CAFE ||= roomSpots('Café').concat(roomSpots('Salon')));
+  const taken = Object.values(agents).filter(b => b !== a && b.away).map(b => b.awaySpot);
+  // une place libre, à distance des autres ; le point de départ varie avec le robot pour ne pas tous s'agglutiner
+  const start = [...a.id].reduce((n, c) => n + c.charCodeAt(0), 0) * 7 % spots.length;
+  const order = spots.slice(start).concat(spots.slice(0, start));
+  const spot = order.find(q => taken.every(t => Math.hypot(t[0] - q[0], t[1] - q[1]) > 1.4)) || order[0];
+  if (!spot) return;
+  Object.assign(a, {away: place, awaySpot: spot, awayUntil: ms ? performance.now() + ms : 0});
+  setDest(a, spot);
+}
+function backHome(a) { if (a.away) { a.away = null; setDest(a, a.home); } }
 function step() {
   if (idx >= S.events.length) { setPlaying(false); return; }
   const e = S.events[idx++], now = performance.now(), to = tos(e);
@@ -1341,14 +1409,22 @@ function step() {
   else if (e.type === 'hire' && e.hire && e.hire.chef && !hired.includes(e.hire.id)) { hired.push(e.hire.id); agents[e.hire.id].called = true; }  // un chef activé
   // ancien journal sans recrutement : un rôle du vivier qui parle entre quand même dans le bureau
   for (const id of [e.from, ...to]) if (!agents[id] && ROLES[id]) hire({id, name: ROLES[id].name});
-  if (e.type === 'release' && agents[e.from]) { released.add(e.from); agents[e.from].activity = null; }
+  if (e.type === 'release' && agents[e.from]) { released.add(e.from); agents[e.from].activity = null; goAway(agents[e.from], 'cafe'); }
   if (e.type === 'dismiss' && e.target) {
     dismissed.add(e.target);
     const a = agents[e.target]; if (a) { a.leaving = true; a.activity = null; setDest(a, ENTRY); }
   }
   const A = agents[e.from] || agents.pdg;
   const color = e.type === 'ok' ? '#1d9e62' : e.type === 'ko' ? '#d93b30' : A.color;
-  Object.values(agents).forEach(a => { if (a !== A && (a.x !== a.home[0] || a.y !== a.home[1])) setDest(a, a.home); });
+  // la pause est finie quand il se remet au travail (un simple compte rendu de consigne ne le fait pas revenir)
+  if (A.away === 'cafe' && e.type !== 'release' && !e.applied && !/^Consigne n° \d+ appliquée/.test(e.text)) backHome(A);
+  Object.values(agents).forEach(a => { if (a !== A && !a.away && (a.x !== a.home[0] || a.y !== a.home[1])) setDest(a, a.home); });
+  // un chef qui recrute ou fait la synthèse réunit son équipe en salle de conférence
+  const lead = e.type === 'hire' && e.hire && e.hire.equipe ? e.hire.equipe : e.type === 'work' && /synth[eè]se/i.test(e.text) ? e.from : null;
+  if (lead && agents[lead]) {
+    const crew = [lead, ...hired.filter(id => ROLES[id] && ROLES[id].equipe === lead)];
+    crew.forEach(id => goAway(agents[id], 'meet', reduce ? 0 : 9000));
+  }
   [e.from, ...to].forEach(id => agents[id] && (agents[id].called = true));
   let travel = 0;
   if (to.length && to[0] !== e.from && agents[to[0]]) { setDest(A, meetPoint(agents[to[0]])); travel = reduce ? 0 : pathLen(A) / speed() * 1000; }
@@ -1467,6 +1543,18 @@ function renderQuestions() {
   $('waitPill').textContent = waiting > 1 ? `${waiting} questions pour toi` : '1 question pour toi';
 }
 
+async function attach(files) {
+  for (const f of files) {
+    if (f.size > 15 * 1024 * 1024) { $('note').textContent = `« ${f.name} » dépasse 15 Mo.`; continue; }
+    $('note').textContent = `Lecture de « ${f.name} »…`;
+    try {
+      const r = await fetch('attach?name=' + encodeURIComponent(f.name), {method: 'POST', headers: {'X-QG-Token': TOKEN, 'Content-Type': 'application/octet-stream'}, body: f});
+      const j = await r.json().catch(() => ({}));
+      $('note').textContent = r.ok ? '' : (r.status === 403 ? RELOAD : j.erreur || 'Pièce jointe non envoyée.');
+      if (r.ok) fetchState();
+    } catch { $('note').textContent = 'Pièce jointe non envoyée : le QG ne répond pas.'; }
+  }
+}
 async function post(path, body) {
   const r = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json', 'X-QG-Token': TOKEN}, body: JSON.stringify(body)});
   if (!r.ok) throw r.status;
@@ -1484,6 +1572,26 @@ $('chat').addEventListener('submit', async ev => {
   try { await post('say', {text}); fetchState(); }
   catch (code) { $('chatText').value = text; autosize(); $('note').textContent = code === 403 ? RELOAD : 'Message non envoyé : le QG ne répond pas. Réessaie dans un instant.'; }
 });
+// Pièces jointes : bouton 📎 ou glisser-déposer sur la conversation
+$('attachBtn').onclick = () => $('attachFile').click();
+$('attachFile').onchange = () => { attach([...$('attachFile').files]); $('attachFile').value = ''; };
+for (const t of ['dragenter', 'dragover']) $('chat').addEventListener(t, ev => { if (ev.dataTransfer.types.includes('Files')) { ev.preventDefault(); $('chat').classList.add('drop'); } });
+for (const t of ['dragleave', 'drop']) $('chat').addEventListener(t, () => $('chat').classList.remove('drop'));
+$('chat').addEventListener('drop', ev => { if (ev.dataTransfer.files.length) { ev.preventDefault(); attach([...ev.dataTransfer.files]); } });
+// Dictée : la reconnaissance vocale du navigateur (bouton masqué s'il n'en a pas)
+const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+if (Speech) {
+  const rec = new Speech(); let base = '', on = false;
+  rec.lang = 'fr-FR'; rec.interimResults = true; rec.continuous = true;
+  rec.onresult = ev => { $('chatText').value = base + [...ev.results].map(r => r[0].transcript).join(''); autosize(); };
+  rec.onend = () => { on = false; $('micBtn').setAttribute('aria-pressed', 'false'); };
+  rec.onerror = ev => { $('note').textContent = ev.error === 'not-allowed' ? 'Micro refusé : autorise-le dans le navigateur pour dicter.' : 'Dictée interrompue.'; };
+  $('micBtn').hidden = false;
+  $('micBtn').onclick = () => {
+    if (on) return rec.stop();
+    base = $('chatText').value ? $('chatText').value.trimEnd() + ' ' : ''; on = true; $('micBtn').setAttribute('aria-pressed', 'true'); rec.start();
+  };
+}
 function autosize() { const t = $('chatText'); t.style.height = 'auto'; t.style.height = Math.min(160, t.scrollHeight) + 'px'; $('chatCount').textContent = `${t.value.length} / 4000`; }
 $('chatText').addEventListener('input', autosize);
 $('chatText').addEventListener('keydown', ev => { if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); $('chat').requestSubmit(); } });
@@ -1499,6 +1607,14 @@ function renderTop() {
   });
   const ts = S.events.slice(0, idx).map(e => e.ts).filter(Boolean), ko = Object.values(gates).reduce((n, g) => n + g.retries, 0);
   renderCrew();
+  // coût de la mission : appels au modèle et jetons (moteur multi-modèles ; Claude Code ne les compte pas ici)
+  const u = S.usage, kt = n => n >= 1000 ? (n / 1000).toLocaleString('fr-FR', {maximumFractionDigits: 1}) + ' k' : String(n);
+  $('cost').hidden = !u || !u.appels;
+  if (u && u.appels) {
+    $('cost').textContent = `💰 ${u.appels} appel${u.appels > 1 ? 's' : ''} · ${kt(u.entree + u.sortie)} jetons`;
+    $('cost').title = Object.entries(u.modeles || {}).map(([m, x]) => `${m} : ${x.appels} appels, ${kt(x.entree)} jetons lus, ${kt(x.sortie)} écrits`).join('\n')
+      + '\nLe prix en euros dépend de ton offre (voir la console du fournisseur) ; sur l\'offre gratuite de Gemini, c\'est 0 €.';
+  }
   $('meta').textContent = [ts.length > 1 ? fmtDur(ts[ts.length - 1] - ts[0]) : '', ko ? `${ko} renvoi${ko > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
 }
 function renderNow() {
@@ -1510,6 +1626,41 @@ function renderNow() {
 }
 // ---------- Fiche d'un agent : mission, brief complet, ce qu'il fait en direct, fin de contrat ----------
 let openAgent = null, dismissed = new Set();
+// ---------- Bulle d'action rapide : un clic sur un robot ouvre, à côté de lui, statut et message direct ----------
+let popId = null;
+function openPop(id) {
+  const a = agents[id]; if (!a) return;
+  popId = id; pinned = a; a.unseen = 0;
+  const m = (S.team || []).find(x => x.id === id) || {}, sleeping = m.chef && !a.called;
+  $('popDot').style.background = a.color; $('popName').textContent = a.name;
+  $('popInfo').textContent = a.activity ? '● ' + a.activity : sleeping ? 'En veille : le PDG l\'activera si la mission a besoin de son pôle.'
+    : released.has(id) ? '✓ Part terminée' + (m.bilan && m.bilan !== 'Part terminée' ? ' : ' + m.bilan : '') : a.last ? 'Dernier message : ' + a.last : (m.mission || a.role || '');
+  $('popText').placeholder = id === 'pdg' ? 'Écrire au PDG…' : `Écrire à ${a.name}…`;
+  $('popActs').hidden = $('popForm').hidden = !live;
+  $('pop').hidden = false; placePop();
+}
+function closePop() { popId = null; $('pop').hidden = true; if (!openAgent) pinned = null; }
+function placePop() {
+  const a = popId && agents[popId]; if (!a || a.sx == null) return closePop();
+  const pw = $('pop').offsetWidth / 2;
+  $('pop').style.left = Math.max(pw + 6, Math.min(W - pw - 6, a.sx)) + 'px';
+  $('pop').style.top = Math.max($('pop').offsetHeight + 20, a.sy - 18 * Math.min(1.25, tw / 40)) + 'px';
+}
+async function popSend(text) {
+  const a = agents[popId]; if (!a || !text.trim()) return;
+  try {
+    await post('say', {text: popId === 'pdg' ? text : `@${a.name} : ${text}`});
+    $('popInfo').textContent = 'Envoyé ✓ — le PDG transmet et la réponse arrive dans la conversation.'; $('popText').value = ''; fetchState();
+  } catch (code) { $('popInfo').textContent = code === 403 ? RELOAD : 'Message non envoyé : le QG ne répond pas.'; }
+}
+$('popClose').onclick = closePop;
+$('popMore').onclick = () => { const id = popId; closePop(); showAgent(id); };
+$('popActs').onclick = ev => {
+  const q = ev.target.dataset.q; if (!q) return;
+  const pdg = popId === 'pdg';
+  popSend(q === 'statut' ? (pdg ? 'Statut : où en est la mission ?' : 'Statut : où en est ta partie ?') : (pdg ? 'Qu\'est-ce qui bloque en ce moment ?' : 'Qu\'est-ce qui te bloque en ce moment ?'));
+};
+$('popForm').onsubmit = ev => { ev.preventDefault(); popSend($('popText').value); };
 function showAgent(id) { openAgent = id; pinned = agents[id] || null; if (pinned) pinned.unseen = 0; $('agentPanel').hidden = false; $('agentPanel').classList.toggle('board', id === BOARD); renderWho(); $('apClose').focus(); }
 function closeAgent() { openAgent = null; pinned = null; $('agentPanel').hidden = true; $('agentPanel').classList.remove('board'); }
 // ---------- Tableau de la mission (façon agile) : étapes, recrues, consignes et décisions, rangées par état ----------
@@ -1547,7 +1698,7 @@ function renderBoard() {
 }
 $('apClose').onclick = closeAgent;
 $('boardBtn').onclick = () => openAgent === BOARD ? closeAgent() : showAgent(BOARD);
-addEventListener('keydown', ev => { if (ev.key === 'Escape' && openAgent) { closeAgent(); ev.preventDefault(); } });
+addEventListener('keydown', ev => { if (ev.key !== 'Escape') return; if (popId) { closePop(); ev.preventDefault(); } else if (openAgent) { closeAgent(); ev.preventDefault(); } });
 function section(title, child) { const d = el('div'); d.append(el('h5', null, title), child); return d; }
 function renderWho() {
   if (!openAgent) return;
@@ -1622,7 +1773,8 @@ cv.addEventListener('click', ev => {
   const r = cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
   let best = null, bd = 30 * tw / 40 + 6;
   for (const a of Object.values(agents)) { const d = Math.hypot(a.sx - mx, a.sy - my); if (d < bd) { bd = d; best = a; } }
-  if (best && best.id !== 'client') return showAgent(best.id);
+  if (best && best.id !== 'client') return openPop(best.id);
+  closePop();
   const quad = [P(8.9, .02, .9), P(14.1, .02, .9), P(14.1, .02, 2.8), P(8.9, .02, 2.8)];
   if (inPoly(mx, my, quad)) return showAgent(BOARD);
   closeAgent();
@@ -1775,6 +1927,7 @@ function markdown(src) {
 }
 async function showLivrable() {
   const v = S.livrables.find(x => x.n === +$('livPick').value); if (!v) return;
+  $('wordBtn').hidden = !live || v.binary; $('wordBtn').href = 'word/' + v.n;
   const req = ++livReq, view = $('livView');
   view.className = livMode === 'diff' ? 'diff' : '';
   if (v.binary && livMode === 'text') { view.textContent = `Fichier non texte (${v.name}) : pas d'aperçu ici.`; $('count').textContent = ''; livText = ''; return; }
@@ -1826,7 +1979,7 @@ function reset() {
   hired.forEach(id => { delete agents[id]; if (VIVIER.has(id)) ROLES[id] = ROLES_INIT[id]; else delete ROLES[id]; }); hired = []; released = new Set(); dismissed = new Set();
   idx = 0; curStage = null; bubble = null; current = null; pinned = null; gate = {state: null, t: -1e9}; livrableMax = 0; livKey = '';
   gates = Object.fromEntries(S.stages.map(s => [s.id, {state: 'pending', retries: 0}]));
-  Object.values(agents).forEach(a => Object.assign(a, {x: a.home[0], y: a.home[1], path: [], called: CORE.includes(a.id), sent: 0, recv: 0, last: '', activity: null}));
+  Object.values(agents).forEach(a => Object.assign(a, {x: a.home[0], y: a.home[1], path: [], called: CORE.includes(a.id), sent: 0, recv: 0, last: '', activity: null, away: null}));
   spawnBase();
   $('feed').innerHTML = ''; $('msgs').innerHTML = ''; qCards.clear(); statusEls.clear();
   $('renduHead').hidden = true;
@@ -1843,12 +1996,12 @@ function applyState(j) {
     live = true; S = j; header(); reset();
     // rattrapage sans animation : seuls les derniers échanges sont animés
     while (S.events.length - idx > 3) step();
-    Object.values(agents).forEach(a => { a.x = a.home[0]; a.y = a.home[1]; a.path = []; });
+    Object.values(agents).forEach(a => { const p = a.away ? a.awaySpot : a.home; a.x = p[0]; a.y = p[1]; a.path = []; });
     $('msgs').scrollTop = $('msgs').scrollHeight;
   } else {
     for (const s of j.stages) gates[s.id] = gates[s.id] || {state: 'pending', retries: 0};
     if (j.events.length > S.events.length) S.events = j.events;
-    Object.assign(S, {topic: j.topic, stages: j.stages, consignes: j.consignes, questions: j.questions, livrables: j.livrables, team: j.team});
+    Object.assign(S, {topic: j.topic, stages: j.stages, consignes: j.consignes, questions: j.questions, livrables: j.livrables, team: j.team, usage: j.usage});
     $('topic').textContent = S.topic;
   }
   renderStatuses(); renderQuestions(); renderTop();

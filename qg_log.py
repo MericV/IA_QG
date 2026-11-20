@@ -239,6 +239,33 @@ def new_message(text):
     return n
 
 
+def add_piece(filename, data):
+    """Pièce jointe du client : le fichier et son texte vont dans pieces/ ; le PDG reçoit un message court."""
+    import pieces
+    require_mission()
+    stem = slug(pathlib.Path(filename).stem)[:60] or "piece"
+    ext = pathlib.Path(filename).suffix.lower()
+    if ext not in pieces.KINDS:
+        raise Erreur(f"format non pris en charge ({ext or 'sans extension'}) : PDF, Word, RTF, PowerPoint, Excel, image ou texte")
+    folder = ROOT / "pieces"
+    folder.mkdir(parents=True, exist_ok=True)
+    n = len(list(folder.glob("*.txt"))) + 1
+    src, txt = folder / f"{n:02d}-{stem}{ext}", folder / f"{n:02d}-{stem}.txt"
+    src.write_bytes(data)
+    try:
+        text = pieces.extract(src).strip()
+    except pieces.PieceErreur as e:
+        src.unlink(missing_ok=True)
+        raise Erreur(f"« {filename} » n'a pas pu être lu : {e}") from None
+    if not text:
+        src.unlink(missing_ok=True)
+        raise Erreur(f"« {filename} » ne contient pas de texte lisible")
+    txt.write_text(text, encoding="utf-8")
+    words = len(text.split())
+    update(LIVE, {}, lambda d: d.setdefault("pieces", []).append({"name": filename, "file": txt.name, "words": words, **now()}))
+    return new_message(f"📎 Pièce jointe « {filename} » ({words} mots), à utiliser comme source. Texte extrait : {txt}")
+
+
 def answer(qid, choice, other=False):
     """Réponse du client : un des choix proposés, ou une réponse libre (other=True, 500 caractères max.)."""
     require_mission()
@@ -595,7 +622,7 @@ def main(a):
         else:
             if role not in read(CONS, [])[n - 1]["roles"]:
                 raise Erreur(f"la consigne n° {n} n'a pas été transmise à « {role} » (dispatch d'abord)")
-            append_event({"from": role, "to": "pdg", "text": f"Consigne n° {n} appliquée : {a[3]}"})
+            append_event({"from": role, "to": "pdg", "text": f"Consigne n° {n} appliquée : {a[3]}", "applied": n})
 
         def change(d):
             m = d[n - 1]
