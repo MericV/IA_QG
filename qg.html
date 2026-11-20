@@ -177,6 +177,10 @@ canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
 .org .node .st { font: 600 11px var(--mono); color: var(--warn); }
 .org .node .st.done { color: var(--ok); }
 .org .node .why { color: var(--dim); }
+.org .teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; align-items: start; }
+.org .team-col { display: grid; justify-items: center; }
+.org .team-col .node { width: 100%; }
+.org .node.sleep { opacity: .55; }
 .org .empty-team { text-align: center; color: var(--dim); font-size: 14px; padding: 8px; }
 
 /* ---------- Conversation avec le PDG ---------- */
@@ -441,19 +445,19 @@ const stageId = x => (S.stages.find(s => s.id === x || s.name === x || s.id === 
 // Rôles : objets sans prototype, pour qu'un identifiant comme « constructor » ne tombe pas sur une propriété héritée.
 const dict = o => Object.assign(Object.create(null), o);
 const ROLES = dict({
-  pdg:    {name: 'PDG', color: '#2f5bff', home: [3.6, 3.85], role: 'Cadre la demande, répartit le travail, tranche, valide.'},
-  aud:    {name: 'Auditeur', color: '#d93b30', home: [15.8, 12.0], role: 'Contrôle chaque étape. Zéro invention, tout est sourcé.'},
-  bib:    {name: 'Bibliothécaire', color: '#f08a24', home: [3.6, 8.2], role: 'Cherche, vérifie et cite les sources.'},
-  ecr:    {name: 'Écrivain', color: '#7b4cf0', home: [8.6, 17.2], role: 'Rédige à partir des informations validées.'},
-  cor:    {name: 'Correcteur', color: '#1d9e62', home: [15.2, 4.4], role: 'Orthographe, style, clarté, mise en forme.'},
-  client: {name: 'Toi', color: '#f2c230', home: [23, 16.6], role: 'Le client : passe commande et reçoit le rendu.'},
-  ana:    {name: 'Analyste', color: '#14a3b8', home: [1.7, 14.8], role: 'Chiffres, tableaux, comparaisons.'},
-  str:    {name: 'Stratège', color: '#d6409f', home: [2.9, 14.8], role: 'Recommandations, SWOT, décisions.'},
-  avo:    {name: 'Avocat du diable', color: '#8a5a2b', home: [4.1, 14.8], role: 'Attaque les idées pour en trouver les failles.'},
-  des:    {name: 'Designer', color: '#ff6f61', home: [9.8, 17.2], role: 'Mise en page, diapos, schémas.'},
-  ing:    {name: 'Ingénieur', color: '#4a5568', home: [1.7, 17.0], role: 'Code et outils techniques.'},
-  jur:    {name: 'Juriste', color: '#5b6cff', home: [17.0, 12.0], role: 'RGPD, conformité, contrats.'},
-  cdp:    {name: 'Chef de projet', color: '#7cb342', home: [2.9, 17.0], role: 'Planning, échéances, coordination.'},
+  pdg:    {name: 'PDG', color: '#2f5bff', home: [3.8, 4.0], role: 'Cadre la demande, répartit le travail, tranche, valide.'},
+  aud:    {name: 'Auditeur', color: '#d93b30', home: [27.0, 13.8], role: 'Contrôle chaque étape. Zéro invention, tout est sourcé.'},
+  bib:    {name: 'Bibliothécaire', color: '#f08a24', home: [3.6, 8.8], role: 'Cherche, vérifie et cite les sources.'},
+  ecr:    {name: 'Écrivain', color: '#7b4cf0', home: [9.0, 12.4], role: 'Rédige à partir des informations validées.'},
+  cor:    {name: 'Correcteur', color: '#1d9e62', home: [25.8, 4.4], role: 'Orthographe, style, clarté, mise en forme.'},
+  client: {name: 'Toi', color: '#f2c230', home: [35.6, 22.2], role: 'Le client : passe commande et reçoit le rendu.'},
+  ana:    {name: 'Analyste', color: '#14a3b8', home: [1.6, 23.6], role: 'Chiffres, tableaux, comparaisons.'},
+  str:    {name: 'Stratège', color: '#d6409f', home: [2.8, 23.6], role: 'Recommandations, SWOT, décisions.'},
+  avo:    {name: 'Avocat du diable', color: '#8a5a2b', home: [4.0, 23.6], role: 'Attaque les idées pour en trouver les failles.'},
+  des:    {name: 'Designer', color: '#ff6f61', home: [33.1, 3.7], role: 'Mise en page, diapos, schémas.'},
+  ing:    {name: 'Ingénieur', color: '#4a5568', home: [36.5, 12.8], role: 'Code et outils techniques.'},
+  jur:    {name: 'Juriste', color: '#5b6cff', home: [28.2, 13.8], role: 'RGPD, conformité, contrats.'},
+  cdp:    {name: 'Chef de projet', color: '#7cb342', home: [1.6, 25.8], role: 'Planning, échéances, coordination.'},
 });
 // Permanents : le PDG, l'Auditeur et toi. Tous les autres sont recrutés par le PDG au fil de la mission.
 const CORE = ['pdg', 'aud', 'client'];
@@ -463,9 +467,9 @@ const nameOf = id => (ROLES[id] || {name: id}).name;
 // ---------- Projection isométrique et caméra (molette ou boutons : zoom ; glisser : déplacer) ----------
 const cv = $('office');
 let ctx = cv.getContext('2d');
-const GX = 26, GY = 20, WH = 3.2;
-const XB = GX + 3.2, YB = GY + 3.2;  // la terrasse, sur les deux côtés ouverts de l'étage
-const ENTRY = [24.9, 18.6];           // l'entrée, à l'accueil : les recrues arrivent et repartent par là
+const GX = 40, GY = 30, WH = 3.2;
+const XB = GX + 4, YB = GY + 4;  // la terrasse, sur les deux côtés ouverts de l'étage
+const ENTRY = [38.6, 28.4];           // l'entrée, à l'accueil : les recrues arrivent et repartent par là
 let W = 0, H = 0, tw = 40, ox = 0, oy = 0, fit = {tw: 40, ox: 0, oy: 0};
 const view = {k: 1, dx: 0, dy: 0};
 let framed = false;  // premier cadrage fait (sur téléphone, on ouvre déjà zoomé)
@@ -486,7 +490,7 @@ function layout() {
   applyView(); buildBg();
 }
 function zoomAt(k, sx = W / 2, sy = H / 2) {
-  k = Math.min(4, Math.max(1, k));
+  k = Math.min(5, Math.max(1, k));
   // le point du bureau sous le curseur reste sous le curseur
   for (const [d, s, c] of [['dx', sx, W / 2], ['dy', sy, H / 2]]) { const s0 = c + (s - c - view[d]) / view.k; view[d] = s - c - (s0 - c) * k; }
   view.k = k; if (k === 1) view.dx = view.dy = 0;
@@ -580,42 +584,132 @@ function glass(x0, y0, x1, y1) {
     });
   }
 }
-// Cloisons : rangée de salles le long du mur du fond, colonne de salles le long du mur de gauche (portes de 1,4)
-for (const [a, b] of [[0, 4.4], [5.8, 9.4], [10.8, 15.6], [17, 21.8], [23.2, GX]]) glass(a, 6.5, b, 6.5);
-for (const [a, b] of [[6.5, 9.2], [10.6, 16.2], [17.6, GY]]) glass(6.5, a, 6.5, b);
-for (const x of [7, 13.5, 19.5]) glass(x, 0, x, 6.5);
-glass(0, 13.2, 6.5, 13.2);
+// ---------- Détails : faces planes, petits meubles ----------
+const faceY = (x0, x1, y, z0, z1, c) => poly([P(x0, y, z0), P(x1, y, z0), P(x1, y, z1), P(x0, y, z1)], c);
+const faceX = (x, y0, y1, z0, z1, c) => poly([P(x, y0, z0), P(x, y1, z0), P(x, y1, z1), P(x, y0, z1)], c);
+const NOTES = ['#ffe27a', '#ffb3c7', '#9fe3c4', '#a9c8ff', '#ffc98a'];
+// Baie de serveurs : façade noire, voyants qui clignotent
+function rack(x, y) {
+  floorShadow(x, y, .7, .9); box(x, y, .7, .9, 2.1, '#1f252e');
+  const t = performance.now() / 260;
+  for (let r = 0; r < 8; r++) {
+    faceY(x + .06, x + .64, y + .905, .25 + r * .22, .38 + r * .22, '#2b323d');
+    for (let c = 0; c < 3; c++) { const on = Math.sin(t * (1 + c * .3) + r * 1.7 + c * 2.3 + x * 3) > .1; faceY(x + .1 + c * .12, x + .16 + c * .12, y + .91, .29 + r * .22, .34 + r * .22, on ? (c === 2 ? '#5aa9ff' : '#3ddc84') : '#29473a'); }
+  }
+}
+// Cabine téléphonique vitrée : fond en feutre, tablette, tabouret
+function booth(x, y, felt) {
+  solid(x, y, 1.3, 1.3);
+  add(x + y + 1.4, () => {
+    floorShadow(x, y, 1.3, 1.3); box(x, y, 1.3, 1.3, .08, '#3a4352');
+    box(x, y, 1.3, .08, 2.3, felt, .08); box(x, y, .08, 1.3, 2.3, felt, .08);
+    box(x + .1, y + .1, 1.1, .35, .06, OAK, .95); monitor(x + .45, y + .12, .4, 1.0, false);
+    box(x + .5, y + .7, .32, .32, .5, '#c47a3a', .08);
+    ctx.globalAlpha = .2; faceX(x + 1.3, y, y + 1.3, .08, 2.38, '#cfe4ff'); faceY(x, x + 1.3, y + 1.3, .08, 2.38, '#cfe4ff'); ctx.globalAlpha = 1;
+    for (const [px, py] of [[x + 1.25, y], [x, y + 1.25], [x + 1.25, y + 1.25]]) box(px, py, .05, .05, 2.3, '#3a4352', .08);
+    box(x, y, 1.3, 1.3, .1, '#3a4352', 2.38);
+  });
+}
+// Table à dessin : plateau clair, feuilles de couleur, tabouret
+function drafting(x, y) {
+  solid(x, y, 2, 1.1);
+  add(x + y + 1.6, () => {
+    desk(x, y, 2, 1.1, '#f7f3ea');
+    box(x + .2, y + .2, .7, .5, .02, NOTES[Math.round(x) % 5], .7); box(x + 1.1, y + .3, .6, .45, .02, '#ffffff', .7);
+    box(x + 1.75, y + .15, .06, .06, .5, '#2f3644', .7); box(x + 1.55, y + .1, .35, .25, .1, '#f2c230', 1.18);
+  });
+  add(x + y + 2.8, () => { box(x + .85, y + 1.45, .1, .1, .6, '#7d8696'); disc(x + .9, y + 1.5, .22, .62, '#2f3644'); });
+}
+// Rangée d'archives : haute étagère, boîtes de couleur
+function archives(x, y, w) {
+  solid(x, y, w, .6);
+  add(x + w / 2 + y + .3, () => {
+    floorShadow(x, y, w, .6); box(x, y, w, .6, 2.2, '#c9cfd8');
+    for (const z of [.15, .85, 1.55]) for (let u = x + .08, i = 0; u < x + w - .4; u += .42, i++) box(u, y + .05, .36, .55, .5, ['#e6d3b0', '#d9c39b', '#cfd8e3', '#e8c6a6'][(i + Math.round(z * 3)) % 4], z);
+  });
+}
+// Tableau blanc sur pieds, avec notes adhésives
+function whiteboard(x, y) {
+  solid(x, y, 1.8, .25);
+  add(x + y + 1, () => {
+    box(x + .1, y + .08, .06, .1, 1.9, '#9aa3b0'); box(x + 1.64, y + .08, .06, .1, 1.9, '#9aa3b0');
+    box(x, y, 1.8, .06, 1.1, '#ffffff', .75);
+    for (let i = 0; i < 6; i++) faceY(x + .15 + (i % 3) * .5, x + .5 + (i % 3) * .5, y + .065, 1.35 + Math.floor(i / 3) * .4, 1.65 + Math.floor(i / 3) * .4, NOTES[i % 5]);
+  });
+}
+function lockers(x, y, n) {
+  solid(x, y, .55, n * .5);
+  add(x + y + n * .25, () => { for (let i = 0; i < n; i++) { box(x, y + i * .5, .55, .48, 1.9, ['#9fb4d6', '#b8c7e0'][i % 2]); faceX(x + .56, y + i * .5 + .08, y + i * .5 + .4, 1.2, 1.25, '#5f6b7c'); } });
+}
+function cooler(x, y) { solid(x, y, .4, .4); add(x + y + .4, () => { box(x, y, .4, .4, .95, '#f2f4f7'); disc(x + .2, y + .2, .17, .95, '#9fd3ff'); box(x + .08, y + .08, .24, .24, .4, '#bfe2ff', .95); }); }
+function printer(x, y) { solid(x, y, .8, .6); add(x + y + .7, () => { box(x, y, .8, .6, .75, '#d9dee5'); box(x + .1, y + .1, .6, .4, .08, '#3a4352', .75); box(x + .15, y - .02, .5, .2, .03, '#ffffff', .5); }); }
+function floorLamp(x, y) { add(x + y, () => { disc(x, y, .18, 0, '#3a4352'); box(x - .02, y - .02, .04, .04, 1.6, '#3a4352'); disc(x, y, .3, 1.7, '#f6e6c4'); disc(x, y, .26, 1.62, '#e9d3a8'); }); }
+function beanbag(x, y, c) { solid(x - .35, y - .35, .7, .7); add(x + y + .3, () => { disc(x, y, .42, .02, shade(c, -.2)); disc(x, y, .38, .22, c); disc(x - .08, y - .08, .2, .3, shade(c, .15)); }); }
+function frameArt(x0, x1, z0, z1, c) { wallQuad(x0, x1, z0, z1, '#2f3644'); wallQuad(x0 + .06, x1 - .06, z0 + .08, z1 - .08, '#f7f3ea'); wallQuad(x0 + .2, x1 - .2, z0 + .25, z1 - .25, c); }
+function parasolTable(x, y) {
+  solid(x, y, .8, .8);
+  add(x + y + .8, () => {
+    box(x + .35, y + .35, .1, .1, .7, '#9aa3b0'); disc(x + .4, y + .4, .45, .72, '#f6f2ea');
+    chair(x - .5, y + .2, '#3f8f8a'); chair(x + .9, y + .2, '#3f8f8a');
+    box(x + .37, y + .37, .06, .06, 1.6, '#e8e1d6', .72); disc(x + .4, y + .4, 1.05, 2.32, '#e8584a'); disc(x + .4, y + .4, .6, 2.36, '#f2826f');
+  });
+}
+function lounger(x, y) { add(x + y + .8, () => { floorShadow(x, y, 1.4, .6); box(x, y, 1.4, .6, .22, '#f3efe8'); box(x + 1.1, y, .3, .6, .42, '#e4ddd1', .22); }); }
 
-// Direction : grand bureau en noyer, canapé, bibliothèque basse
-rug(1, 1.2, 5.2, 4.6, '#d9cdb8');
-solid(2.2, 2.2, 2.8, 1.1); add(6, () => { desk(2.2, 2.2, 2.8, 1.1, WALNUT); monitor(2.6, 2.35, .85, .7); monitor(3.65, 2.35, .85, .7); box(4.6, 3.0, .28, .2, .04, '#f2c230', .7); });
-add(7.3, () => chair(3.4, 3.55, '#2b2f38', true));
-solid(.3, 4, .9, 2.2); add(5.4, () => { floorShadow(.3, 4, .9, 2.2); box(.3, 4, .9, 2.2, .42, FABRIC); box(.3, 4, .25, 2.2, .85, FABRIC); box(.3, 4, .9, .2, .62, FABRIC); box(.3, 5.95, .9, .25, .62, FABRIC); });
-solid(4.6, .2, 2, .5); add(5, () => { box(4.6, .2, 2, .5, 1.1, '#e2cba8'); for (let i = 0; i < 7; i++) box(4.72 + i * .26, .3, .2, .35, .4 + (i % 3) * .08, BOOKS[i], 1.1); });
-add(6.6, () => plant(.4, .4, 1.1)); add(12, () => plant(6.2, 5.6, 1));
-// Salle de mission : table haute et tabourets, tableau de mission au mur (cliquable)
-solid(8.6, 3, 3.2, 1); add(13.5, () => { floorShadow(8.6, 3, 3.2, 1); box(9.9, 3.35, .5, .3, .95, '#9aa3b0'); box(8.6, 3, 3.2, 1, .1, OAK, .95); });
-add(14.8, () => { for (const x of [8.9, 10, 11.1]) { box(x, 4.3, .36, .36, .62, '#2f3644'); } });
-// Relecture : îlot de quatre
-pod(14.6, 2.6, 3); add(19.6, () => plant(18.9, .5, 1));
-// Salle de réunion : longue table, chaises, écran au mur
-rug(20.4, 1.2, 5, 4.4, '#d5dbe4');
-solid(21.2, 2.5, 3.6, 1.4); add(25.6, () => { desk(21.2, 2.5, 3.6, 1.4, WALNUT); });
-add(23.5, () => { for (const x of [21.5, 22.5, 23.5, 24.4]) chair(x, 1.9, '#2b2f38', true); });
-add(27.5, () => { for (const x of [21.5, 22.5, 23.5, 24.4]) chair(x, 4.0, '#2b2f38'); });
-// Recherche : bibliothèque murale, table de lecture, fauteuil
-solid(.1, 7, .8, 5.8); add(8, () => {
-  floorShadow(.1, 7, .8, 5.8); box(.1, 7, .8, 5.8, 2.4, '#e2cba8');
-  [.12, .87, 1.62].forEach(z => box(.1, 7, .86, 5.8, .05, '#cdb38c', z - .05));
-  [.12, .87, 1.62].forEach((z, row) => { let y = 7.12; for (let i = 0; y < 12.6; i++) { const t = .16 + ((i * 7 + row * 3) % 4) * .04, h = .45 + ((i * 5 + row) % 3) * .1; box(.74, y, .22, t, h, BOOKS[(i + row * 3) % BOOKS.length], z); y += t + .03; } });
+// ---------- Plan de l'étage (40 × 30) ----------
+// Cloisons vitrées : rangée de salles le long du mur du fond, colonne de salles le long du mur de gauche (portes de 1,6)
+for (const [a, b] of [[0, 3.4], [5, 10.4], [12, 18.4], [20, 26.4], [28, 31.3], [32.9, GX]]) glass(a, 7, b, 7);
+for (const x of [8, 15, 24, 31]) glass(x, 0, x, 7);
+for (const [a, b] of [[7, 10], [11.6, 17], [18.6, 25], [26.6, GY]]) glass(7, a, 7, b);
+glass(0, 15, 7, 15); glass(0, 21, 7, 21);
+glass(33, 7, 33, 10); glass(33, 11.6, 33, 14); glass(33, 14, GX, 14);
+
+// Direction : grand bureau en noyer, canapé, table basse, bibliothèque basse, plantes
+rug(1, 1.2, 6.4, 5.2, '#d9cdb8');
+solid(2.6, 2.4, 3, 1.2); add(6.6, () => { desk(2.6, 2.4, 3, 1.2, WALNUT); monitor(3.05, 2.55, .85, .7); monitor(4.15, 2.55, .85, .7); box(5.2, 3.2, .28, .2, .04, '#f2c230', .7); });
+add(8, () => chair(3.6, 3.75, '#2b2f38', true));
+solid(.3, 4.4, .9, 2.2); add(6.4, () => { floorShadow(.3, 4.4, .9, 2.2); box(.3, 4.4, .9, 2.2, .42, FABRIC); box(.3, 4.4, .25, 2.2, .85, FABRIC); box(.3, 4.4, .9, .2, .62, FABRIC); box(.3, 6.4, .9, .2, .62, FABRIC); });
+solid(1.8, 5, 1, .8); add(7.2, () => { floorShadow(1.8, 5, 1, .8); box(1.8, 5, 1, .8, .35, OAK); box(2.1, 5.2, .3, .3, .12, '#e0443a', .35); });
+solid(5.4, .2, 2.2, .5); add(5.8, () => { box(5.4, .2, 2.2, .5, 1.1, '#e2cba8'); for (let i = 0; i < 8; i++) box(5.5 + i * .26, .3, .2, .35, .4 + (i % 3) * .08, BOOKS[i], 1.1); });
+add(1, () => plant(.4, .4, 1.1)); add(13.4, () => plant(7.2, 6.1, 1)); floorLamp(1.4, 1.2);
+// Salle de mission : table haute, tabourets, tableau au mur (cliquable), imprimante
+solid(9.6, 3.2, 3.4, 1); add(14.8, () => { floorShadow(9.6, 3.2, 3.4, 1); box(11.05, 3.55, .5, .3, .95, '#9aa3b0'); box(9.6, 3.2, 3.4, 1, .1, OAK, .95); });
+add(16, () => { for (const x of [9.9, 11, 12.1]) box(x, 4.55, .36, .36, .62, '#2f3644'); });
+printer(13.9, .4); add(15.5, () => plant(14.4, 6.2, .9));
+// Salle de conférence : table de dix, écran, plantes
+rug(15.8, 1, 7.4, 5.2, '#d5dbe4');
+solid(16.8, 2.6, 5.4, 1.6); add(22.4, () => desk(16.8, 2.6, 5.4, 1.6, WALNUT));
+add(20.6, () => { for (let i = 0; i < 5; i++) chair(17.1 + i * 1.05, 2.0, '#2b2f38', true); });
+add(25.5, () => { for (let i = 0; i < 5; i++) chair(17.1 + i * 1.05, 4.3, '#2b2f38'); });
+add(15.8, () => plant(15.4, .4, 1)); add(24.2, () => plant(23.4, .4, 1)); cooler(23.3, 6);
+// Relecture : îlot de quatre, tableau blanc
+pod(25.2, 2.6, 4); add(31, () => plant(30.4, .5, 1)); whiteboard(25.6, .5);
+// Studio design : tables à dessin, moodboard au mur, grand écran
+drafting(32.2, 2.2); drafting(35.4, 2.2);
+solid(37.6, 4.6, 1.8, .9); add(43.5, () => { desk(37.6, 4.6, 1.8, .9, WHITE); monitor(37.9, 4.7, 1.2, .7); });
+add(40.2, () => chair(38.3, 5.6, '#e86a92'));
+add(32, () => plant(39.4, .4, 1.2)); add(38.6, () => plant(31.6, 6.4, .9)); floorLamp(34.6, 5.6);
+
+// Recherche : bibliothèque murale, table de lecture, fauteuil, lampe
+solid(.1, 7.6, .8, 6.8); add(11, () => {
+  floorShadow(.1, 7.6, .8, 6.8); box(.1, 7.6, .8, 6.8, 2.4, '#e2cba8');
+  [.12, .87, 1.62].forEach(z => box(.1, 7.6, .86, 6.8, .05, '#cdb38c', z - .05));
+  [.12, .87, 1.62].forEach((z, row) => { let y = 7.72; for (let i = 0; y < 14.2; i++) { const t = .16 + ((i * 7 + row * 3) % 4) * .04, h = .45 + ((i * 5 + row) % 3) * .1; box(.74, y, .22, t, h, BOOKS[(i + row * 3) % BOOKS.length], z); y += t + .03; } });
 });
-rug(2, 8, 4, 4, '#e6d6bd');
-solid(2.6, 8.6, 2.4, 1.2); add(14.2, () => { desk(2.6, 8.6, 2.4, 1.2, OAK); box(4.4, 8.8, .12, .12, .5, '#2f3644', .7); box(4.25, 8.7, .4, .3, .12, '#f3c35a', 1.15); box(3, 8.9, .6, .45, .05, '#fffaf0', .7); });
-add(13, () => chair(3.4, 8.0, '#8a5a2b', true)); add(19, () => plant(5.8, 12.4, .9));
-// Atelier des experts : îlot de six, fenêtre sur la ville
-pod(1.1, 15.2, 4, OAK, '#2f5c8a'); add(20.4, () => plant(.5, 19.3, 1.1));
-// Atrium : grand arbre dans une jardinière ronde, sur un cercle de lumière
-const TREE = [10.4, 9.8];
+rug(2, 8.6, 4.4, 4.6, '#e6d6bd');
+solid(2.6, 9.2, 2.4, 1.2); add(14.6, () => { desk(2.6, 9.2, 2.4, 1.2, OAK); box(4.4, 9.4, .12, .12, .5, '#2f3644', .7); box(4.25, 9.3, .4, .3, .12, '#f3c35a', 1.15); box(3, 9.5, .6, .45, .05, '#fffaf0', .7); });
+add(12.2, () => chair(3.4, 8.55, '#8a5a2b', true));
+solid(4.8, 12.6, .9, .9); add(18.3, () => { floorShadow(4.8, 12.6, .9, .9); box(4.8, 12.6, .9, .9, .4, '#c26b4a'); box(4.8, 12.6, .9, .25, .8, '#c26b4a'); });
+floorLamp(6.2, 12.4); add(21, () => plant(6.2, 14.2, .9));
+// Archives : rangées d'étagères à boîtes
+for (const y of [15.9, 17.7, 19.5]) archives(1.2, y, 5);
+// Atelier des experts : îlot de quatre, tableau blanc, fenêtre
+pod(1, 24, 4, OAK, '#2f5c8a'); whiteboard(1.4, 28.2); add(30, () => plant(.5, 29.3, 1.1)); add(26.3, () => plant(6.3, 21.6, .9));
+
+// Rédaction : îlot de cinq, tableau blanc, plantes
+pod(8.4, 10.6, 5, WHITE, '#6a3fd0'); whiteboard(10, 8.2); add(23.6, () => plant(7.6, 15.4, 1)); add(29.2, () => plant(14.2, 15.2, .9));
+// Atrium : grand arbre dans une jardinière ronde, cercle de lumière, bancs, lampes
+const TREE = [20, 12.5];
 solid(TREE[0] - 1.5, TREE[1] - 1.5, 3, 3);
 add(TREE[0] + TREE[1], () => {
   const [cx, cy] = TREE;
@@ -628,52 +722,97 @@ add(TREE[0] + TREE[1], () => {
     ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + dx * r, y + dy * r, rr * r, 0, 7); ctx.fill();
   }
 });
-for (const [bx, by, w, d] of [[7.6, 12.2, 1.6, .45], [12.2, 7.2, .45, 1.6]]) { solid(bx, by, w, d); add(bx + by + 1, () => { box(bx, by, w, d, .42, OAK); }); }
-// Rédaction : îlot de six, tableau blanc
-pod(8, 15.4, 4, WHITE, '#6a3fd0'); add(21.5, () => plant(13.4, 19.3, 1.2)); add(14.6, () => plant(7, 13.6, .9));
-// Contrôle qualité : portique d'audit, îlot de quatre
-add(25.2, () => {
+for (const [bx, by, w, d] of [[17.2, 15.6, 1.8, .45], [21, 15.6, 1.8, .45], [16.2, 9.4, .45, 1.8], [23.4, 11, .45, 1.8]]) { solid(bx, by, w, d); add(bx + by + 1, () => box(bx, by, w, d, .42, OAK)); }
+floorLamp(16.4, 15.8); floorLamp(23.6, 9.2);
+// Contrôle qualité : portique d'audit, îlot de quatre, imprimante
+add(36.6, () => {
   const c = gateColor();
-  ctx.globalAlpha = .28; poly([P(15.3, 8.02), P(16.7, 8.02), P(16.7, 8.43), P(15.3, 8.43)], c); ctx.globalAlpha = 1;
-  floorShadow(15, 8, 2, .45);
-  box(15, 8, .3, .45, 1.9, STEEL); box(16.7, 8, .3, .45, 1.9, STEEL);
-  box(15, 8, 2, .45, .26, '#e9edf2', 1.9); box(15.02, 8.42, 1.96, .02, .1, c, 1.98);
+  ctx.globalAlpha = .28; poly([P(26.8, 9.22), P(28.2, 9.22), P(28.2, 9.63), P(26.8, 9.63)], c); ctx.globalAlpha = 1;
+  floorShadow(26.5, 9.2, 2, .45);
+  box(26.5, 9.2, .3, .45, 1.9, STEEL); box(28.2, 9.2, .3, .45, 1.9, STEEL);
+  box(26.5, 9.2, 2, .45, .26, '#e9edf2', 1.9); box(26.52, 9.62, 1.96, .02, .1, c, 1.98);
 });
-solid(15, 8, .3, .45); solid(16.7, 8, .3, .45);
-pod(15.2, 10.2, 3, WHITE, '#a3302a');
+solid(26.5, 9.2, .3, .45); solid(28.2, 9.2, .3, .45);
+pod(26.4, 12, 4, WHITE, '#a3302a'); printer(25.4, 8.3); add(48, () => plant(32.4, 15.4, 1));
+// Salle serveurs : deux rangées de baies, poste de l'ingénieur
+for (let i = 0; i < 6; i++) { const x = 33.6 + i * .95; solid(x, 7.6, .7, .9); add(x + 8, () => rack(x, 7.6)); }
+for (let i = 0; i < 3; i++) { const x = 37.4 + i * .95; solid(x, 9.8, .7, .9); add(x + 10.2, () => rack(x, 9.8)); }
+solid(35.6, 11.6, 1.8, .8); add(48.4, () => { desk(35.6, 11.6, 1.8, .8, '#e4e8ee'); monitor(35.8, 11.7, .65, .7); monitor(36.55, 11.7, .65, .7); });
+add(49.4, () => chair(36.3, 12.55, '#4a5568', true));
+// Cabines téléphoniques
+booth(33.8, 15.2, '#4f6b5a'); booth(35.7, 15.2, '#6a5a8a'); booth(37.6, 15.2, '#8a5a4a');
+// Cantine : cuisine, frigo, fontaine, deux grandes tables et leurs bancs
+solid(7.6, 17.6, 5, .8);
+add(25.6, () => { floorShadow(7.6, 17.6, 5, .8); box(7.6, 17.6, 5, .8, 1, '#ffffff'); box(7.55, 17.55, 5.1, .9, .06, '#c9b48e', 1); disc(9, 18, .25, 1.06, '#9aa3b0'); box(10.6, 17.75, .5, .4, .35, '#2b2f38', 1.06); box(11.5, 17.75, .6, .4, .2, '#f2c230', 1.06); });
+solid(12.9, 17.6, .9, .8); add(31.2, () => { floorShadow(12.9, 17.6, .9, .8); box(12.9, 17.6, .9, .8, 2, '#e9edf2'); faceY(12.95, 13.75, 18.41, 1.25, 1.27, '#9aa3b0'); });
+cooler(14.4, 17.8);
+for (const tx of [8.2, 12.4]) {
+  solid(tx, 20.2, 3.4, 1); add(tx + 21.9, () => desk(tx, 20.2, 3.4, 1, OAK));
+  add(tx + 21.4, () => box(tx, 19.5, 3.4, .35, .45, '#c26b4a'));
+  add(tx + 23.2, () => { box(tx, 21.5, 3.4, .35, .45, '#c26b4a'); for (let i = 0; i < 3; i++) box(tx + .5 + i * 1.1, 20.5, .4, .3, .05, NOTES[i], .67); });
+}
+// Jardin intérieur : bacs plantés, allée, fontaine, bancs
+rug(8, 25, 8.4, 4.4, '#e8e1d0');
+for (const [x, y] of [[8.4, 25.4], [13.4, 25.4], [8.4, 28.2], [13.4, 28.2]]) {
+  solid(x, y, 2.4, 1); add(x + y + 1.4, () => { floorShadow(x, y, 2.4, 1); box(x, y, 2.4, 1, .45, '#a88a68'); box(x + .05, y + .05, 2.3, .9, .05, '#5b4632', .45); });
+  add(x + y + 1.6, () => { plant(x + .3, y + .25, .8); plant(x + 1.6, y + .25, .9); });
+}
+solid(11.3, 26.6, 1.5, 1.5); add(39.6, () => { disc(12.05, 27.35, .78, 0, '#cfd6df'); disc(12.05, 27.35, .78, .35, '#e8edf2'); disc(12.05, 27.35, .62, .37, '#7cc4f0'); box(11.98, 27.28, .14, .14, .7, '#cfd6df', .37); disc(12.05, 27.35, .2, 1.07, '#bfe2ff'); });
+add(32.5, () => box(15.7, 26.6, .45, 1.6, .42, OAK));
+// Salon : grand canapé en L, fauteuils, table basse, poufs, lampe
+rug(17.6, 18, 6.8, 6.4, '#dfd4c4');
+solid(18, 18.6, 4, .9); add(38.5, () => { floorShadow(18, 18.6, 4, .9); box(18, 18.6, 4, .9, .42, '#c26b4a'); box(18, 18.6, 4, .28, .85, '#c26b4a'); });
+solid(18, 19.5, .9, 2.6); add(39.8, () => { box(18, 19.5, .9, 2.6, .42, '#c26b4a'); box(18, 19.5, .28, 2.6, .85, '#c26b4a'); });
+solid(19.8, 20.4, 1.6, 1); add(41.6, () => { floorShadow(19.8, 20.4, 1.6, 1); box(19.8, 20.4, 1.6, 1, .38, OAK); box(20.2, 20.6, .4, .3, .1, '#e0443a', .38); });
+for (const [ax, ay] of [[22.4, 19.4], [22.4, 21.2]]) { solid(ax, ay, .9, .9); add(ax + ay + 1, () => { floorShadow(ax, ay, .9, .9); box(ax, ay, .9, .9, .4, '#f0d58a'); box(ax + .65, ay, .25, .9, .8, '#f0d58a'); }); }
+beanbag(19, 26.4, '#7b4cf0'); beanbag(20.6, 27.4, '#14a3b8'); beanbag(22.4, 26.6, '#f08a24');
+floorLamp(23.8, 18.4); add(41.4, () => plant(24.3, 17.6, 1.1)); add(47.4, () => plant(17.6, 29.3, 1.2));
 // Café : comptoir, machine, tabourets, tables bistrot
-solid(20.8, 7.4, 4.4, .8);
-add(29, () => { floorShadow(20.8, 7.4, 4.4, .8); box(20.8, 7.4, 4.4, .8, 1.05, WALNUT); box(20.75, 7.35, 4.5, .9, .06, '#f1ece4', 1.05); box(24, 7.5, .5, .4, .45, '#2b2f38', 1.11); box(21.4, 7.6, .7, .4, .08, '#e9d7b8', 1.11); });
-add(30.2, () => { for (const x of [21.2, 22.1, 23, 23.9]) { box(x + .12, 8.62, .08, .08, .7, '#9aa3b0'); disc(x + .16, 8.66, .2, .72, '#2f3644'); } });
-for (const [tx, ty] of [[21.6, 10.6], [24, 10.8]]) { solid(tx, ty, .7, .7); add(tx + ty + .7, () => { box(tx + .3, ty + .3, .1, .1, .7, '#9aa3b0'); disc(tx + .35, ty + .35, .42, .72, '#f6f2ea'); chair(tx - .5, ty + .15, '#c47a3a'); chair(tx + .8, ty + .15, '#c47a3a'); }); }
-// Salon : canapés en L, table basse, ping-pong
-rug(14.6, 14, 5, 5.2, '#dfd4c4');
-solid(15, 14.4, 3.4, .9); add(29.6, () => { floorShadow(15, 14.4, 3.4, .9); box(15, 14.4, 3.4, .9, .42, '#c26b4a'); box(15, 14.4, 3.4, .28, .85, '#c26b4a'); });
-solid(15, 15.3, .9, 2.2); add(31.4, () => { box(15, 15.3, .9, 2.2, .42, '#c26b4a'); box(15, 15.3, .28, 2.2, .85, '#c26b4a'); });
-solid(16.6, 16, 1.4, .9); add(33.2, () => { floorShadow(16.6, 16, 1.4, .9); box(16.6, 16, 1.4, .9, .38, OAK); });
-solid(15.6, 18.3, 2.6, 1.3); add(35.4, () => { floorShadow(15.6, 18.3, 2.6, 1.3); for (const [lx, ly] of [[15.8, 18.5], [17.9, 18.5], [15.8, 19.3], [17.9, 19.3]]) box(lx, ly, .1, .1, .7, '#7d8696'); box(15.6, 18.3, 2.6, 1.3, .06, '#2f8a5b', .7); box(16.88, 18.3, .04, 1.3, .12, '#f6f7fa', .76); });
-// Accueil : banque d'accueil, fauteuils, entrée
-solid(21.4, 14.6, 3.2, .8);
-add(37, () => { floorShadow(21.4, 14.6, 3.2, .8); box(21.4, 14.6, 3.2, .8, 1.05, WHITE); box(21.4, 15.38, 3.2, .04, .18, '#2f5bff', .55); box(21.35, 14.55, 3.3, .9, .05, OAK, 1.05); monitor(22.4, 14.75, .7, 1.1, true); });
-for (const [ax, ay] of [[21.6, 18.2], [23, 18.2]]) { solid(ax, ay, .9, .9); add(ax + ay + 1, () => { floorShadow(ax, ay, .9, .9); box(ax, ay, .9, .9, .4, '#f0d58a'); box(ax, ay, .9, .25, .8, '#f0d58a'); }); }
-add(45, () => plant(25.3, 13.6, 1.2)); add(37.4, () => plant(19.9, 13.6, 1));
-rug(24.2, 17.8, 1.6, 1.6, '#c9b48e');
-// Terrasse : pergola, palmiers, transats, tables
-add(GX + .6 + 2, () => palm(GX + 1.2, 2)); add(GX + 9, () => palm(GX + 1.6, 9)); add(GX + 14.6, () => palm(GX + 1.4, 14.2));
-add(3 + GY + 1.5, () => palm(3, GY + 1.5)); add(XB - 1.2 + YB - 1.2, () => palm(XB - 1.3, YB - 1.3));
-for (const y of [4.6, 5.8, 11.2, 12.4]) add(GX + 1 + y + .5, () => { floorShadow(GX + .8, y, 1.4, .6); box(GX + .8, y, 1.4, .6, .22, '#f3efe8'); box(GX + 1.9, y, .3, .6, .4, '#e4ddd1', .22); });
-add(GY + 2 + 9, () => {
-  for (const [x, y] of [[7.2, GY + .7], [11.6, GY + .7], [7.2, GY + 2.6], [11.6, GY + 2.6]]) box(x, y, .14, .14, 2.6, '#6f5a46');
-  for (let x = 7.2; x <= 11.8; x += .4) box(x, GY + .7, .08, 2.04, .08, '#8a7058', 2.6);
-  for (const [x, y] of [[8.2, GY + 1.2], [10.2, GY + 1.2]]) { box(x + .3, y + .3, .1, .1, .7, '#9aa3b0'); disc(x + .35, y + .35, .45, .72, '#f6f2ea'); }
+solid(25.8, 17.6, 5, .8);
+add(44.4, () => { floorShadow(25.8, 17.6, 5, .8); box(25.8, 17.6, 5, .8, 1.05, WALNUT); box(25.75, 17.55, 5.1, .9, .06, '#f1ece4', 1.05); box(29.4, 17.7, .5, .4, .45, '#2b2f38', 1.11); box(26.4, 17.8, .7, .4, .08, '#e9d7b8', 1.11); });
+add(45.6, () => { for (const x of [26.2, 27.1, 28, 28.9, 29.8]) { box(x + .12, 18.82, .08, .08, .7, '#9aa3b0'); disc(x + .16, 18.86, .2, .72, '#2f3644'); } });
+for (const [tx, ty] of [[26.4, 21], [29, 21.2], [31.2, 20]]) { solid(tx, ty, .7, .7); add(tx + ty + .7, () => { box(tx + .3, ty + .3, .1, .1, .7, '#9aa3b0'); disc(tx + .35, ty + .35, .42, .72, '#f6f2ea'); chair(tx - .5, ty + .15, '#c47a3a'); chair(tx + .8, ty + .15, '#c47a3a'); }); }
+// Détente : baby-foot, ping-pong, poufs
+solid(26.2, 25.4, 1.8, 1); add(52.9, () => {
+  floorShadow(26.2, 25.4, 1.8, 1); for (const [lx, ly] of [[26.3, 25.5], [27.8, 25.5], [26.3, 26.2], [27.8, 26.2]]) box(lx, ly, .1, .1, .6, '#5b4632');
+  box(26.2, 25.4, 1.8, 1, .3, '#8a6a4a', .6); box(26.3, 25.5, 1.6, .8, .02, '#3f9a5a', .9);
+  for (let i = 0; i < 6; i++) box(26.45 + i * .25, 25.25, .03, 1.5, .03, '#c9cfd8', .98);
 });
-for (const [x, y, k] of [[GX + 2.6, .6, 1.2], [GX + 2.6, 18.4, 1.3], [15.6, GY + 2.5, 1.1], [20.4, GY + 2.5, 1.2], [.6, GY + 2.5, 1]]) add(x + y, () => plant(x, y, k));
+solid(29.4, 25.2, 2.6, 1.3); add(56.4, () => { floorShadow(29.4, 25.2, 2.6, 1.3); for (const [lx, ly] of [[29.6, 25.4], [31.7, 25.4], [29.6, 26.2], [31.7, 26.2]]) box(lx, ly, .1, .1, .7, '#7d8696'); box(29.4, 25.2, 2.6, 1.3, .06, '#2f6fb0', .7); box(30.68, 25.2, .04, 1.3, .12, '#f6f7fa', .76); });
+beanbag(27, 28.6, '#e86a92'); beanbag(28.6, 28.9, '#3ddc84'); add(62, () => plant(32.4, 29.3, 1.1));
+// Accueil : banque d'accueil, fauteuils, casiers, entrée
+solid(34.2, 20.4, 3.6, .9);
+add(56, () => { floorShadow(34.2, 20.4, 3.6, .9); box(34.2, 20.4, 3.6, .9, 1.05, WHITE); box(34.2, 21.28, 3.6, .04, .18, '#2f5bff', .55); box(34.15, 20.35, 3.7, 1, .05, OAK, 1.05); monitor(35.4, 20.55, .7, 1.1, true); });
+for (const [ax, ay] of [[34.2, 26.2], [35.6, 26.2]]) { solid(ax, ay, .9, .9); add(ax + ay + 1, () => { floorShadow(ax, ay, .9, .9); box(ax, ay, .9, .9, .4, '#f0d58a'); box(ax, ay, .9, .25, .8, '#f0d58a'); }); }
+lockers(39.3, 18.6, 7);
+add(51, () => plant(33.6, 18.6, 1.2)); add(63.4, () => plant(33.6, 29.3, 1.3));
+rug(37.8, 27.6, 1.6, 1.6, '#c9b48e');
+
+// Terrasse : piscine, transats, pergola, tables à parasol, palmiers, jardinières
+for (const x of [23.4, 25.4, 27.4]) lounger(x, GY + 1.6);
+for (const y of [5, 6.4, 7.8]) add(GX + 1.2 + y, () => { floorShadow(GX + .9, y, 1.4, .6); box(GX + .9, y, 1.4, .6, .22, '#f3efe8'); box(GX + 2, y, .3, .6, .42, '#e4ddd1', .22); });
+add(GY + 2 + 6, () => {
+  for (const [x, y] of [[2.4, GY + .7], [7.6, GY + .7], [2.4, GY + 3.1], [7.6, GY + 3.1]]) box(x, y, .14, .14, 2.6, '#6f5a46');
+  for (let x = 2.4; x <= 7.8; x += .4) box(x, GY + .7, .08, 2.54, .08, '#8a7058', 2.6);
+  for (const [x, y] of [[3.4, GY + 1.4], [5.8, GY + 1.4]]) { box(x + .3, y + .3, .1, .1, .7, '#9aa3b0'); disc(x + .35, y + .35, .45, .72, '#f6f2ea'); chair(x - .5, y + .15, '#3f8f8a'); chair(x + .8, y + .15, '#3f8f8a'); }
+});
+for (const y of [12, 16, 20]) parasolTable(GX + 1.4, y);
+add(GX + 2.2, () => palm(GX + 2, 1.6)); add(GX + 12, () => palm(GX + 2.4, 10)); add(GX + 26, () => palm(GX + 2.4, 24)); add(GX + 31, () => palm(GX + 2.6, 29));
+add(10 + GY + 2, () => palm(10, GY + 2)); add(XB - 1.3 + YB - 1.3, () => palm(XB - 1.6, YB - 1.6)); add(31 + GY + 2.4, () => palm(31, GY + 2.4));
+for (const [x, y, k] of [[GX + 3.2, .5, 1.2], [GX + 3.2, 6.5, 1.1], [GX + 3.2, 18, 1.2], [.6, GY + 3.2, 1], [24.6, GY + 3.2, 1.1], [36, GY + 3.2, 1.2]]) add(x + y, () => plant(x, y, k));
 
 // ---------- Déplacements : grille de 0,5 et plus court chemin (les cloisons ont des portes) ----------
 const blocked = (x, y) => x < .3 || y < .3 || x > GX - .3 || y > GY - .3 || BLOCKS.some(([bx, by, w, d]) => x > bx - .3 && x < bx + w + .3 && y > by - .3 && y < by + d + .3);
-const clear = (a, b) => { const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / .15); for (let i = 1; i < n; i++) { const t = i / n; if (blocked(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)) return false; } return true; };
+let clear = (a, b) => !BLOCKS.length;  // remplacée par la version sur grille une fois FREE calculée
 const CELL = .5, NX = Math.round(GX / CELL), NY = Math.round(GY / CELL);
 const FREE = new Uint8Array(NX * NY).map((_, i) => blocked((i % NX + .5) * CELL, (Math.floor(i / NX) + .5) * CELL) ? 0 : 1);
+// Ligne droite libre ? Lecture de la grille FREE (rapide) ; les cases de départ et d'arrivée sont admises (un poste peut toucher un meuble)
+const cellOf = (x, y) => Math.min(NX - 1, Math.max(0, Math.floor(x / CELL))) + Math.min(NY - 1, Math.max(0, Math.floor(y / CELL))) * NX;
+clear = (a, b) => {
+  const ca = cellOf(...a), cb = cellOf(...b), n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / .12);
+  for (let i = 1; i < n; i++) { const t = i / n, c = cellOf(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t); if (c !== ca && c !== cb && !FREE[c]) return false; }
+  return true;
+};
 function route(a, b) {
   if (clear(a, b)) return [b];
   const cell = p => Math.min(NX - 1, Math.max(0, Math.floor(p[0] / CELL))) + Math.min(NY - 1, Math.max(0, Math.floor(p[1] / CELL))) * NX;
@@ -761,6 +900,13 @@ function drawTerrace() {
   ctx.strokeStyle = 'rgba(90,60,30,.25)'; ctx.lineWidth = 1;
   for (let x = GX + .3; x < XB; x += .3) { ctx.beginPath(); ctx.moveTo(...P(x, -.3)); ctx.lineTo(...P(x, YB)); ctx.stroke(); }
   for (let y = GY + .3; y < YB; y += .3) { ctx.beginPath(); ctx.moveTo(...P(-.3, y)); ctx.lineTo(...P(GX, y)); ctx.stroke(); }
+  // Piscine : margelle, eau, reflets
+  poly([P(11.6, GY + .6), P(22.4, GY + .6), P(22.4, GY + 3.4), P(11.6, GY + 3.4)], '#eef1f4');
+  const [wx, wy0] = P(12, GY + 1), [, wy1] = P(22, GY + 3), wg = ctx.createLinearGradient(wx, wy0, wx, wy1);
+  wg.addColorStop(0, mix('#6fd0f5', '#1d4f7a', sunNow.night)); wg.addColorStop(1, mix('#2ea3dc', '#123552', sunNow.night));
+  poly([P(12, GY + 1), P(22, GY + 1), P(22, GY + 3), P(12, GY + 3)], wg);
+  ctx.strokeStyle = 'rgba(255,255,255,.45)'; ctx.lineWidth = 1.2;
+  for (let i = 0; i < 6; i++) { const x = 12.8 + i * 1.6, y = GY + 1.5 + (i % 2) * .8; ctx.beginPath(); ctx.moveTo(...P(x, y)); ctx.lineTo(...P(x + .7, y + .1)); ctx.stroke(); }
   poly([P(XB, -.3), P(XB, YB), P(XB, YB, -.35), P(XB, -.3, -.35)], '#8f9aab');
   poly([P(-.3, YB), P(XB, YB), P(XB, YB, -.35), P(-.3, YB, -.35)], '#aab3c1');
 }
@@ -774,7 +920,7 @@ function drawParapet() {
 // Lampes du bureau : la nuit, des halos chauds sur chaque poste
 // Spots au plafond : de grands halos chauds au sol, la nuit
 const LAMPS = [];
-for (let x = 2; x < GX; x += 3.4) for (let y = 2.2; y < GY; y += 3.4) LAMPS.push([x, y]);
+for (let x = 2; x < GX; x += 4) for (let y = 2; y < GY; y += 4) LAMPS.push([x, y]);
 function nightLights() {
   const n = sunNow.night; if (!n) return;
   ctx.globalCompositeOperation = 'source-atop'; ctx.fillStyle = `rgba(14,20,46,${.5 * n})`; ctx.fillRect(0, 0, W, H);
@@ -788,21 +934,29 @@ function nightLights() {
 
 // ---------- Pôles : chaque rôle travaille dans le pôle de son métier ----------
 const POLES = [
-  {name: 'Direction', color: '#2f5bff', x0: 0, y0: 0, x1: 7, y1: 6.5},
-  {name: 'Salle de mission', color: '#64748b', x0: 7, y0: 0, x1: 13.5, y1: 6.5, quiet: true},
-  {name: 'Relecture', color: '#1d9e62', x0: 13.5, y0: 0, x1: 19.5, y1: 6.5},
-  {name: 'Salle de réunion', color: '#64748b', x0: 19.5, y0: 0, x1: GX, y1: 6.5, quiet: true},
-  {name: 'Recherche', color: '#f08a24', x0: 0, y0: 6.5, x1: 6.5, y1: 13.2},
-  {name: 'Atelier des experts', color: '#14a3b8', x0: 0, y0: 13.2, x1: 6.5, y1: GY},
-  {name: 'Atrium', color: '#3f9a5a', x0: 6.5, y0: 6.5, x1: 14, y1: 13, quiet: true},
-  {name: 'Contrôle qualité', color: '#d93b30', x0: 14, y0: 6.5, x1: 20, y1: 13},
-  {name: 'Café', color: '#c47a3a', x0: 20, y0: 6.5, x1: GX, y1: 13, quiet: true},
-  {name: 'Rédaction', color: '#7b4cf0', x0: 6.5, y0: 13, x1: 14, y1: GY},
-  {name: 'Salon', color: '#c26b4a', x0: 14, y0: 13, x1: 20, y1: GY, quiet: true},
-  {name: 'Accueil', color: '#f2c230', x0: 20, y0: 13, x1: GX, y1: GY, quiet: true},
+  {name: 'Direction', color: '#2f5bff', x0: 0, y0: 0, x1: 8, y1: 7},
+  {name: 'Salle de mission', color: '#64748b', x0: 8, y0: 0, x1: 15, y1: 7, quiet: true},
+  {name: 'Salle de conférence', color: '#64748b', x0: 15, y0: 0, x1: 24, y1: 7, quiet: true},
+  {name: 'Relecture', color: '#1d9e62', x0: 24, y0: 0, x1: 31, y1: 7},
+  {name: 'Studio design', color: '#e86a92', x0: 31, y0: 0, x1: GX, y1: 7},
+  {name: 'Recherche', color: '#f08a24', x0: 0, y0: 7, x1: 7, y1: 15},
+  {name: 'Archives', color: '#a16207', x0: 0, y0: 15, x1: 7, y1: 21, quiet: true},
+  {name: 'Atelier des experts', color: '#14a3b8', x0: 0, y0: 21, x1: 7, y1: GY},
+  {name: 'Rédaction', color: '#7b4cf0', x0: 7, y0: 7, x1: 15, y1: 17},
+  {name: 'Atrium', color: '#3f9a5a', x0: 15, y0: 7, x1: 25, y1: 17, quiet: true},
+  {name: 'Contrôle qualité', color: '#d93b30', x0: 25, y0: 7, x1: 33, y1: 17},
+  {name: 'Technique', color: '#4a5568', x0: 33, y0: 7, x1: GX, y1: 14},
+  {name: 'Cabines', color: '#64748b', x0: 33, y0: 14, x1: GX, y1: 18, quiet: true},
+  {name: 'Cantine', color: '#c47a3a', x0: 7, y0: 17, x1: 17, y1: 24, quiet: true},
+  {name: 'Jardin', color: '#3f9a5a', x0: 7, y0: 24, x1: 17, y1: GY, quiet: true},
+  {name: 'Salon', color: '#c26b4a', x0: 17, y0: 17, x1: 25, y1: GY, quiet: true},
+  {name: 'Café', color: '#c47a3a', x0: 25, y0: 17, x1: 33, y1: 24, quiet: true},
+  {name: 'Détente', color: '#2f6fb0', x0: 25, y0: 24, x1: 33, y1: GY, quiet: true},
+  {name: 'Accueil', color: '#f2c230', x0: 33, y0: 18, x1: GX, y1: GY, quiet: true},
 ];
-const POLE_WORDS = [['Recherche', /cherch|biblio|source|veille|document|enquet|scout|donnee|fact/], ['Relecture', /relect|correct|orthograph|style|edit|traduc/],
-  ['Rédaction', /ecri|redact|plume|contenu|copy|design|graph|mise-en-page|illustr/], ['Contrôle qualité', /audit|verif|control|jurid|droit|conform|clinique|qualite|valid|test/]];
+const POLE_WORDS = [['Recherche', /cherch|biblio|source|veille|document|enquet|scout|fact|archiv/], ['Relecture', /relect|correct|orthograph|style|edit|traduc/],
+  ['Studio design', /design|graph|illustr|mise-en-page|visuel|maquette/], ['Rédaction', /ecri|redact|plume|contenu|copy|journal/],
+  ['Contrôle qualité', /audit|verif|control|jurid|droit|conform|clinique|qualite|valid|test/], ['Technique', /ingen|dev|code|tech|informat|donnee|data|automat/]];
 function poleFor(h) {
   const t = slug(`${h.name || ''} ${h.mission || ''} ${h.id}`), m = POLE_WORDS.find(([, re]) => re.test(t));
   return POLES.find(p => p.name === (m ? m[0] : 'Atelier des experts'));
@@ -880,26 +1034,30 @@ function drawRoom() {
   // Baies vitrées sur la ville : le ciel suit l'heure
   const n = sunNow.night, top = mix('#a9d1f5', '#0b1428', n), low = mix('#e9f4fd', '#24345a', n);
   const pane = (q, vertical) => { const [x0, y0] = q[0], [, y1] = q[3]; const g = ctx.createLinearGradient(x0, y1, x0, y0); g.addColorStop(0, top); g.addColorStop(1, low); poly(q, g); };
-  for (const [a, b] of [[14.2, 19], [20.2, 25.6]]) {
+  for (const [a, b] of [[24.4, 30.6]]) {
     wallQuad(a - .08, b + .08, .7, 2.82, '#ffffff');
     for (let x = a; x < b - .1; x += 1.2) { const e = Math.min(b, x + 1.12); pane([P(x, .03, .8), P(e, .03, .8), P(e, .03, 2.72), P(x, .03, 2.72)]); }
   }
-  for (const [a, b] of [[13.8, 19.6], [7.2, 12.8]]) {
+  for (const [a, b] of [[21.4, 29.6]]) {
     leftQuad(a - .08, b + .08, .7, 2.82, '#ffffff');
     for (let y = a; y < b - .1; y += 1.2) { const e = Math.min(b, y + 1.12); pane([P(.03, y, .8), P(.03, e, .8), P(.03, e, 2.72), P(.03, y, 2.72)]); }
   }
   // Enseigne de la Direction ; écran de la salle de réunion
   wallText('QG', .9, 2.55, 34, '#2f5bff', 600);
   wallText('DU BUREAU', .95, 1.95, 9, '#677184', 500);
-  wallQuad(21.3, 24.7, 1.05, 2.55, '#1b2230'); wallQuad(21.42, 24.58, 1.14, 2.46, mix('#7fb6ff', '#3d6fd6', .4));
+  wallQuad(17.4, 21.6, 1.05, 2.55, '#1b2230'); wallQuad(17.52, 21.48, 1.14, 2.46, mix('#7fb6ff', '#3d6fd6', .4));
+  // Cadres de la Direction ; moodboard du studio design
+  frameArt(5.6, 6.5, 1.55, 2.6, '#e8584a'); frameArt(6.7, 7.6, 1.55, 2.6, '#2f6fb0');
+  wallQuad(31.6, 38.8, 1, 2.7, '#f4f1ea');
+  for (let i = 0; i < 18; i++) { const x = 31.8 + (i % 6) * 1.15, z = 1.15 + Math.floor(i / 6) * .5; wallQuad(x, x + .95, z, z + .4, ['#e86a92', '#f2c230', '#7b4cf0', '#14a3b8', '#f08a24', '#1d9e62', '#c9d1dd'][(i * 5) % 7]); }
   // Tableau de la mission (salle de mission) : quatre colonnes, une carte par étape
-  wallQuad(7.9, 12.6, .9, 2.8, '#ffffff');
-  wallQuad(7.9, 12.6, 2.68, 2.8, '#19202d');
+  wallQuad(8.9, 14.1, .9, 2.8, '#ffffff');
+  wallQuad(8.9, 14.1, 2.68, 2.8, '#19202d');
   const cols = ['todo', 'active', 'audit', 'ok'];
   const perCol = Math.max(1, ...cols.map(k => S.stages.filter(s => colOf(s.id) === k).length));
   const h = Math.min(.3, 1.5 / perCol);
   cols.forEach((k, ci) => {
-    const x0 = 8.05 + ci * 1.13;
+    const x0 = 9.05 + ci * 1.25;
     wallQuad(x0, x0 + 1.03, 2.5, 2.6, {todo: '#c9d1dd', active: '#f3b545', audit: '#6e8bff', ok: '#59c08d'}[k]);
     S.stages.filter(s => colOf(s.id) === k).forEach((s, i) => {
       const c = gates[s.id].retries && k !== 'ok' ? '#ef9b94' : {todo: '#c9d1dd', active: '#f3b545', audit: '#6e8bff', ok: '#59c08d'}[k];
@@ -924,6 +1082,13 @@ function drawAgent(a, now) {
   // ombre douce, et halo de couleur quand l'agent vient d'agir
   const sh = ctx.createRadialGradient(sx, sy, 0, sx, sy, 12 * s); sh.addColorStop(0, 'rgba(40,30,20,.22)'); sh.addColorStop(1, 'rgba(40,30,20,0)');
   ctx.fillStyle = sh; ctx.beginPath(); ctx.ellipse(sx, sy, 12 * s, 5.5 * s, 0, 0, 7); ctx.fill();
+  const glow = now - a.flash;
+  if (glow < 4000 && a.called) {
+    const k = (1 - glow / 4000) * (reduce ? 1 : .75 + .25 * Math.sin(now / 160));
+    const g = ctx.createRadialGradient(sx, sy - 18 * s, 0, sx, sy - 18 * s, 34 * s);
+    g.addColorStop(0, a.color + 'aa'); g.addColorStop(.45, a.color + '44'); g.addColorStop(1, a.color + '00');
+    ctx.globalAlpha = k; ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy - 18 * s, 34 * s, 0, 7); ctx.fill(); ctx.globalAlpha = alpha;
+  }
   if (now - a.flash < 900) { ctx.strokeStyle = a.color; ctx.lineWidth = 2; ctx.globalAlpha = 1 - (now - a.flash) / 900; ctx.beginPath(); ctx.ellipse(sx, sy, (12 + (now - a.flash) / 40) * s, (5.5 + (now - a.flash) / 90) * s, 0, 0, 7); ctx.stroke(); ctx.globalAlpha = alpha; }
   const by = sy - bob;
   // corps arrondi avec reflet
@@ -949,6 +1114,19 @@ function drawAgent(a, now) {
 }
 
 // Étiquettes dessinées après les meubles et les robots : un nom n'est jamais caché derrière un bureau.
+// Pastille rouge : ce robot a quelque chose pour toi (messages qui te sont adressés, question du PDG en attente).
+// Elle disparaît quand tu cliques sur le robot.
+const PAGE_T = Date.now() / 1000;
+function drawBadge(a) {
+  const n = (a.unseen || 0) + (a.id === 'pdg' ? S.questions.filter(q => !q.answer && !q.closed).length : 0);
+  if (!n || a.leaving || a.sx == null) return;
+  const s = Math.min(1.3, Math.max(.8, tw / 40)), r = 8 * s, x = a.sx + 9 * s, y = a.sy - 24 * s;
+  ctx.shadowColor = 'rgba(217,59,48,.45)'; ctx.shadowBlur = 8;
+  ctx.fillStyle = '#e5342a'; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  ctx.shadowColor = 'transparent'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#fff'; ctx.font = `700 ${Math.round(10 * s)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(n > 9 ? '9+' : String(n), x, y + .5);
+}
 let placed = [];
 const hits = r => placed.some(q => r.x < q.x + q.w + 4 && r.x + r.w + 4 > q.x && r.y < q.y + q.h + 3 && r.y + r.h + 3 > q.y);
 function drawLabel(a, must) {
@@ -968,8 +1146,9 @@ function drawLabel(a, must) {
 }
 
 function drawBubble(now) {
-  if (!bubble || now < bubble.t0 || !agents[bubble.id]) return;
-  const a = agents[bubble.id];
+  // le bureau reste lisible : aucun texte sur les robots, sauf celui qu'on a cliqué (son dernier message)
+  if (!pinned || !agents[pinned.id] || !pinned.last) return;
+  const a = pinned, bubble = {text: a.last, color: a.color, t0: 0};
   ctx.globalAlpha = Math.min(1, (now - bubble.t0) / 200);
   ctx.font = `500 14px ${FONT}`;
   const maxW = Math.min(300, W * .55), lines = [];
@@ -1020,10 +1199,10 @@ function frame(now) {
   const kb = tw / bgView.tw; ctx.drawImage(bgc, ox - bgView.ox * kb, oy - bgView.oy * kb, W * kb, H * kb);
   ctx.fillStyle = mix('#cfe3f6', '#0c1426', sunNow.night); ctx.fillRect(0, 0, W, H);
   ctx.globalCompositeOperation = 'source-over';
-  // étiquettes : la fiche ouverte et celui qui parle d'abord, puis ceux qui travaillent, puis les autres, puis les pôles
+  // textes : seulement le nom du robot cliqué, puis les noms des pôles là où il reste de la place
   placed = [];
-  const rank = a => a === pinned ? 0 : a === current ? 1 : a.activity ? 2 : busy(a) ? 3 : 4;
-  Object.values(agents).sort((a, b) => rank(a) - rank(b)).forEach(a => drawLabel(a, rank(a) < 2));
+  if (pinned && agents[pinned.id]) drawLabel(pinned, true);
+  Object.values(agents).forEach(drawBadge);
   drawPoles();
   drawBubble(now);
   const backlog = S.events.length - idx, gap = live ? (backlog > 2 ? 600 : 1400) : 2800 / +$('speed').value;
@@ -1039,6 +1218,7 @@ function step() {
   if (idx >= S.events.length) { setPlaying(false); return; }
   const e = S.events[idx++], now = performance.now(), to = tos(e);
   if (e.type === 'hire' && e.hire && !agents[e.hire.id]) hire(e.hire);
+  else if (e.type === 'hire' && e.hire && e.hire.chef && !hired.includes(e.hire.id)) { hired.push(e.hire.id); agents[e.hire.id].called = true; }  // un chef activé
   // ancien journal sans recrutement : un rôle du vivier qui parle entre quand même dans le bureau
   for (const id of [e.from, ...to]) if (!agents[id] && ROLES[id]) hire({id, name: ROLES[id].name});
   if (e.type === 'release' && agents[e.from]) { released.add(e.from); agents[e.from].activity = null; }
@@ -1054,6 +1234,7 @@ function step() {
   if (to.length && to[0] !== e.from && agents[to[0]]) { setDest(A, meetPoint(agents[to[0]])); travel = reduce ? 0 : pathLen(A) / speed() * 1000; }
   to.forEach(id => { if (agents[id]) { agents[id].recv++; setTimeout(() => { if (agents[id]) agents[id].flash = performance.now(); }, travel); } });
   A.sent++; A.last = e.text; A.flash = now; current = A;
+  if (to.includes('client') && A.id !== 'client' && A !== pinned && (!live || (e.ts || 0) > PAGE_T)) A.unseen = (A.unseen || 0) + 1;
   A.activity = e.type === 'work' ? e.text : null;
   bubble = {id: A.id, text: e.text, color, t0: now + travel};
   const sid = e.stage && stageId(e.stage);
@@ -1112,7 +1293,7 @@ function addChat(e) {
     if (e.type === 'deliver' && S.livrables.length) li.appendChild(noteButton('Voir le rendu final'));
   } else if (e.type === 'hire' && e.hire) {
     li = el('li', 'm note');
-    const b = el('button', null, `Le PDG recrute ${e.hire.name} · voir l'organigramme`); b.type = 'button'; b.onclick = () => showTab('org');
+    const b = el('button', null, `${e.hire.chef ? `Le PDG active ${e.hire.name}` : `${e.hire.equipe ? nameOf(e.hire.equipe) : 'Le PDG'} recrute ${e.hire.name}`} · voir l'organigramme`); b.type = 'button'; b.onclick = () => showTab('org');
     li.appendChild(b);
   } else if (e.type === 'deliverable') {
     li = el('li', 'm note');
@@ -1209,7 +1390,7 @@ function renderNow() {
 }
 // ---------- Fiche d'un agent : mission, brief complet, ce qu'il fait en direct, fin de contrat ----------
 let openAgent = null, dismissed = new Set();
-function showAgent(id) { openAgent = id; pinned = agents[id] || null; $('agentPanel').hidden = false; $('agentPanel').classList.toggle('board', id === BOARD); renderWho(); $('apClose').focus(); }
+function showAgent(id) { openAgent = id; pinned = agents[id] || null; if (pinned) pinned.unseen = 0; $('agentPanel').hidden = false; $('agentPanel').classList.toggle('board', id === BOARD); renderWho(); $('apClose').focus(); }
 function closeAgent() { openAgent = null; pinned = null; $('agentPanel').hidden = true; $('agentPanel').classList.remove('board'); }
 // ---------- Tableau de la mission (façon agile) : étapes, recrues, consignes et décisions, rangées par état ----------
 const BOARD = '#tableau';
@@ -1252,8 +1433,8 @@ function renderWho() {
   if (!openAgent) return;
   if (openAgent === BOARD) return renderBoard();
   const id = openAgent, r = ROLES[id] || {name: id, color: '#999', role: ''}, m = (S.team || []).find(x => x.id === id) || {};
-  const perm = CORE.includes(id);
-  const st = dismissed.has(id) ? ['Contrat terminé', 'gone'] : released.has(id) ? ['✓ Part terminée', 'done'] : perm ? ['Permanent', 'done'] : ['● Au travail', ''];
+  const perm = CORE.includes(id), sleeping = m.chef && agents[id] && !agents[id].called;
+  const st = dismissed.has(id) ? ['Contrat terminé', 'gone'] : sleeping ? ['En veille', 'gone'] : released.has(id) ? ['✓ Part terminée', 'done'] : perm ? ['Permanent', 'done'] : [m.chef ? '● Chef d\'équipe, au travail' : '● Au travail', ''];
   $('agentPanel').style.setProperty('--c', r.color);
   $('apName').textContent = r.name; $('apStatus').textContent = st[0]; $('apStatus').className = 'st ' + st[1];
   const body = $('apBody'); body.innerHTML = '';
@@ -1321,7 +1502,7 @@ cv.addEventListener('click', ev => {
   let best = null, bd = 30 * tw / 40 + 6;
   for (const a of Object.values(agents)) { const d = Math.hypot(a.sx - mx, a.sy - my); if (d < bd) { bd = d; best = a; } }
   if (best && best.id !== 'client') return showAgent(best.id);
-  const quad = [P(7.9, .02, .9), P(12.6, .02, .9), P(12.6, .02, 2.8), P(7.9, .02, 2.8)];
+  const quad = [P(8.9, .02, .9), P(14.1, .02, .9), P(14.1, .02, 2.8), P(8.9, .02, 2.8)];
   if (inPoly(mx, my, quad)) showAgent(BOARD); else closeAgent();
 });
 
@@ -1331,7 +1512,7 @@ let hired = [], released = new Set();
 const PALETTE = ['#0ea5a4', '#e86a92', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#a16207', '#64748b', '#db2777'];
 // postes de secours : dans l'atrium, le salon et le café
 const SPOTS = [];
-for (const [x0, y0, x1, y1] of [[7, 7, 14, 13], [14.4, 13.4, 20, 19.6], [20.4, 9, 26, 13]]) for (let x = x0 + .5; x < x1; x += 1) for (let y = y0 + .5; y < y1; y += 1) SPOTS.push([x, y]);
+for (const [x0, y0, x1, y1] of [[15, 7.5, 25, 17], [17, 22, 25, 26], [7, 22, 17, 24], [25, 22, 33, 24.5]]) for (let x = x0 + .5; x < x1; x += 1) for (let y = y0 + .5; y < y1; y += 1) SPOTS.push([x, y]);
 // Place libre à l'écran (projection isométrique) : un robot et son étiquette occupent une zone large et haute,
 // donc deux postes éloignés au sol peuvent se recouvrir à l'écran. Ellipse : large pour l'étiquette, haute pour le corps.
 const apart = (a, b, k = 1) => (((a[0] - a[1]) - (b[0] - b[1])) / (3.6 * k)) ** 2 + (((a[0] + a[1]) - (b[0] + b[1])) / (6.4 * k)) ** 2 > 1;
@@ -1359,10 +1540,13 @@ function hire(h) {
     if (blocked(...home)) home = freeSpot();
     color = lighten(base.color, .3 * Math.min(n, 2)); role = base.role + ' (renfort)';
   } else {
-    color = PALETTE[[...h.id].reduce((n, c) => n + c.charCodeAt(0), 0) % PALETTE.length]; home = freeSpot(poleFor(h)); role = 'Rôle recruté pour cette mission.';
+    const lead = h.equipe && agents[h.equipe], pole = lead ? POLES.find(p => inPole(p, lead)) : null;
+    color = lead ? lighten(lead.color, .25 + .15 * (hired.filter(id => ROLES[id] && ROLES[id].equipe === h.equipe).length % 3))
+      : PALETTE[[...h.id].reduce((n, c) => n + c.charCodeAt(0), 0) % PALETTE.length];
+    home = freeSpot(pole || poleFor(h)); role = lead ? `Expert de l'équipe ${lead.name}.` : 'Rôle recruté pour cette mission.';
   }
   if (Object.values(agents).some(a => Math.hypot(a.home[0] - home[0], a.home[1] - home[1]) < .5)) home = freeSpot();
-  ROLES[h.id] = {name: h.name || h.id, color, home, role: h.mission || role, like: h.like};
+  ROLES[h.id] = {name: h.name || h.id, color, home, role: h.mission || role, like: h.like, equipe: h.equipe};
   agents[h.id] = Object.assign(makeAgent(h.id, ROLES[h.id]), {x: ENTRY[0], y: ENTRY[1], called: true, flash: performance.now()});
   setDest(agents[h.id], home);
   hired.push(h.id);
@@ -1389,11 +1573,7 @@ function renderOrg() {
   const lvl = items => { const d = el('div', 'lvl'); items.forEach(i => d.appendChild(i)); return d; };
   org.append(lvl([node(ROLES.pdg, 'Permanent · dirige', n => n.append(el('span', 'why', 'Réfléchit à la mission et recrute l\'équipe.')), 'pdg')]), el('div', 'link'));
   org.append(lvl([node(ROLES.aud, 'Permanent · contrôle', n => n.append(el('span', 'why', 'Zéro invention, tout sourcé, audit à chaque étape.')), 'aud')]), el('div', 'link'));
-  const active = hired.filter(id => !dismissed.has(id)), gone = hired.filter(id => dismissed.has(id));
-  org.append(el('h4', null, `Équipe recrutée · ${active.length}`));
-  if (gone.length) org.append(el('div', 'gone', 'Contrats terminés : ' + gone.map(id => (ROLES[id] || {name: id}).name).join(', ')));
-  if (!active.length) { org.append(el('div', 'empty-team', hired.length ? 'Plus personne en mission : tous les contrats sont terminés.' : 'Le PDG n\'a encore recruté personne pour cette mission.')); return; }
-  org.append(lvl(active.map(id => {
+  const expert = id => {
     const m = (S.team || []).find(x => x.id === id) || {}, a = agents[id] || ROLES[id], done = released.has(id);
     return node(a, (VIVIER.has(id) ? 'Rôle du vivier' : ROLES[id].like ? 'Renfort' : 'Rôle inventé') + (m.t ? ' · ' + m.t : ''), n => {
       n.append(el('span', 'st' + (done ? ' done' : ''), done ? '✓ Part terminée' : '● Au travail'));
@@ -1402,7 +1582,31 @@ function renderOrg() {
       if (done && m.bilan) n.append(el('span', 'why', 'Bilan : ' + m.bilan));
       n.append(el('span', 'why', 'Voir sa fiche et ce qu\'il fait →'));
     }, id);
-  })));
+  };
+  const chefs = (S.team || []).filter(m => m.chef && agents[m.id]);
+  const isChef = id => chefs.some(c => c.id === id);
+  if (chefs.length) {
+    const on = chefs.filter(c => agents[c.id].called).length;
+    org.append(el('h4', null, `Chefs de pôle · ${on} actif${on > 1 ? 's' : ''} sur ${chefs.length}`));
+    const grid = el('div', 'teams');
+    for (const c of chefs) {
+      const col = el('div', 'team-col'), awake = agents[c.id].called, done = released.has(c.id);
+      const n = node(agents[c.id], awake ? 'Chef d\'équipe · actif' : 'Chef d\'équipe · en veille', n => {
+        n.append(el('span', 'st' + (done || !awake ? ' done' : ''), !awake ? 'En veille' : done ? '✓ Part terminée' : '● Au travail'));
+        n.append(el('span', 'why', c.mission));
+      }, c.id);
+      if (!awake) n.classList.add('sleep');
+      col.append(n);
+      hired.filter(id => ROLES[id] && ROLES[id].equipe === c.id && !dismissed.has(id)).forEach(id => col.append(el('div', 'link'), expert(id)));
+      grid.append(col);
+    }
+    org.append(grid);
+  }
+  const direct = hired.filter(id => !dismissed.has(id) && !isChef(id) && !(ROLES[id] && ROLES[id].equipe)), gone = hired.filter(id => dismissed.has(id));
+  if (direct.length || !chefs.length) org.append(el('h4', null, `Rattachés au PDG · ${direct.length}`));
+  if (gone.length) org.append(el('div', 'gone', 'Contrats terminés : ' + gone.map(id => (ROLES[id] || {name: id}).name).join(', ')));
+  if (direct.length) org.append(lvl(direct.map(expert)));
+  else if (!chefs.length) org.append(el('div', 'empty-team', hired.length ? 'Plus personne en mission : tous les contrats sont terminés.' : 'Le PDG n\'a encore recruté personne pour cette mission.'));
 }
 function renderLivrables() {
   const list = S.livrables.filter(v => v.n <= livrableMax), key = list.map(v => v.n).join();
@@ -1486,11 +1690,20 @@ function header() {
   $('label').textContent = live ? '● En direct' : (S.label || 'Rejeu'); $('label').classList.remove('off');
   $('chat').hidden = !live; $('history').hidden = !live; $('replay').hidden = live;
 }
+// Équipe de base : un chef par pôle, au bureau dès le début, en veille (robot pâle) ; activé, il dirige son équipe.
+function spawnBase() {
+  for (const m of (S.team || []).filter(m => m.chef)) {
+    if (agents[m.id] || !ROLES_INIT[m.id]) continue;
+    ROLES[m.id] = {...ROLES_INIT[m.id], name: m.name, role: m.mission};
+    agents[m.id] = makeAgent(m.id, ROLES[m.id]);
+  }
+}
 function reset() {
   hired.forEach(id => { delete agents[id]; if (VIVIER.has(id)) ROLES[id] = ROLES_INIT[id]; else delete ROLES[id]; }); hired = []; released = new Set(); dismissed = new Set();
   idx = 0; curStage = null; bubble = null; current = null; pinned = null; gate = {state: null, t: -1e9}; livrableMax = 0; livKey = '';
   gates = Object.fromEntries(S.stages.map(s => [s.id, {state: 'pending', retries: 0}]));
   Object.values(agents).forEach(a => Object.assign(a, {x: a.home[0], y: a.home[1], path: [], called: CORE.includes(a.id), sent: 0, recv: 0, last: '', activity: null}));
+  spawnBase();
   $('feed').innerHTML = ''; $('msgs').innerHTML = ''; qCards.clear(); statusEls.clear();
   $('renduHead').hidden = true;
   $('livView').innerHTML = '<span class="empty"><b>Le rendu apparaîtra ici.</b> Dès que l\'Écrivain a une première version, elle s\'affiche dans cet onglet, puis chaque correction après audit.</span>';
@@ -1511,7 +1724,7 @@ function applyState(j) {
   } else {
     for (const s of j.stages) gates[s.id] = gates[s.id] || {state: 'pending', retries: 0};
     if (j.events.length > S.events.length) S.events = j.events;
-    Object.assign(S, {topic: j.topic, stages: j.stages, consignes: j.consignes, questions: j.questions, livrables: j.livrables});
+    Object.assign(S, {topic: j.topic, stages: j.stages, consignes: j.consignes, questions: j.questions, livrables: j.livrables, team: j.team});
     $('topic').textContent = S.topic;
   }
   renderStatuses(); renderQuestions(); renderTop();
