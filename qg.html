@@ -117,6 +117,9 @@ button.kb-card { cursor: pointer; } button.kb-card:hover { border-color: var(--c
 
 .office { position: relative; overflow: hidden; }
 canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
+.cam { position: absolute; top: 10px; right: 10px; display: grid; gap: 4px; }
+.cam button { width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--line); background: rgba(255,255,255,.92); font: 700 15px var(--body); color: var(--fg); padding: 0; }
+#office { cursor: grab; touch-action: none; }
 .now { position: absolute; left: 12px; bottom: 10px; right: 12px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
 .now span { display: inline-flex; gap: 6px; align-items: center; background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 99px; padding: 4px 10px; font-size: 12px; max-width: 100%; }
 .now span b { font-weight: 700; }
@@ -248,8 +251,9 @@ form#chat .hint { display: flex; justify-content: space-between; font-size: 11px
   <main class="grid">
     <section class="left">
       <div class="card office">
-        <canvas id="office" tabindex="0" role="img" aria-label="Le bureau, sur le toit d'une tour, réparti en pôles (Direction, Recherche, Rédaction, Relecture, Contrôle qualité, Atelier des experts) : chaque rôle est un petit robot qui se déplace pour échanger. Les échanges détaillés sont dans l'onglet Coulisses."></canvas>
+        <canvas id="office" tabindex="0" role="img" aria-label="Le bureau, un étage sur le toit d'une tour, réparti en pôles (Direction, Recherche, Rédaction, Relecture, Contrôle qualité, Atelier des experts) avec atrium, café, salon et salles de réunion. Molette ou boutons + et − pour zoomer, glisser pour se déplacer. Chaque rôle est un petit robot qui se déplace pour échanger. Les échanges détaillés sont dans l'onglet Coulisses."></canvas>
         <div class="now" id="now"></div>
+        <div class="cam" role="group" aria-label="Caméra du bureau"><button id="zin" type="button" aria-label="Zoomer">+</button><button id="zout" type="button" aria-label="Dézoomer">−</button><button id="zfit" type="button" aria-label="Voir tout l'étage">⤢</button></div>
       </div>
       <div class="split h" id="splitH" role="separator" aria-orientation="horizontal" aria-label="Redimensionner le bureau et le rendu (glisser, ou flèches haut et bas)" tabindex="0">
         <button class="arrow" id="workToggle" type="button" aria-label="Replier le rendu">▼</button>
@@ -352,42 +356,61 @@ const stageId = x => (S.stages.find(s => s.id === x || s.name === x || s.id === 
 // Rôles : objets sans prototype, pour qu'un identifiant comme « constructor » ne tombe pas sur une propriété héritée.
 const dict = o => Object.assign(Object.create(null), o);
 const ROLES = dict({
-  pdg:    {name: 'PDG', color: '#2f5bff', home: [8.2, 4.2], role: 'Cadre la demande, répartit le travail, tranche, valide.'},
-  aud:    {name: 'Auditeur', color: '#d93b30', home: [11.6, 8.9], role: 'Contrôle chaque étape. Zéro invention, tout est sourcé.'},
-  bib:    {name: 'Bibliothécaire', color: '#f08a24', home: [2.1, 3.4], role: 'Cherche, vérifie et cite les sources.'},
-  ecr:    {name: 'Écrivain', color: '#7b4cf0', home: [6.1, 9.5], role: 'Rédige à partir des informations validées.'},
-  cor:    {name: 'Correcteur', color: '#1d9e62', home: [11.9, 1.9], role: 'Orthographe, style, clarté, mise en forme.'},
-  client: {name: 'Toi', color: '#f2c230', home: [13.1, 6.0], role: 'Le client : passe commande et reçoit le rendu.'},
-  ana:    {name: 'Analyste', color: '#14a3b8', home: [1.0, 8.3], role: 'Chiffres, tableaux, comparaisons.'},
-  str:    {name: 'Stratège', color: '#d6409f', home: [2.2, 8.0], role: 'Recommandations, SWOT, décisions.'},
-  avo:    {name: 'Avocat du diable', color: '#8a5a2b', home: [3.4, 8.3], role: 'Attaque les idées pour en trouver les failles.'},
-  des:    {name: 'Designer', color: '#ff6f61', home: [4.3, 9.4], role: 'Mise en page, diapos, schémas.'},
-  ing:    {name: 'Ingénieur', color: '#4a5568', home: [3.4, 10.6], role: 'Code et outils techniques.'},
-  jur:    {name: 'Juriste', color: '#5b6cff', home: [2.2, 10.9], role: 'RGPD, conformité, contrats.'},
-  cdp:    {name: 'Chef de projet', color: '#7cb342', home: [1.0, 10.6], role: 'Planning, échéances, coordination.'},
+  pdg:    {name: 'PDG', color: '#2f5bff', home: [3.6, 3.85], role: 'Cadre la demande, répartit le travail, tranche, valide.'},
+  aud:    {name: 'Auditeur', color: '#d93b30', home: [15.8, 12.0], role: 'Contrôle chaque étape. Zéro invention, tout est sourcé.'},
+  bib:    {name: 'Bibliothécaire', color: '#f08a24', home: [3.6, 8.2], role: 'Cherche, vérifie et cite les sources.'},
+  ecr:    {name: 'Écrivain', color: '#7b4cf0', home: [8.6, 17.2], role: 'Rédige à partir des informations validées.'},
+  cor:    {name: 'Correcteur', color: '#1d9e62', home: [15.2, 4.4], role: 'Orthographe, style, clarté, mise en forme.'},
+  client: {name: 'Toi', color: '#f2c230', home: [23, 16.6], role: 'Le client : passe commande et reçoit le rendu.'},
+  ana:    {name: 'Analyste', color: '#14a3b8', home: [1.7, 14.8], role: 'Chiffres, tableaux, comparaisons.'},
+  str:    {name: 'Stratège', color: '#d6409f', home: [2.9, 14.8], role: 'Recommandations, SWOT, décisions.'},
+  avo:    {name: 'Avocat du diable', color: '#8a5a2b', home: [4.1, 14.8], role: 'Attaque les idées pour en trouver les failles.'},
+  des:    {name: 'Designer', color: '#ff6f61', home: [9.8, 17.2], role: 'Mise en page, diapos, schémas.'},
+  ing:    {name: 'Ingénieur', color: '#4a5568', home: [1.7, 17.0], role: 'Code et outils techniques.'},
+  jur:    {name: 'Juriste', color: '#5b6cff', home: [17.0, 12.0], role: 'RGPD, conformité, contrats.'},
+  cdp:    {name: 'Chef de projet', color: '#7cb342', home: [2.9, 17.0], role: 'Planning, échéances, coordination.'},
 });
 // Permanents : le PDG, l'Auditeur et toi. Tous les autres sont recrutés par le PDG au fil de la mission.
 const CORE = ['pdg', 'aud', 'client'];
 const VIVIER = new Set(Object.keys(ROLES)), ROLES_INIT = JSON.parse(JSON.stringify(ROLES));
 const nameOf = id => (ROLES[id] || {name: id}).name;
 
-// ---------- Projection isométrique ----------
+// ---------- Projection isométrique et caméra (molette ou boutons : zoom ; glisser : déplacer) ----------
 const cv = $('office');
 let ctx = cv.getContext('2d');
-const GX = 14, GY = 11.5, WH = 3.2;
-const XB = GX + 2.4, YB = GY + 2.4;  // la terrasse, sur les deux côtés ouverts du bureau
-let W = 0, H = 0, tw = 40, ox = 0, oy = 0;
+const GX = 26, GY = 20, WH = 3.2;
+const XB = GX + 3.2, YB = GY + 3.2;  // la terrasse, sur les deux côtés ouverts de l'étage
+const ENTRY = [24.9, 18.6];           // l'entrée, à l'accueil : les recrues arrivent et repartent par là
+let W = 0, H = 0, tw = 40, ox = 0, oy = 0, fit = {tw: 40, ox: 0, oy: 0};
+const view = {k: 1, dx: 0, dy: 0};
 const P = (x, y, z = 0) => [ox + (x - y) * tw / 2, oy + (x + y) * tw / 4 - z * tw / 2];
+function applyView() {
+  tw = fit.tw * view.k;
+  ox = W / 2 + (fit.ox - W / 2) * view.k + view.dx;
+  oy = H / 2 + (fit.oy - H / 2) * view.k + view.dy;
+}
 function layout() {
   const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
   W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const span = (XB + YB + .6) / 4 + WH / 2 + .9;
-  tw = Math.min(W * .96 / ((XB + YB + .6) / 2), H * .94 / span);
-  ox = W / 2 - (XB - YB) * tw / 4;
-  oy = (H - span * tw / 2) / 2 + WH * tw / 2 + 6;
-  buildBg();
+  fit.tw = Math.min(W * .97 / ((XB + YB + .6) / 2), H * .95 / span);
+  fit.ox = W / 2 - (XB - YB) * fit.tw / 4;
+  fit.oy = (H - span * fit.tw / 2) / 2 + WH * fit.tw / 2 + 6;
+  applyView(); buildBg();
 }
-
+function zoomAt(k, sx = W / 2, sy = H / 2) {
+  k = Math.min(4, Math.max(1, k));
+  // le point du bureau sous le curseur reste sous le curseur
+  for (const [d, s, c] of [['dx', sx, W / 2], ['dy', sy, H / 2]]) { const s0 = c + (s - c - view[d]) / view.k; view[d] = s - c - (s0 - c) * k; }
+  view.k = k; if (k === 1) view.dx = view.dy = 0;
+  clampView(); applyView(); bgSoon();
+}
+function clampView() {
+  const mx = W * (view.k - .4) / 2 + 40, my = H * (view.k - .4) / 2 + 40;
+  view.dx = Math.max(-mx, Math.min(mx, view.dx)); view.dy = Math.max(-my, Math.min(my, view.dy));
+}
+let bgTimer = 0;
+const bgSoon = () => { clearTimeout(bgTimer); bgTimer = setTimeout(buildBg, 180); };
 const FONT = getComputedStyle(document.documentElement).getPropertyValue('--body');
 
 function shade(hex, k) {
@@ -402,19 +425,26 @@ function box(x, y, w, d, h, col, z = 0) {
 }
 const wallQuad = (x0, x1, z0, z1, fill) => poly([P(x0, .02, z0), P(x1, .02, z0), P(x1, .02, z1), P(x0, .02, z1)], fill);
 const leftQuad = (y0, y1, z0, z1, fill) => poly([P(.02, y0, z0), P(.02, y1, z0), P(.02, y1, z1), P(.02, y0, z1)], fill);
+// Cercle posé à plat (z) : une ellipse à l'écran
+function disc(cx, cy, r, z, fill) { const [x, y] = P(cx, cy, z); ctx.beginPath(); ctx.ellipse(x, y, r * tw / Math.SQRT2, r * tw / (2 * Math.SQRT2), 0, 0, 7); ctx.fillStyle = fill; ctx.fill(); }
 
-// Mobilier : bois clair, pieds fins, écrans allumés, plantes. Chaque meuble projette une ombre douce au sol.
-const OAK = '#dcb98f', WHITE = '#f6f7fa', STEEL = '#c9d0da', DARK = '#26303f', GLOW = '#8fc1ff';
+// ---------- Mobilier ----------
+const OAK = '#dcb98f', WALNUT = '#8f6340', WHITE = '#f6f7fa', STEEL = '#c9d0da', DARK = '#26303f', GLOW = '#8fc1ff', FABRIC = '#58677f', CREAM = '#efe6d8';
 const floorShadow = (x, y, w, d) => poly([P(x + .1, y + .1), P(x + w + .25, y + .1), P(x + w + .25, y + d + .25), P(x + .1, y + d + .25)], 'rgba(80,55,30,.09)');
 function desk(x, y, w, d, top) {
   floorShadow(x, y, w, d);
   for (const [lx, ly] of [[x + .06, y + .06], [x + w - .14, y + .06], [x + .06, y + d - .14], [x + w - .14, y + d - .14]]) box(lx, ly, .08, .08, .62, '#9aa3b0');
   box(x, y, w, d, .08, top, .62);
 }
-function monitor(x, y, w, z) {
+function monitor(x, y, w, z, back) {
   box(x + w / 2 - .05, y + .02, .1, .06, .18, '#9aa3b0', z);
   box(x, y, w, .07, .48, DARK, z + .18);
-  poly([P(x + .05, y + .075, z + .23), P(x + w - .05, y + .075, z + .23), P(x + w - .05, y + .075, z + .61), P(x + .05, y + .075, z + .61)], GLOW);
+  if (!back) poly([P(x + .05, y + .075, z + .23), P(x + w - .05, y + .075, z + .23), P(x + w - .05, y + .075, z + .61), P(x + .05, y + .075, z + .61)], GLOW);
+}
+function chair(x, y, c = '#3b4352', backAtFront) {
+  floorShadow(x, y, .42, .42);
+  box(x + .18, y + .18, .06, .06, .3, '#7d8696'); box(x, y, .42, .42, .08, c, .3);
+  box(x, backAtFront ? y + .34 : y, .42, .08, .42, c, .38);
 }
 function plant(x, y, k = 1) {
   floorShadow(x, y, .45, .45);
@@ -424,53 +454,161 @@ function plant(x, y, k = 1) {
     ctx.fillStyle = c; ctx.beginPath(); ctx.arc(cx + dx * r, cy + dy * r, rr * r, 0, 7); ctx.fill();
   }
 }
+function palm(x, y) {
+  floorShadow(x - .3, y - .3, .6, .6); box(x - .3, y - .3, .6, .6, .45, '#e8e1d6');
+  box(x - .06, y - .06, .12, .12, 2.4, '#8a6a4a', .45);
+  const [cx, cy] = P(x, y, 2.85), r = tw * .9;
+  ctx.fillStyle = '#3f8f52';
+  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; ctx.beginPath(); ctx.ellipse(cx + Math.cos(a) * r * .45, cy + Math.sin(a) * r * .18 + r * .08, r * .5, r * .12, a, 0, 7); ctx.fill(); }
+  ctx.fillStyle = '#56ab68'; ctx.beginPath(); ctx.arc(cx, cy, r * .14, 0, 7); ctx.fill();
+}
 const BOOKS = ['#e0443a', '#2f5bff', '#1d9e62', '#f08a24', '#7b4cf0', '#f2c230', '#14a3b8', '#d6409f'];
-const furniture = [
-  // Bibliothèque : cadre, trois étagères, livres de hauteurs variées
-  {d: 4, draw: () => {
-    floorShadow(.1, 1.2, .8, 4.2);
-    box(.1, 1.2, .8, 4.2, 2.4, '#e2cba8');
-    // les étagères d'abord, puis les livres posés dessus (sinon les planches les recouvrent)
-    [.12, .87, 1.62].forEach(z => box(.1, 1.2, .86, 4.2, .05, '#cdb38c', z - .05));
-    [.12, .87, 1.62].forEach((z, row) => {
-      let y = 1.32;
-      for (let i = 0; y < 5.2; i++) { const t = .16 + ((i * 7 + row * 3) % 4) * .04, h = .45 + ((i * 5 + row) % 3) * .1; box(.74, y, .22, t, h, BOOKS[(i + row * 3) % BOOKS.length], z); y += t + .03; }
+
+// L'étage se décrit une fois : chaque meuble a sa profondeur (tri du dessin), son emprise au sol (obstacle) et ses tapis.
+const furniture = [], BLOCKS = [], RUGS = [];
+const add = (d, draw) => furniture.push({d, draw});
+const solid = (x, y, w, d) => BLOCKS.push([x, y, w, d]);
+const rug = (x, y, w, d, c) => RUGS.push([x, y, w, d, c]);
+// Îlot de bureaux face à face : rangée du fond (écrans de dos), rangée de devant (écrans visibles)
+function pod(x, y, cols, top = WHITE, seat = '#3b4352') {
+  const w = cols * 1.2;
+  rug(x - .5, y - 1.1, w + 1, 3.7, 'rgba(70,85,110,.14)');
+  solid(x, y, w, 1.5);
+  add(x + w / 2 + y - .6, () => { for (let i = 0; i < cols; i++) chair(x + i * 1.2 + .38, y - .6, seat, true); });
+  add(x + w / 2 + y + .4, () => { desk(x, y, w, .75, top); for (let i = 0; i < cols; i++) monitor(x + i * 1.2 + .3, y + .6, .6, .7, true); });
+  add(x + w / 2 + y + 1.1, () => { desk(x, y + .75, w, .75, top); box(x, y + .72, w, .06, .3, '#cfd6e0', .7); for (let i = 0; i < cols; i++) monitor(x + i * 1.2 + .3, y + .8, .6, .7); });
+  add(x + w / 2 + y + 1.8, () => { for (let i = 0; i < cols; i++) chair(x + i * 1.2 + .38, y + 1.6, seat); });
+}
+// Cloison vitrée, coupée en panneaux (chacun trié à sa place) ; les portes sont des trous dans la liste
+function glass(x0, y0, x1, y1) {
+  const alongX = y0 === y1, len = alongX ? x1 - x0 : y1 - y0, n = Math.max(1, Math.round(len / 1.5));
+  solid(alongX ? x0 : x0 - .05, alongX ? y0 - .05 : y0, alongX ? len : .1, alongX ? .1 : len);
+  for (let i = 0; i < n; i++) {
+    const a = (alongX ? x0 : y0) + len * i / n, b = (alongX ? x0 : y0) + len * (i + 1) / n;
+    add(alongX ? (a + b) / 2 + y0 : x0 + (a + b) / 2, () => {
+      const q = alongX ? [P(a, y0, 0), P(b, y0, 0), P(b, y0, 2.5), P(a, y0, 2.5)] : [P(x0, a, 0), P(x0, b, 0), P(x0, b, 2.5), P(x0, a, 2.5)];
+      ctx.globalAlpha = .16; poly(q, '#cfe4ff'); ctx.globalAlpha = 1;
+      if (alongX) { box(a, y0 - .04, .06, .08, 2.5, '#5f6b7c'); box(a, y0 - .04, b - a, .08, .06, '#5f6b7c', 2.44); box(a, y0 - .04, b - a, .08, .1, '#7a8596'); }
+      else { box(x0 - .04, a, .08, .06, 2.5, '#5f6b7c'); box(x0 - .04, a, .08, b - a, .06, '#5f6b7c', 2.44); box(x0 - .04, a, .08, b - a, .1, '#7a8596'); }
     });
-  }},
-  // Bureau du PDG : grand plateau en chêne, deux écrans
-  {d: 13.3, draw: () => { desk(7, 5, 2.8, 1.3, OAK); monitor(7.35, 5.2, .95, .7); monitor(8.45, 5.2, .95, .7); box(9.35, 5.75, .3, .22, .04, '#f2c230', .7); }},
-  {d: 2.4, draw: () => plant(12.65, .55, 1.15)},
-  {d: 1.3, draw: () => plant(.45, .45, 1)},
-  // Poste de l'Écrivain : bureau blanc, écran, feuilles
-  {d: 14.3, draw: () => { desk(5.2, 7.9, 1.9, 1.1, WHITE); monitor(5.45, 8.0, .8, .7); box(6.4, 8.35, .5, .38, .05, '#fffaf0', .7); box(6.45, 8.4, .5, .38, .05, '#fff1c9', .75); }},
-  // Poste du Correcteur
-  {d: 6.3, draw: () => { desk(11, 2.6, 1.8, 1, WHITE); monitor(11.35, 2.7, .9, .7); }},
-  // Portique d'audit : deux montants, bandeau lumineux, faisceau au sol à la couleur du dernier audit
-  {d: 17.5, draw: () => {
-    const c = gateColor();
-    ctx.globalAlpha = .28; poly([P(10.9, 7.62), P(12.3, 7.62), P(12.3, 8.03), P(10.9, 8.03)], c); ctx.globalAlpha = 1;
-    floorShadow(10.6, 7.6, 2, .45);
-    box(10.6, 7.6, .3, .45, 1.9, STEEL); box(12.3, 7.6, .3, .45, 1.9, STEEL);
-    box(10.6, 7.6, 2, .45, .26, '#e9edf2', 1.9); box(10.62, 8.02, 1.96, .02, .1, c, 1.98);
-  }},
-  // Coin réunion : tapis et table ronde-ish des spécialistes
-  {d: 11.9, draw: () => { floorShadow(1.2, 9, 2.6, 1.3); box(1.25, 9.05, 2.5, 1.2, .62, '#a9b3c2'); box(1.2, 9.0, 2.6, 1.3, .06, '#f6f7fa', .62); }},
-  {d: 2.2, draw: () => plant(13.2, 10.9, .9)},
-  // Terrasse : jardinières, arbres, transats
-  ...[[GX + 1.3, .6, 1.3], [GX + 1.3, 4.2, 1], [GX + 1.3, 8.4, 1.2], [1.2, GY + 1.3, 1.1], [5.6, GY + 1.3, 1], [9.8, GY + 1.3, 1.3], [XB - 1.1, YB - 1.1, 1.6]].map(([x, y, k]) => ({d: x + y, draw: () => plant(x, y, k)})),
-  ...[[GX + .9, 5.7], [GX + .9, 6.7]].map(([x, y]) => ({d: x + y, draw: () => { floorShadow(x, y, 1.1, .5); box(x, y, 1.1, .5, .22, '#f3efe8'); box(x + .8, y, .3, .5, .34, '#e4ddd1', .22); }})),
-  {d: 7 + GY + 1.6, draw: () => { floorShadow(7, GY + 1, .9, .9); box(7.35, GY + 1.35, .2, .2, .55, '#9aa3b0'); box(7, GY + 1, .9, .9, .06, OAK, .55); }},
-];
-const BLOCKS = [[.1, 1.2, .8, 4.2], [7, 5, 2.8, 1.3], [12.6, .5, .6, .6], [5.2, 7.9, 1.9, 1.1], [11, 2.6, 1.8, 1], [10.6, 7.6, .3, .45], [12.3, 7.6, .3, .45], [1.2, 9, 2.6, 1.3], [.4, .4, .5, .5], [13.15, 10.85, .5, .5]];
-const HUBS = [[6.4, 6.9], [10, 6.9], [4.6, 6], [9.9, 3.9], [4.5, 3.5], [10.2, 9.8], [5, 10.9], [12.8, 4.2]];
+  }
+}
+// Cloisons : rangée de salles le long du mur du fond, colonne de salles le long du mur de gauche (portes de 1,4)
+for (const [a, b] of [[0, 4.4], [5.8, 9.4], [10.8, 15.6], [17, 21.8], [23.2, GX]]) glass(a, 6.5, b, 6.5);
+for (const [a, b] of [[6.5, 9.2], [10.6, 16.2], [17.6, GY]]) glass(6.5, a, 6.5, b);
+for (const x of [7, 13.5, 19.5]) glass(x, 0, x, 6.5);
+glass(0, 13.2, 6.5, 13.2);
+
+// Direction : grand bureau en noyer, canapé, bibliothèque basse
+rug(1, 1.2, 5.2, 4.6, '#d9cdb8');
+solid(2.2, 2.2, 2.8, 1.1); add(6, () => { desk(2.2, 2.2, 2.8, 1.1, WALNUT); monitor(2.6, 2.35, .85, .7); monitor(3.65, 2.35, .85, .7); box(4.6, 3.0, .28, .2, .04, '#f2c230', .7); });
+add(7.3, () => chair(3.4, 3.55, '#2b2f38', true));
+solid(.3, 4, .9, 2.2); add(5.4, () => { floorShadow(.3, 4, .9, 2.2); box(.3, 4, .9, 2.2, .42, FABRIC); box(.3, 4, .25, 2.2, .85, FABRIC); box(.3, 4, .9, .2, .62, FABRIC); box(.3, 5.95, .9, .25, .62, FABRIC); });
+solid(4.6, .2, 2, .5); add(5, () => { box(4.6, .2, 2, .5, 1.1, '#e2cba8'); for (let i = 0; i < 7; i++) box(4.72 + i * .26, .3, .2, .35, .4 + (i % 3) * .08, BOOKS[i], 1.1); });
+add(6.6, () => plant(.4, .4, 1.1)); add(12, () => plant(6.2, 5.6, 1));
+// Salle de mission : table haute et tabourets, tableau de mission au mur (cliquable)
+solid(8.6, 3, 3.2, 1); add(13.5, () => { floorShadow(8.6, 3, 3.2, 1); box(9.9, 3.35, .5, .3, .95, '#9aa3b0'); box(8.6, 3, 3.2, 1, .1, OAK, .95); });
+add(14.8, () => { for (const x of [8.9, 10, 11.1]) { box(x, 4.3, .36, .36, .62, '#2f3644'); } });
+// Relecture : îlot de quatre
+pod(14.6, 2.6, 3); add(19.6, () => plant(18.9, .5, 1));
+// Salle de réunion : longue table, chaises, écran au mur
+rug(20.4, 1.2, 5, 4.4, '#d5dbe4');
+solid(21.2, 2.5, 3.6, 1.4); add(25.6, () => { desk(21.2, 2.5, 3.6, 1.4, WALNUT); });
+add(23.5, () => { for (const x of [21.5, 22.5, 23.5, 24.4]) chair(x, 1.9, '#2b2f38', true); });
+add(27.5, () => { for (const x of [21.5, 22.5, 23.5, 24.4]) chair(x, 4.0, '#2b2f38'); });
+// Recherche : bibliothèque murale, table de lecture, fauteuil
+solid(.1, 7, .8, 5.8); add(8, () => {
+  floorShadow(.1, 7, .8, 5.8); box(.1, 7, .8, 5.8, 2.4, '#e2cba8');
+  [.12, .87, 1.62].forEach(z => box(.1, 7, .86, 5.8, .05, '#cdb38c', z - .05));
+  [.12, .87, 1.62].forEach((z, row) => { let y = 7.12; for (let i = 0; y < 12.6; i++) { const t = .16 + ((i * 7 + row * 3) % 4) * .04, h = .45 + ((i * 5 + row) % 3) * .1; box(.74, y, .22, t, h, BOOKS[(i + row * 3) % BOOKS.length], z); y += t + .03; } });
+});
+rug(2, 8, 4, 4, '#e6d6bd');
+solid(2.6, 8.6, 2.4, 1.2); add(14.2, () => { desk(2.6, 8.6, 2.4, 1.2, OAK); box(4.4, 8.8, .12, .12, .5, '#2f3644', .7); box(4.25, 8.7, .4, .3, .12, '#f3c35a', 1.15); box(3, 8.9, .6, .45, .05, '#fffaf0', .7); });
+add(13, () => chair(3.4, 8.0, '#8a5a2b', true)); add(19, () => plant(5.8, 12.4, .9));
+// Atelier des experts : îlot de six, fenêtre sur la ville
+pod(1.1, 15.2, 4, OAK, '#2f5c8a'); add(20.4, () => plant(.5, 19.3, 1.1));
+// Atrium : grand arbre dans une jardinière ronde, sur un cercle de lumière
+const TREE = [10.4, 9.8];
+solid(TREE[0] - 1.5, TREE[1] - 1.5, 3, 3);
+add(TREE[0] + TREE[1], () => {
+  const [cx, cy] = TREE;
+  disc(cx, cy, 1.55, 0, '#b9b1a3'); const [l, t] = P(cx, cy, 0);
+  ctx.fillStyle = '#b9b1a3'; ctx.fillRect(l - 1.55 * tw / Math.SQRT2, t - .5 * tw / 2, 1.55 * tw * Math.SQRT2, .5 * tw / 2);
+  disc(cx, cy, 1.55, .5, '#e3ddd2'); disc(cx, cy, 1.3, .52, '#6b5440');
+  box(cx - .14, cy - .14, .28, .28, 2.6, '#7a5b3e', .5);
+  const [x, y] = P(cx, cy, 3.2), r = tw * .62;
+  for (const [dx, dy, rr, c] of [[0, .9, 1.5, '#2f7d45'], [-1.5, .3, 1.15, '#3b8f51'], [1.5, .3, 1.15, '#348648'], [-.8, -.7, 1.2, '#46a160'], [.9, -.6, 1.2, '#4aa864'], [0, -1.4, 1.05, '#5dbb72'], [0, .1, 1.1, '#3f9a5a']]) {
+    ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + dx * r, y + dy * r, rr * r, 0, 7); ctx.fill();
+  }
+});
+for (const [bx, by, w, d] of [[7.6, 12.2, 1.6, .45], [12.2, 7.2, .45, 1.6]]) { solid(bx, by, w, d); add(bx + by + 1, () => { box(bx, by, w, d, .42, OAK); }); }
+// Rédaction : îlot de six, tableau blanc
+pod(8, 15.4, 4, WHITE, '#6a3fd0'); add(21.5, () => plant(13.4, 19.3, 1.2)); add(14.6, () => plant(7, 13.6, .9));
+// Contrôle qualité : portique d'audit, îlot de quatre
+add(25.2, () => {
+  const c = gateColor();
+  ctx.globalAlpha = .28; poly([P(15.3, 8.02), P(16.7, 8.02), P(16.7, 8.43), P(15.3, 8.43)], c); ctx.globalAlpha = 1;
+  floorShadow(15, 8, 2, .45);
+  box(15, 8, .3, .45, 1.9, STEEL); box(16.7, 8, .3, .45, 1.9, STEEL);
+  box(15, 8, 2, .45, .26, '#e9edf2', 1.9); box(15.02, 8.42, 1.96, .02, .1, c, 1.98);
+});
+solid(15, 8, .3, .45); solid(16.7, 8, .3, .45);
+pod(15.2, 10.2, 3, WHITE, '#a3302a');
+// Café : comptoir, machine, tabourets, tables bistrot
+solid(20.8, 7.4, 4.4, .8);
+add(29, () => { floorShadow(20.8, 7.4, 4.4, .8); box(20.8, 7.4, 4.4, .8, 1.05, WALNUT); box(20.75, 7.35, 4.5, .9, .06, '#f1ece4', 1.05); box(24, 7.5, .5, .4, .45, '#2b2f38', 1.11); box(21.4, 7.6, .7, .4, .08, '#e9d7b8', 1.11); });
+add(30.2, () => { for (const x of [21.2, 22.1, 23, 23.9]) { box(x + .12, 8.62, .08, .08, .7, '#9aa3b0'); disc(x + .16, 8.66, .2, .72, '#2f3644'); } });
+for (const [tx, ty] of [[21.6, 10.6], [24, 10.8]]) { solid(tx, ty, .7, .7); add(tx + ty + .7, () => { box(tx + .3, ty + .3, .1, .1, .7, '#9aa3b0'); disc(tx + .35, ty + .35, .42, .72, '#f6f2ea'); chair(tx - .5, ty + .15, '#c47a3a'); chair(tx + .8, ty + .15, '#c47a3a'); }); }
+// Salon : canapés en L, table basse, ping-pong
+rug(14.6, 14, 5, 5.2, '#dfd4c4');
+solid(15, 14.4, 3.4, .9); add(29.6, () => { floorShadow(15, 14.4, 3.4, .9); box(15, 14.4, 3.4, .9, .42, '#c26b4a'); box(15, 14.4, 3.4, .28, .85, '#c26b4a'); });
+solid(15, 15.3, .9, 2.2); add(31.4, () => { box(15, 15.3, .9, 2.2, .42, '#c26b4a'); box(15, 15.3, .28, 2.2, .85, '#c26b4a'); });
+solid(16.6, 16, 1.4, .9); add(33.2, () => { floorShadow(16.6, 16, 1.4, .9); box(16.6, 16, 1.4, .9, .38, OAK); });
+solid(15.6, 18.3, 2.6, 1.3); add(35.4, () => { floorShadow(15.6, 18.3, 2.6, 1.3); for (const [lx, ly] of [[15.8, 18.5], [17.9, 18.5], [15.8, 19.3], [17.9, 19.3]]) box(lx, ly, .1, .1, .7, '#7d8696'); box(15.6, 18.3, 2.6, 1.3, .06, '#2f8a5b', .7); box(16.88, 18.3, .04, 1.3, .12, '#f6f7fa', .76); });
+// Accueil : banque d'accueil, fauteuils, entrée
+solid(21.4, 14.6, 3.2, .8);
+add(37, () => { floorShadow(21.4, 14.6, 3.2, .8); box(21.4, 14.6, 3.2, .8, 1.05, WHITE); box(21.4, 15.38, 3.2, .04, .18, '#2f5bff', .55); box(21.35, 14.55, 3.3, .9, .05, OAK, 1.05); monitor(22.4, 14.75, .7, 1.1, true); });
+for (const [ax, ay] of [[21.6, 18.2], [23, 18.2]]) { solid(ax, ay, .9, .9); add(ax + ay + 1, () => { floorShadow(ax, ay, .9, .9); box(ax, ay, .9, .9, .4, '#f0d58a'); box(ax, ay, .9, .25, .8, '#f0d58a'); }); }
+add(45, () => plant(25.3, 13.6, 1.2)); add(37.4, () => plant(19.9, 13.6, 1));
+rug(24.2, 17.8, 1.6, 1.6, '#c9b48e');
+// Terrasse : pergola, palmiers, transats, tables
+add(GX + .6 + 2, () => palm(GX + 1.2, 2)); add(GX + 9, () => palm(GX + 1.6, 9)); add(GX + 14.6, () => palm(GX + 1.4, 14.2));
+add(3 + GY + 1.5, () => palm(3, GY + 1.5)); add(XB - 1.2 + YB - 1.2, () => palm(XB - 1.3, YB - 1.3));
+for (const y of [4.6, 5.8, 11.2, 12.4]) add(GX + 1 + y + .5, () => { floorShadow(GX + .8, y, 1.4, .6); box(GX + .8, y, 1.4, .6, .22, '#f3efe8'); box(GX + 1.9, y, .3, .6, .4, '#e4ddd1', .22); });
+add(GY + 2 + 9, () => {
+  for (const [x, y] of [[7.2, GY + .7], [11.6, GY + .7], [7.2, GY + 2.6], [11.6, GY + 2.6]]) box(x, y, .14, .14, 2.6, '#6f5a46');
+  for (let x = 7.2; x <= 11.8; x += .4) box(x, GY + .7, .08, 2.04, .08, '#8a7058', 2.6);
+  for (const [x, y] of [[8.2, GY + 1.2], [10.2, GY + 1.2]]) { box(x + .3, y + .3, .1, .1, .7, '#9aa3b0'); disc(x + .35, y + .35, .45, .72, '#f6f2ea'); }
+});
+for (const [x, y, k] of [[GX + 2.6, .6, 1.2], [GX + 2.6, 18.4, 1.3], [15.6, GY + 2.5, 1.1], [20.4, GY + 2.5, 1.2], [.6, GY + 2.5, 1]]) add(x + y, () => plant(x, y, k));
+
+// ---------- Déplacements : grille de 0,5 et plus court chemin (les cloisons ont des portes) ----------
 const blocked = (x, y) => x < .3 || y < .3 || x > GX - .3 || y > GY - .3 || BLOCKS.some(([bx, by, w, d]) => x > bx - .3 && x < bx + w + .3 && y > by - .3 && y < by + d + .3);
-const clear = (a, b) => { for (let i = 1; i <= 24; i++) { const t = i / 24; if (blocked(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)) return false; } return true; };
-// ponytail: contournement par points de passage fixes (pas de A*), suffisant pour une seule pièce meublée
+const clear = (a, b) => { const n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / .15); for (let i = 1; i < n; i++) { const t = i / n; if (blocked(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)) return false; } return true; };
+const CELL = .5, NX = Math.round(GX / CELL), NY = Math.round(GY / CELL);
+const FREE = new Uint8Array(NX * NY).map((_, i) => blocked((i % NX + .5) * CELL, (Math.floor(i / NX) + .5) * CELL) ? 0 : 1);
 function route(a, b) {
   if (clear(a, b)) return [b];
-  for (const c of [[b[0], a[1]], [a[0], b[1]], ...HUBS]) if (!blocked(...c) && clear(a, c) && clear(c, b)) return [c, b];
-  for (const c of HUBS) for (const d of HUBS) if (c !== d && clear(a, c) && clear(c, d) && clear(d, b)) return [c, d, b];
-  return [b];
+  const cell = p => Math.min(NX - 1, Math.max(0, Math.floor(p[0] / CELL))) + Math.min(NY - 1, Math.max(0, Math.floor(p[1] / CELL))) * NX;
+  const start = cell(a), goal = cell(b), prev = new Int32Array(NX * NY).fill(-1), q = [start];
+  prev[start] = start;
+  for (let h = 0; h < q.length && prev[goal] < 0; h++) {
+    const c = q[h], cx = c % NX, cy = (c - cx) / NX;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const nx = cx + dx, ny = cy + dy, n = nx + ny * NX;
+      if (nx < 0 || ny < 0 || nx >= NX || ny >= NY || prev[n] >= 0) continue;
+      if (!FREE[n] && n !== goal) continue;
+      if (dx && dy && (!FREE[cx + dx + cy * NX] || !FREE[cx + (cy + dy) * NX])) continue;  // pas de coin coupé
+      prev[n] = c; q.push(n);
+    }
+  }
+  if (prev[goal] < 0) return [b];
+  const pts = [b];
+  for (let c = prev[goal]; c !== start; c = prev[c]) pts.unshift([(c % NX + .5) * CELL, (Math.floor(c / NX) + .5) * CELL]);
+  // on lisse : on saute directement au point le plus loin encore visible
+  const out = []; let from = a;
+  for (let i = 0; i < pts.length;) { let j = pts.length - 1; while (j > i && !clear(from, pts[j])) j--; out.push(pts[j]); from = pts[j]; i = j + 1; }
+  return out;
 }
 function meetPoint(B) {
   for (const [dx, dy] of [[.9, .7], [-.9, .7], [.9, -.7], [-.9, -.7], [1.1, 0], [0, 1.1], [-1.1, 0], [0, -1.1]]) {
@@ -478,6 +616,7 @@ function meetPoint(B) {
   }
   return [B.home[0] + .9, B.home[1] + .7];
 }
+
 // ---------- La tour : terrasse, façade, ville et ciel selon l'heure réelle ----------
 const hash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 const mix = (a, b, t) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');
@@ -514,8 +653,10 @@ function tower(t, n) {
     for (let v = y + .3, c = 0; v + ww < y + d - .2; v += step, c++) pane([P(x + w + .01, v, z), P(x + w + .01, v + ww, z), P(x + w + .01, v + ww, z - wh), P(x + w + .01, v, z - wh)], hash(t.seed * 17 + row * 5.1 + c + 500));
   }
 }
+let bgView = {tw: 1, ox: 0, oy: 0};
 function buildBg() {
   const dpr = devicePixelRatio || 1, main = ctx, n = sunNow.night;
+  bgView = {tw, ox, oy};
   bgc.width = W * dpr; bgc.height = H * dpr;
   ctx = bgc.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const top = n < .5 ? mix('#8ec2ef', '#56649f', n * 2) : mix('#56649f', '#070c1a', (n - .5) * 2);
@@ -544,27 +685,34 @@ function drawParapet() {
   ctx.beginPath(); ctx.moveTo(...P(XB, -.3, .9)); ctx.lineTo(...P(XB, YB, .9)); ctx.lineTo(...P(-.3, YB, .9)); ctx.stroke();
 }
 // Lampes du bureau : la nuit, des halos chauds sur chaque poste
-const LAMPS = [[8.4, 5.6], [6.1, 8.4], [11.9, 3.1], [1.6, 3.2], [2.5, 9.6], [11.6, 7.8], [13, 6], [4.6, 5.6], [10.2, 10.4]];
+// Spots au plafond : de grands halos chauds au sol, la nuit
+const LAMPS = [];
+for (let x = 2; x < GX; x += 3.4) for (let y = 2.2; y < GY; y += 3.4) LAMPS.push([x, y]);
 function nightLights() {
   const n = sunNow.night; if (!n) return;
   ctx.globalCompositeOperation = 'source-atop'; ctx.fillStyle = `rgba(14,20,46,${.5 * n})`; ctx.fillRect(0, 0, W, H);
   ctx.globalCompositeOperation = 'lighter';
   for (const [x, y] of LAMPS) {
-    const [lx, ly] = P(x, y, .4), r = tw * 2.2, g = ctx.createRadialGradient(lx, ly, 0, lx, ly, r);
-    g.addColorStop(0, `rgba(255,178,96,${.32 * n})`); g.addColorStop(1, 'rgba(255,178,96,0)'); ctx.fillStyle = g; ctx.fillRect(lx - r, ly - r, 2 * r, 2 * r);
+    const [lx, ly] = P(x, y, 0), r = tw * 1.7, g = ctx.createRadialGradient(lx, ly, 0, lx, ly, r);
+    g.addColorStop(0, `rgba(255,178,96,${.36 * n})`); g.addColorStop(1, 'rgba(255,178,96,0)'); ctx.fillStyle = g; ctx.fillRect(lx - r, ly - r, 2 * r, 2 * r);
   }
   ctx.globalCompositeOperation = 'source-over';
 }
 
 // ---------- Pôles : chaque rôle travaille dans le pôle de son métier ----------
 const POLES = [
-  {name: 'Direction', color: '#2f5bff', x0: 6.2, y0: 0, x1: 10.6, y1: 7.2},
-  {name: 'Recherche', color: '#f08a24', x0: 0, y0: 0, x1: 6.2, y1: 7.2},
-  {name: 'Relecture', color: '#1d9e62', x0: 10.6, y0: 0, x1: GX, y1: 4.6},
-  {name: 'Accueil', color: '#f2c230', x0: 10.6, y0: 4.6, x1: GX, y1: 7.2, quiet: true},
-  {name: 'Rédaction', color: '#7b4cf0', x0: 4.6, y0: 7.2, x1: 9, y1: GY},
-  {name: 'Contrôle qualité', color: '#d93b30', x0: 9, y0: 7.2, x1: GX, y1: GY},
-  {name: 'Atelier des experts', color: '#14a3b8', x0: 0, y0: 7.2, x1: 4.6, y1: GY},
+  {name: 'Direction', color: '#2f5bff', x0: 0, y0: 0, x1: 7, y1: 6.5},
+  {name: 'Salle de mission', color: '#64748b', x0: 7, y0: 0, x1: 13.5, y1: 6.5, quiet: true},
+  {name: 'Relecture', color: '#1d9e62', x0: 13.5, y0: 0, x1: 19.5, y1: 6.5},
+  {name: 'Salle de réunion', color: '#64748b', x0: 19.5, y0: 0, x1: GX, y1: 6.5, quiet: true},
+  {name: 'Recherche', color: '#f08a24', x0: 0, y0: 6.5, x1: 6.5, y1: 13.2},
+  {name: 'Atelier des experts', color: '#14a3b8', x0: 0, y0: 13.2, x1: 6.5, y1: GY},
+  {name: 'Atrium', color: '#3f9a5a', x0: 6.5, y0: 6.5, x1: 14, y1: 13, quiet: true},
+  {name: 'Contrôle qualité', color: '#d93b30', x0: 14, y0: 6.5, x1: 20, y1: 13},
+  {name: 'Café', color: '#c47a3a', x0: 20, y0: 6.5, x1: GX, y1: 13, quiet: true},
+  {name: 'Rédaction', color: '#7b4cf0', x0: 6.5, y0: 13, x1: 14, y1: GY},
+  {name: 'Salon', color: '#c26b4a', x0: 14, y0: 13, x1: 20, y1: GY, quiet: true},
+  {name: 'Accueil', color: '#f2c230', x0: 20, y0: 13, x1: GX, y1: GY, quiet: true},
 ];
 const POLE_WORDS = [['Recherche', /cherch|biblio|source|veille|document|enquet|scout|donnee|fact/], ['Relecture', /relect|correct|orthograph|style|edit|traduc/],
   ['Rédaction', /ecri|redact|plume|contenu|copy|design|graph|mise-en-page|illustr/], ['Contrôle qualité', /audit|verif|control|jurid|droit|conform|clinique|qualite|valid|test/]];
@@ -577,13 +725,14 @@ const busy = a => !a.leaving && a.id !== 'client' && !!(a.activity || (hired.inc
 function drawPoles() {
   const s = Math.max(.85, Math.min(1.2, tw / 40));
   for (const p of POLES) {
-    if (p.quiet) continue;
-    const n = Object.values(agents).filter(a => inPole(p, a) && busy(a)).length, status = n ? `${n} au travail` : 'au calme';
+    const n = p.quiet ? 0 : Object.values(agents).filter(a => inPole(p, a) && busy(a)).length, status = p.quiet ? '' : n ? `${n} au travail` : 'au calme';
+    if (p.quiet && tw < 34) continue;
     if (!n && tw < 26) continue;  // petit écran : seulement les pôles qui travaillent
-    const [x, y] = P((p.x0 + p.x1) / 2, (p.y0 + p.y1) / 2, 1.7);
+    const [x, y] = P((p.x0 + p.x1) / 2, (p.y0 + p.y1) / 2, 2.9);
     ctx.font = `700 ${Math.round(11 * s)}px ${FONT}`; const w1 = ctx.measureText(p.name).width;
     ctx.font = `500 ${Math.round(10.5 * s)}px ${FONT}`; const w2 = ctx.measureText(status).width;
-    const w = w1 + w2 + 30 * s, h = 20 * s, lx = x - w / 2, ly = y - h / 2;
+    const w = w1 + (p.quiet ? 18 * s : w2 + 30 * s), h = 20 * s, lx = x - w / 2, ly = y - h / 2;
+    if (p.quiet) { ctx.fillStyle = 'rgba(17,23,38,.5)'; ctx.beginPath(); ctx.roundRect(lx, ly, w, h, h / 2); ctx.fill(); ctx.font = `700 ${Math.round(11 * s)}px ${FONT}`; ctx.fillStyle = '#ffffff'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left'; ctx.fillText(p.name, lx + 9 * s, y + .5); continue; }
     ctx.fillStyle = 'rgba(17,23,38,.78)'; ctx.beginPath(); ctx.roundRect(lx, ly, w, h, h / 2); ctx.fill();
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
     ctx.font = `700 ${Math.round(11 * s)}px ${FONT}`; ctx.fillStyle = '#ffffff'; ctx.fillText(p.name, lx + 9 * s, y + .5);
@@ -615,47 +764,50 @@ function wallText(text, x, z, size, color, weight = 600) {
 function drawRoom() {
   // Parquet de chêne clair : lames et joints décalés
   poly([P(0, 0), P(GX, 0), P(GX, GY), P(0, GY)], '#f2e6d6');
-  ctx.strokeStyle = 'rgba(150,110,70,.13)'; ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(150,110,70,.12)'; ctx.lineWidth = 1;
   for (let j = .55, row = 0; j < GY; j += .55, row++) {
     ctx.beginPath(); ctx.moveTo(...P(0, j)); ctx.lineTo(...P(GX, j)); ctx.stroke();
     for (let x = row % 2 ? 1.6 : .5; x < GX; x += 3.1) { ctx.beginPath(); ctx.moveTo(...P(x, j - .55)); ctx.lineTo(...P(x, j)); ctx.stroke(); }
   }
-  // Chaque pôle a sa teinte au sol
-  for (const pl of POLES) { ctx.globalAlpha = .07; poly([P(pl.x0 + .08, pl.y0 + .08), P(pl.x1 - .08, pl.y0 + .08), P(pl.x1 - .08, pl.y1 - .08), P(pl.x0 + .08, pl.y1 - .08)], pl.color); }
+  // Chaque pôle de travail a sa teinte au sol
+  for (const pl of POLES.filter(q => !q.quiet)) { ctx.globalAlpha = .06; poly([P(pl.x0 + .08, pl.y0 + .08), P(pl.x1 - .08, pl.y0 + .08), P(pl.x1 - .08, pl.y1 - .08), P(pl.x0 + .08, pl.y1 - .08)], pl.color); }
   ctx.globalAlpha = 1;
-  // Lumière du jour qui entre par la fenêtre
-  ctx.globalAlpha = .5; poly([P(0, 5.9), P(0, 9.7), P(2.6, 10.3), P(2.6, 6.5)], '#fff6dc'); ctx.globalAlpha = 1;
-  // Murs, plinthes et épaisseur
+  // Tapis, puis le cercle de lumière de l'atrium
+  for (const [x, y, w, d, c] of RUGS) poly([P(x, y), P(x + w, y), P(x + w, y + d), P(x, y + d)], c);
+  disc(TREE[0], TREE[1], 3.1, 0, 'rgba(255,246,222,.85)'); disc(TREE[0], TREE[1], 2.5, 0, 'rgba(255,250,236,.9)');
+  // Murs, plinthes, épaisseur
   poly([P(0, 0), P(0, GY), P(0, GY, WH), P(0, 0, WH)], '#eef1f6');
   poly([P(0, 0), P(GX, 0), P(GX, 0, WH), P(0, 0, WH)], '#e3e8f0');
   poly([P(.02, 0), P(.02, GY), P(.02, GY, .14), P(.02, 0, .14)], '#d6dce6');
   wallQuad(0, GX, 0, .14, '#ccd3de');
   poly([P(0, 0, WH), P(0, GY, WH), P(-.18, GY, WH), P(-.18, -.18, WH), P(GX, -.18, WH), P(GX, 0, WH)], '#c9d1dc');
-  // Grande fenêtre sur le mur gauche
-  leftQuad(5.9, 9.7, .85, 2.75, '#ffffff');
-  const [gx0, gy0] = P(.02, 6.1, 2.6), [, gy1] = P(.02, 6.1, 1);
-  const sky = ctx.createLinearGradient(gx0, gy0, gx0, gy1); sky.addColorStop(0, '#bcdcff'); sky.addColorStop(1, '#eaf5ff');
-  leftQuad(6.05, 9.55, 1, 2.6, sky);
-  leftQuad(7.75, 7.85, 1, 2.6, '#ffffff'); leftQuad(6.05, 9.55, 1.75, 1.82, '#ffffff');
-  // Enseigne et tableau de mission sur le mur du fond
+  // Baies vitrées sur la ville : le ciel suit l'heure
+  const n = sunNow.night, top = mix('#a9d1f5', '#0b1428', n), low = mix('#e9f4fd', '#24345a', n);
+  const pane = (q, vertical) => { const [x0, y0] = q[0], [, y1] = q[3]; const g = ctx.createLinearGradient(x0, y1, x0, y0); g.addColorStop(0, top); g.addColorStop(1, low); poly(q, g); };
+  for (const [a, b] of [[14.2, 19], [20.2, 25.6]]) {
+    wallQuad(a - .08, b + .08, .7, 2.82, '#ffffff');
+    for (let x = a; x < b - .1; x += 1.2) { const e = Math.min(b, x + 1.12); pane([P(x, .03, .8), P(e, .03, .8), P(e, .03, 2.72), P(x, .03, 2.72)]); }
+  }
+  for (const [a, b] of [[13.8, 19.6], [7.2, 12.8]]) {
+    leftQuad(a - .08, b + .08, .7, 2.82, '#ffffff');
+    for (let y = a; y < b - .1; y += 1.2) { const e = Math.min(b, y + 1.12); pane([P(.03, y, .8), P(.03, e, .8), P(.03, e, 2.72), P(.03, y, 2.72)]); }
+  }
+  // Enseigne de la Direction ; écran de la salle de réunion
   wallText('QG', .9, 2.55, 34, '#2f5bff', 600);
   wallText('DU BUREAU', .95, 1.95, 9, '#677184', 500);
-  wallQuad(4.2, 10.2, .9, 2.8, '#ffffff');
-  wallQuad(4.2, 10.2, 2.68, 2.8, '#19202d');
-  // Tapis du coin réunion, sous la table des spécialistes
-  poly([P(.7, 8.4), P(4.4, 8.4), P(4.4, 11.1), P(.7, 11.1)], '#dde5ff');
-  poly([P(.9, 8.6), P(4.2, 8.6), P(4.2, 10.9), P(.9, 10.9)], '#e8eeff');
-  // Tapis d'accueil du client
-  poly([P(12.4, 5.3), P(13.8, 5.3), P(13.8, 6.7), P(12.4, 6.7)], '#fbe3a0');
+  wallQuad(21.3, 24.7, 1.05, 2.55, '#1b2230'); wallQuad(21.42, 24.58, 1.14, 2.46, mix('#7fb6ff', '#3d6fd6', .4));
+  // Tableau de la mission (salle de mission) : quatre colonnes, une carte par étape
+  wallQuad(7.9, 12.6, .9, 2.8, '#ffffff');
+  wallQuad(7.9, 12.6, 2.68, 2.8, '#19202d');
   const cols = ['todo', 'active', 'audit', 'ok'];
   const perCol = Math.max(1, ...cols.map(k => S.stages.filter(s => colOf(s.id) === k).length));
   const h = Math.min(.3, 1.5 / perCol);
   cols.forEach((k, ci) => {
-    const x0 = 4.4 + ci * 1.45;
-    wallQuad(x0, x0 + 1.3, 2.5, 2.6, {todo: '#c9d1dd', active: '#f3b545', audit: '#6e8bff', ok: '#59c08d'}[k]);
+    const x0 = 8.05 + ci * 1.13;
+    wallQuad(x0, x0 + 1.03, 2.5, 2.6, {todo: '#c9d1dd', active: '#f3b545', audit: '#6e8bff', ok: '#59c08d'}[k]);
     S.stages.filter(s => colOf(s.id) === k).forEach((s, i) => {
       const c = gates[s.id].retries && k !== 'ok' ? '#ef9b94' : {todo: '#c9d1dd', active: '#f3b545', audit: '#6e8bff', ok: '#59c08d'}[k];
-      wallQuad(x0 + .1, x0 + 1.2, 2.4 - i * h, 2.4 - (i + 1) * h + .04, c);
+      wallQuad(x0 + .08, x0 + .95, 2.4 - i * h, 2.4 - (i + 1) * h + .04, c);
     });
   });
 }
@@ -702,7 +854,7 @@ function drawAgent(a, now) {
 
 // Étiquettes dessinées après les meubles et les robots : un nom n'est jamais caché derrière un bureau.
 function drawLabel(a) {
-  const s = tw / 40, sx = a.fx, sy = a.fy;
+  const s = Math.min(1.25, tw / 40), sx = a.fx, sy = a.fy;
   // pastille blanche ombrée, point de couleur du rôle
   if (a.called || a === pinned) {
     ctx.font = `600 ${Math.max(10, 11 * s)}px ${FONT}`;
@@ -764,7 +916,10 @@ function frame(now) {
   furniture.concat(Object.values(agents).map(a => ({d: a.x + a.y + .5, draw: () => drawAgent(a, now)}))).sort((p, q) => p.d - q.d).forEach(it => it.draw());
   drawParapet();
   nightLights();
-  ctx.globalCompositeOperation = 'destination-over'; ctx.drawImage(bgc, 0, 0, W, H); ctx.globalCompositeOperation = 'source-over';
+  ctx.globalCompositeOperation = 'destination-over';
+  const kb = tw / bgView.tw; ctx.drawImage(bgc, ox - bgView.ox * kb, oy - bgView.oy * kb, W * kb, H * kb);
+  ctx.fillStyle = mix('#cfe3f6', '#0c1426', sunNow.night); ctx.fillRect(0, 0, W, H);
+  ctx.globalCompositeOperation = 'source-over';
   drawPoles();
   Object.values(agents).forEach(drawLabel);
   drawBubble(now);
@@ -786,7 +941,7 @@ function step() {
   if (e.type === 'release' && agents[e.from]) { released.add(e.from); agents[e.from].activity = null; }
   if (e.type === 'dismiss' && e.target) {
     dismissed.add(e.target);
-    const a = agents[e.target]; if (a) { a.leaving = true; a.activity = null; setDest(a, [13.1, 6.0]); }
+    const a = agents[e.target]; if (a) { a.leaving = true; a.activity = null; setDest(a, ENTRY); }
   }
   const A = agents[e.from] || agents.pdg;
   const color = e.type === 'ok' ? '#1d9e62' : e.type === 'ko' ? '#d93b30' : A.color;
@@ -1038,12 +1193,32 @@ function renderWho() {
   }
 }
 const inPoly = (x, y, pts) => { let inside = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside; } return inside; };
+let drag = null;
+cv.addEventListener('wheel', ev => { ev.preventDefault(); const r = cv.getBoundingClientRect(); zoomAt(view.k * Math.exp(-ev.deltaY * .0016), ev.clientX - r.left, ev.clientY - r.top); }, {passive: false});
+cv.addEventListener('pointerdown', ev => { drag = {x: ev.clientX, y: ev.clientY, dx: view.dx, dy: view.dy, moved: false}; });
+addEventListener('pointermove', ev => {
+  if (!drag) return;
+  const mx = ev.clientX - drag.x, my = ev.clientY - drag.y;
+  if (!drag.moved && Math.hypot(mx, my) < 5) return;
+  if (!drag.moved) cv.setPointerCapture?.(ev.pointerId);
+  drag.moved = true; cv.style.cursor = 'grabbing';
+  view.dx = drag.dx + mx; view.dy = drag.dy + my; clampView(); applyView(); bgSoon();
+});
+addEventListener('pointerup', () => { if (drag && drag.moved) setTimeout(() => { drag = null; }, 0); else drag = null; cv.style.cursor = ''; });
+cv.addEventListener('dblclick', ev => { const r = cv.getBoundingClientRect(); zoomAt(view.k > 1.6 ? 1 : 2.2, ev.clientX - r.left, ev.clientY - r.top); });
+$('zin').onclick = () => zoomAt(view.k * 1.35); $('zout').onclick = () => zoomAt(view.k / 1.35); $('zfit').onclick = () => zoomAt(1);
+cv.addEventListener('keydown', ev => {
+  const step = 40, keys = {ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step]};
+  if (ev.key === '+' || ev.key === '=') zoomAt(view.k * 1.25); else if (ev.key === '-') zoomAt(view.k / 1.25); else if (ev.key === '0') zoomAt(1);
+  else if (keys[ev.key] && view.k > 1) { ev.preventDefault(); view.dx += keys[ev.key][0]; view.dy += keys[ev.key][1]; clampView(); applyView(); bgSoon(); }
+});
 cv.addEventListener('click', ev => {
+  if (drag && drag.moved) return;
   const r = cv.getBoundingClientRect(), mx = ev.clientX - r.left, my = ev.clientY - r.top;
   let best = null, bd = 30 * tw / 40 + 6;
   for (const a of Object.values(agents)) { const d = Math.hypot(a.sx - mx, a.sy - my); if (d < bd) { bd = d; best = a; } }
   if (best && best.id !== 'client') return showAgent(best.id);
-  const quad = [P(4.2, .02, .9), P(10.2, .02, .9), P(10.2, .02, 2.8), P(4.2, .02, 2.8)];
+  const quad = [P(7.9, .02, .9), P(12.6, .02, .9), P(12.6, .02, 2.8), P(7.9, .02, 2.8)];
   if (inPoly(mx, my, quad)) showAgent(BOARD); else closeAgent();
 });
 
@@ -1051,7 +1226,9 @@ cv.addEventListener('click', ev => {
 // un rôle inventé reçoit une couleur et un poste libres. Chaque recrue entre par l'accueil.
 let hired = [], released = new Set();
 const PALETTE = ['#0ea5a4', '#e86a92', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#a16207', '#64748b', '#db2777'];
-const SPOTS = [[3.2, 6.8], [9.8, 9.6], [12.3, 4.1], [4.4, 5.0], [3.0, 6.6], [9.8, 9.6], [7.6, 10.4], [12.3, 4.1], [5.8, 2.3], [8.6, 2.2], [2.4, 8.1], [3.6, 8.2], [1.2, 8.2], [4.6, 9.5], [3.6, 10.9], [2.2, 10.9], [10.4, 4.6], [6.2, 6.6], [1.2, 10.6]];
+// postes de secours : dans l'atrium, le salon et le café
+const SPOTS = [];
+for (const [x0, y0, x1, y1] of [[7, 7, 14, 13], [14.4, 13.4, 20, 19.6], [20.4, 9, 26, 13]]) for (let x = x0 + .5; x < x1; x += 1) for (let y = y0 + .5; y < y1; y += 1) SPOTS.push([x, y]);
 // Place libre à l'écran (projection isométrique) : un robot et son étiquette occupent une zone large et haute,
 // donc deux postes éloignés au sol peuvent se recouvrir à l'écran. Ellipse : large pour l'étiquette, haute pour le corps.
 const apart = (a, b, k = 1) => (((a[0] - a[1]) - (b[0] - b[1])) / (3.6 * k)) ** 2 + (((a[0] + a[1]) - (b[0] + b[1])) / (6.4 * k)) ** 2 > 1;
@@ -1066,7 +1243,7 @@ function freeSpot(pole) {
     const far = q => Math.min(9, ...taken.map(h => Math.hypot(h[0] - q[0], h[1] - q[1])));
     const q = pts.filter(q => !blocked(...q)).sort((a, b) => far(b) - far(a))[0]; if (q) return q;
   }
-  return SPOTS.find(q => ok(q)) || SPOTS.find(q => ok(q, .6)) || meetPoint({home: [7, 8]});
+  return SPOTS.find(q => ok(q)) || SPOTS.find(q => ok(q, .6)) || meetPoint({home: [12, 12]});
 }
 function lighten(hex, k) { const n = parseInt(hex.slice(1), 16); return '#' + [n >> 16, n >> 8 & 255, n & 255].map(c => Math.round(c + (255 - c) * k).toString(16).padStart(2, '0')).join(''); }
 function hire(h) {
@@ -1083,7 +1260,7 @@ function hire(h) {
   }
   if (Object.values(agents).some(a => Math.hypot(a.home[0] - home[0], a.home[1] - home[1]) < .5)) home = freeSpot();
   ROLES[h.id] = {name: h.name || h.id, color, home, role: h.mission || role, like: h.like};
-  agents[h.id] = Object.assign(makeAgent(h.id, ROLES[h.id]), {x: 13.1, y: 6.0, called: true, flash: performance.now()});
+  agents[h.id] = Object.assign(makeAgent(h.id, ROLES[h.id]), {x: ENTRY[0], y: ENTRY[1], called: true, flash: performance.now()});
   setDest(agents[h.id], home);
   hired.push(h.id);
 }
