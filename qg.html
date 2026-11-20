@@ -383,6 +383,7 @@ const XB = GX + 3.2, YB = GY + 3.2;  // la terrasse, sur les deux côtés ouvert
 const ENTRY = [24.9, 18.6];           // l'entrée, à l'accueil : les recrues arrivent et repartent par là
 let W = 0, H = 0, tw = 40, ox = 0, oy = 0, fit = {tw: 40, ox: 0, oy: 0};
 const view = {k: 1, dx: 0, dy: 0};
+let framed = false;  // premier cadrage fait (sur téléphone, on ouvre déjà zoomé)
 const P = (x, y, z = 0) => [ox + (x - y) * tw / 2, oy + (x + y) * tw / 4 - z * tw / 2];
 function applyView() {
   tw = fit.tw * view.k;
@@ -396,6 +397,7 @@ function layout() {
   fit.tw = Math.min(W * .97 / ((XB + YB + .6) / 2), H * .95 / span);
   fit.ox = W / 2 - (XB - YB) * fit.tw / 4;
   fit.oy = (H - span * fit.tw / 2) / 2 + WH * fit.tw / 2 + 6;
+  if (!framed && W) { framed = true; if (W < 560) view.k = Math.min(2, 560 / W); }
   applyView(); buildBg();
 }
 function zoomAt(k, sx = W / 2, sy = H / 2) {
@@ -620,8 +622,8 @@ function meetPoint(B) {
 // ---------- La tour : terrasse, façade, ville et ciel selon l'heure réelle ----------
 const hash = n => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
 const mix = (a, b, t) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');
-function sun() {
-  const d = new Date(), h = d.getHours() + d.getMinutes() / 60;
+function sun(d = new Date()) {
+  const h = d.getHours() + d.getMinutes() / 60;
   // 0 = plein jour, 1 = pleine nuit ; aube de 6 h à 8 h, soir de 18 h à 21 h
   const night = h < 6 || h >= 21 ? 1 : h < 8 ? (8 - h) / 2 : h >= 18 ? (h - 18) / 3 : 0;
   return {night, label: night > .7 ? 'nuit' : night > 0 ? (h < 12 ? 'aube' : 'soir') : 'jour', time: d.toTimeString().slice(0, 5)};
@@ -740,15 +742,22 @@ function drawPoles() {
     ctx.font = `500 ${Math.round(10.5 * s)}px ${FONT}`; ctx.fillStyle = n ? '#d6f7e4' : '#aab2c3'; ctx.fillText(status, lx + w1 + 23 * s, y + .5);
   }
 }
+// En direct : l'heure réelle. En rejeu : l'heure de l'échange affiché (lumière et horloge de la mission).
+function missionSun() {
+  const e = typeof live !== 'undefined' && !live && S.events.length ? S.events[Math.max(0, Math.min(S.events.length, idx) - 1)] : null;
+  return e && e.ts ? sun(new Date(e.ts * 1000)) : sun();
+}
+function syncSun() {
+  const s = missionSun(), redraw = Math.round(s.night * 20) !== Math.round(sunNow.night * 20);
+  sunNow = s; if (redraw) buildBg();
+}
 function renderCrew() {
+  syncSun();
   const n = Object.values(agents).filter(busy).length, icon = {jour: '☀️', aube: '🌅', soir: '🌇', nuit: '🌙'}[sunNow.label];
   $('crew').innerHTML = '';
   $('crew').append(el('i', null, '● '), `${n} au travail · ${icon} ${sunNow.time} ${sunNow.label}`);
 }
-setInterval(() => {
-  const s = sun(), redraw = Math.round(s.night * 20) !== Math.round(sunNow.night * 20);
-  sunNow = s; if (redraw) buildBg(); renderCrew();
-}, 20000);
+setInterval(renderCrew, 20000);
 new ResizeObserver(layout).observe(cv);
 
 let gate = {state: null, t: -1e9};

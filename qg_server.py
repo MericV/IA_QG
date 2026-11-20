@@ -26,7 +26,7 @@ qu'une liste blanche de fichiers ; affichage en iframe limité à l'app elle-mê
 secret (stable, conservé dans .token) et une origine locale. Les clés d'API vont dans le trousseau macOS
 (service « bureau-ia ») et ne sont jamais renvoyées par le serveur.
 """
-import datetime, functools, http.server, json, mimetypes, os, re, secrets, shutil, signal, subprocess, sys, threading, time, pathlib
+import datetime, http.server, json, mimetypes, os, re, secrets, shutil, signal, subprocess, sys, threading, time, pathlib
 from urllib.parse import urlsplit, parse_qs, unquote
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
@@ -218,6 +218,15 @@ def run_job(jid):
     return name
 
 
+def postpone(jid):
+    with LOCK:
+        jobs = qg_log.read(PILOTE, [])
+        for j in jobs:
+            if j["id"] == jid:
+                j["prochain"] = next_run(j, datetime.datetime.now()).timestamp()
+        qg_log.write_json(PILOTE, jobs)
+
+
 def pilote_due(now=None):
     """Tâches actives dont l'heure est passée (une tâche manquée pendant l'arrêt de l'app part une seule fois)."""
     now = now or time.time()
@@ -230,8 +239,9 @@ def pilote_loop():
         for jid in pilote_due():
             try:
                 run_job(jid)
-            except Exception as e:  # une tâche en panne ne doit pas arrêter les autres
+            except Exception as e:  # une tâche en panne ne doit pas arrêter les autres : elle attend son prochain lancement
                 print(f"Pilote automatique : la tâche {jid} n'a pas pu partir : {e}", flush=True)
+                postpone(jid)
         time.sleep(30)
 
 

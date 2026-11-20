@@ -62,7 +62,18 @@ try:
     assert [a["discussion"] for a in box["attente"]] == [name]
     assert [l["discussion"] for l in box["livre"]] == [name]
 
-    # 5. Tâche en pause : jamais lancée
+    # 5. Tâche en panne : repoussée à son prochain lancement, pas relancée toutes les 30 secondes
+    with S.LOCK:
+        jobs = qg_log.read(S.PILOTE, []); jobs[0]["prochain"] = 0; qg_log.write_json(S.PILOTE, jobs)
+    S.run_job = lambda jid: (_ for _ in ()).throw(OSError("disque plein"))
+    S.time.sleep = lambda s: (_ for _ in ()).throw(KeyboardInterrupt)
+    try:
+        S.pilote_loop()
+    except KeyboardInterrupt:
+        pass
+    assert not S.pilote_due() and qg_log.read(S.PILOTE, [])[0]["prochain"] > time.time()
+
+    # 6. Tâche en pause : jamais lancée
     S.save_job({**job, "actif": False})
     assert not S.pilote_due(time.time() + 10 ** 9)
     print("test_pilote : OK")
