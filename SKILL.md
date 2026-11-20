@@ -18,7 +18,11 @@ Les outils sont dans le dossier de ce skill (`~/.claude/skills/bureau/`, noté `
 | 🎩 **PDG** (`pdg`) | Réfléchit à la mission, décide comment la mener, **recrute l'équipe**, découpe et répartit le travail, tranche, valide. Seul interlocuteur du client. |
 | 🔍 **Auditeur** (`aud`) | Garant du fond. Applique les règles ci-dessous à **chaque étape**. Peut bloquer et renvoyer n'importe quel travail. |
 
-**Tous les autres rôles sont recrutés par le PDG, mission par mission.** Il n'y a pas d'équipe fixe : à chaque nouvelle mission (et à chaque nouvelle action importante dans une mission), le PDG se demande ce qu'il faut pour réussir, puis recrute les acteurs qui manquent.
+**Une équipe de base en veille** : à chaque mission, un chef par pôle est déjà dans le bureau, en veille : `bib` Chef de la Recherche, `ecr` Chef de la Rédaction, `cor` Chef de la Relecture, `str` Chef de l'Atelier des experts, `jur` Chef de la Conformité, `des` Chef du Studio design, `ing` Chef technique.
+- Le PDG **active** un chef quand la mission a besoin de son pôle : `qg_log.py recruit bib "Chef de la Recherche" "mission" "pourquoi" ["brief"]`. Un chef qui échange se réveille aussi tout seul. Les chefs inutiles restent en veille.
+- Un chef actif **dirige son équipe** : il recrute lui-même ses experts avec `qg_log.py recruit ID "Nom" "mission" "pourquoi" ["brief"] --equipe bib` (les experts s'installent dans son pôle), leur répartit le travail, puis fait la **synthèse de son pôle** et la remet au PDG. Les briefs des chefs leur disent de recruter et de publier leur avancement comme le PDG.
+
+**Les autres rôles sont recrutés mission par mission**, par le PDG (rattachés à lui) ou par les chefs (rattachés à leur pôle) : à chaque nouvelle mission (et à chaque nouvelle action importante dans une mission), le PDG se demande ce qu'il faut pour réussir, active les pôles utiles et recrute les acteurs qui manquent.
 
 ### Recruter l'équipe
 

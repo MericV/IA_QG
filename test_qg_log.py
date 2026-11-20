@@ -74,7 +74,7 @@ try:
     assert "déjà terminé" in qg("dismiss", "ana", "encore", ok=False)
     m = [x for x in json.loads((ROOT / "qg-live.json").read_text())["team"] if x["id"] == "ana"][0]
     assert m["brief"].startswith("Tu es l'Analyste") and m["status"] == "parti" and m["end_by"] == "pdg"
-    team = json.loads((ROOT / "qg-live.json").read_text())["team"]
+    team = [m for m in json.loads((ROOT / "qg-live.json").read_text())["team"] if not m.get("chef")]
     assert [m["id"] for m in team][:2] == ["bib2", "recruteur"] and team[1]["status"] == "terminé" and team[1]["bilan"] == "Relecture faite"
     qg("bib2", "pdg", "le renfort travaille")
     qg("aud", "-", "audit rejeté", "ko", "Sources")
@@ -212,6 +212,20 @@ try:
     assert "Mission A" in history and "<td>0/1</td>" in history
     assert json.loads((ROOT / "qg-live.json").read_text())["events"] == [] and not (ROOT / "livrables").exists()
 
+    # Équipe de base : 7 chefs en veille ; un échange réveille un chef ; un chef recrute ses experts ; un expert n'est pas chef
+    qg("init", "Équipe de base", "base")
+    live = lambda: json.loads((TMP / "bureau" / "projets" / "base" / "qg-live.json").read_text())
+    env_base = {"BUREAU_PROJET": "base"}
+    os.environ.update(env_base); ENV.update(env_base)
+    assert [m["id"] for m in live()["team"]] == ["bib", "ecr", "cor", "str", "jur", "des", "ing"] and all(m["status"] == "en veille" for m in live()["team"])
+    qg("pdg", "bib", "Cherche les sources")
+    assert {m["id"]: m["status"] for m in live()["team"]}["bib"] == "au travail"
+    qg("recruit", "veilleur", "Veilleur", "Veille presse", "Beaucoup de sources", "--equipe", "bib")
+    qg("recruit", "graphiste", "Graphiste", "Schémas", "Visuels", "--equipe", "des")
+    t = {m["id"]: m for m in live()["team"]}
+    assert t["veilleur"]["equipe"] == "bib" and t["graphiste"]["equipe"] == "des" and t["des"]["status"] == "au travail"
+    assert "n'est pas un chef" in qg("recruit", "x", "X", "m", "w", "--equipe", "veilleur", ok=False)
+    del ENV["BUREAU_PROJET"]; os.environ.pop("BUREAU_PROJET", None)
     print("test_qg_log : OK")
 finally:
     shutil.rmtree(TMP, ignore_errors=True)

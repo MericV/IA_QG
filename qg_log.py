@@ -123,10 +123,28 @@ def require_mission():
 DEFAULT_MODEL = {"provider": "claude-code", "model": "Claude Code (moteur actuel)"}
 
 
+# Équipe de base : à chaque mission, un chef par pôle est déjà dans le bureau, en veille.
+# Le PDG en active un quand la mission en a besoin ; un chef actif dirige son équipe et recrute ses propres experts.
+BASE_TEAM = [
+    ("bib", "Chef de la Recherche", "Trouver, vérifier et citer les sources ; dirige les chercheurs."),
+    ("ecr", "Chef de la Rédaction", "Rédiger à partir des informations validées ; dirige les rédacteurs."),
+    ("cor", "Chef de la Relecture", "Orthographe, style, clarté, mise en forme ; dirige les relecteurs."),
+    ("str", "Chef de l'Atelier des experts", "Analyse, stratégie, chiffres, critique ; dirige les experts de fond."),
+    ("jur", "Chef de la Conformité", "Droit, RGPD, contrats, déontologie ; dirige les spécialistes juridiques."),
+    ("des", "Chef du Studio design", "Mise en page, schémas, visuels ; dirige les designers."),
+    ("ing", "Chef technique", "Code, données, outils ; dirige les ingénieurs."),
+]
+
+
+def base_team():
+    return [{"id": i, "name": n, "mission": m, "why": "Équipe de base du Bureau", "brief": "", "status": "en veille", "chef": True, **now()}
+            for i, n, m in BASE_TEAM]
+
+
 def new_mission(topic, model=None):
     return {"mission": time.strftime("%Y%m%d-%H%M%S-") + os.urandom(2).hex(), "topic": topic, "label": "En direct", "note": "",
             "model": model or DEFAULT_MODEL,
-            "stages": [{"id": slug(s), "name": s} for s in DEFAULT_STAGES], "team": [], "events": []}
+            "stages": [{"id": slug(s), "name": s} for s in DEFAULT_STAGES], "team": base_team(), "events": []}
 
 
 PERMANENT = {"pdg", "aud", "client"}
@@ -139,17 +157,36 @@ def known_roles():
     return ROLES | hired | {m["id"] for m in live.get("team", [])}
 
 
-def recruit(rid, name, mission, why, like=None, brief=""):
-    """Le PDG recrute un membre de l'équipe : il apparaît dans l'organigramme et entre dans le bureau."""
+def recruit(rid, name, mission, why, like=None, brief="", chef=None):
+    """Le PDG recrute un membre (ou active un chef de l'équipe de base) ; un chef actif peut recruter ses propres experts (chef=ID)."""
     require_mission()
     if not HIRE_ID.fullmatch(rid):
         raise Erreur(f"identifiant « {rid} » invalide : minuscules, chiffres et _ (16 caractères max.), ex. recruteur")
-    if rid in PERMANENT or rid in {m["id"] for m in read(LIVE, {}).get("team", [])}:
+    team = read(LIVE, {}).get("team", [])
+    base = next((m for m in team if m["id"] == rid and m.get("chef") and m.get("status") == "en veille"), None)
+    if base and not chef:
+        # activer un chef en veille : il garde son poste et prend la mission que lui confie le PDG
+        def wake(d):
+            m = next(m for m in d["team"] if m["id"] == rid)
+            m.update({"status": "au travail", "mission": mission or m["mission"], "why": why, "brief": brief[:20000], **now()})
+        update(LIVE, {}, wake)
+        append_event({"from": "pdg", "to": rid, "type": "hire", "text": f"Active {base['name']} : {why}",
+                      "hire": {"id": rid, "name": base["name"], "mission": mission, "like": rid, "chef": True}})
+        return
+    if rid in PERMANENT or rid in {m["id"] for m in team}:
         raise Erreur(f"« {rid} » fait déjà partie de l'équipe")
+    if chef:
+        lead = next((m for m in team if m["id"] == chef and m.get("chef")), None)
+        if not lead:
+            raise Erreur(f"« {chef} » n'est pas un chef d'équipe. Chefs : {', '.join(m['id'] for m in team if m.get('chef'))}")
+        if lead.get("status") == "en veille":
+            recruit(chef, lead["name"], lead["mission"], f"Pour diriger le recrutement de {name}")
     member = {"id": rid, "name": name, "mission": mission, "why": why, "brief": brief[:20000], "status": "au travail", **now()}
+    if chef:
+        member["equipe"] = chef
     update(LIVE, {}, lambda d: d.setdefault("team", []).append(member))
-    append_event({"from": "pdg", "type": "hire", "text": f"Recrute {name} : {why}",
-                  "hire": {"id": rid, "name": name, "mission": mission, "like": like or (rid if rid in ROLES else None)}})
+    append_event({"from": chef or "pdg", "type": "hire", "text": f"Recrute {name} : {why}",
+                  "hire": {"id": rid, "name": name, "mission": mission, "like": like or (rid if rid in ROLES else None), **({"equipe": chef} if chef else {})}})
 
 
 def check_role(role, allowed=None):
@@ -170,7 +207,15 @@ def check_stage(stage):
 def append_event(ev):
     require_mission()
     ev.update(now())
-    update(LIVE, {}, lambda d: d["events"].append(ev))
+
+    def add(d):
+        d["events"].append(ev)
+        # un chef en veille qui parle ou à qui l'on parle se met au travail
+        who = {ev.get("from")} | set(ev.get("to") if isinstance(ev.get("to"), list) else [ev.get("to")])
+        for m in d.get("team", []):
+            if m.get("chef") and m.get("status") == "en veille" and m["id"] in who:
+                m["status"] = "au travail"
+    update(LIVE, {}, add)
 
 
 def message(n):
@@ -489,11 +534,16 @@ def main(a):
             raise Erreur('aucune étape : stages "Cadrage|Sources|..."')
         update(LIVE, {}, lambda d: d.__setitem__("stages", [{"id": slug(s), "name": s} for s in names]))
     elif cmd == "recruit":
-        # recruit ID "Nom" "mission" "pourquoi" ["brief" | @fichier]
+        # recruit ID "Nom" "mission" "pourquoi" ["brief" | @fichier] [--equipe CHEF]
+        chef = None
+        if "--equipe" in a:
+            i = a.index("--equipe")
+            chef = a[i + 1] if i + 1 < len(a) else ""
+            a = a[:i] + a[i + 2:]
         brief = a[5] if len(a) > 5 else ""
         if brief.startswith("@"):
             brief = pathlib.Path(brief[1:]).read_text(encoding="utf-8")
-        recruit(a[1], a[2], a[3], a[4], brief=brief)
+        recruit(a[1], a[2], a[3], a[4], brief=brief, chef=chef)
     elif cmd == "dismiss":
         # dismiss ID "raison" : fin de contrat décidée par le PDG
         dismiss(a[1], a[2])

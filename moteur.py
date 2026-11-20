@@ -140,10 +140,12 @@ Tu réfléchis à sa demande, tu cadres, et tu recrutes les rôles nécessaires 
 Réponds UNIQUEMENT par un objet JSON :
 {"reponse": "ton message au client, court, en français",
  "question": null ou {"texte": "question au client", "choix": ["A", "B"]},
- "equipe": [] ou [{"id": "minuscules_sans_espace", "nom": "Nom du rôle", "mission": "une phrase", "brief": "instructions précises et complètes"}],
+ "equipe": [] ou [{"id": "minuscules_sans_espace", "nom": "Nom du rôle", "mission": "une phrase", "brief": "instructions précises et complètes", "chef": null ou "id du chef qui le dirige"}],
  "livrable": null ou "titre du livrable"}
 - Pose une question seulement si une décision revient vraiment au client ; dans ce cas, pas d'équipe.
-- Recrute une équipe (1 à 4 rôles aux tâches indépendantes) seulement quand il y a un livrable à produire ou à modifier.
+- Le Bureau a une équipe de base : un chef par pôle, en veille (liste dans le contexte). Pour t'appuyer sur un pôle, mets l'id de son chef dans "equipe" : il est activé.
+- Un chef actif dirige son équipe : ajoute-lui des experts (rôles inventés si besoin) avec "chef": son id ; il fera la synthèse de leur travail.
+- Mobilise une équipe (1 à 6 membres, chefs compris, aux tâches indépendantes) seulement quand il y a un livrable à produire ou à modifier.
 - Pour une simple discussion, réponds sans équipe."""
 
 AGENT = """Tu es {nom}, recruté par le PDG du Bureau pour une mission précise.
@@ -151,6 +153,11 @@ AGENT = """Tu es {nom}, recruté par le PDG du Bureau pour une mission précise.
 Ta mission : {mission}
 Ton brief : {brief}
 Rends directement ton travail, complet, en français, en Markdown."""
+
+CHEF = """Tu es {nom}, chef d'équipe au Bureau. Tes experts ont travaillé sur leur part ; tu fais la synthèse de ton pôle.
+""" + REGLES + """
+Ta mission : {mission}
+Garde ce qui est vérifié, corrige les erreurs, signale les manques, sans rien ajouter d'invérifiable. Rends la synthèse de ton équipe, en français, en Markdown."""
 
 ECRIVAIN = """Tu es l'Écrivain du Bureau. Tu assembles le livrable final pour le client à partir des seuls travaux de l'équipe.
 """ + REGLES + """
@@ -213,7 +220,11 @@ def tour(name, msgs):
         log(name, "ack", n, f"Reçu. Je réfléchis avec {model}.")
     log(name, "pdg", "-", "Je lis la demande et je décide de la suite.", "work", "Cadrage")
 
-    contexte = (f"Sujet de la discussion : {d.get('topic', '')}\n\nConversation jusqu'ici :\n{chat_history(d)}\n\n"
+    chefs = {t["id"]: t for t in d.get("team", []) if t.get("chef")}
+    base = "\n".join(f"- {t['id']} : {t['name']} ({t['status']}) — {t['mission']}" for t in chefs.values())
+    contexte = (f"Sujet de la discussion : {d.get('topic', '')}\n\n"
+                + (f"Équipe de base (chefs de pôle) :\n{base}\n\n" if base else "")
+                + f"Conversation jusqu'ici :\n{chat_history(d)}\n\n"
                 + (f"Livrable actuel :\n{current[:20000]}\n\n" if current else "")
                 + "Nouveau :\n" + "\n".join(describe(m) for m in msgs))
     raw = ask(PDG, contexte)
@@ -224,20 +235,30 @@ def tour(name, msgs):
         log(name, "ask", q["texte"], "|".join(str(c) for c in q["choix"][:5]))
 
     team = []
-    for i, m in enumerate((plan.get("equipe") or [])[:4]):
+    for m in (plan.get("equipe") or [])[:6]:
         if not isinstance(m, dict):
+            continue
+        raw = str(m.get("id") or "").strip().lower()
+        mission, brief = str(m.get("mission") or "")[:300], str(m.get("brief") or "").lstrip("@")  # « @fichier » ferait lire un fichier local
+        if raw in chefs:  # un chef de l'équipe de base : on l'active
+            if raw not in {t["id"] for t in team}:
+                log(name, "recruit", raw, chefs[raw]["name"], mission or chefs[raw]["mission"], f"Activé par {model} pour cette demande", brief)
+                team.append({"id": raw, "nom": chefs[raw]["name"], "mission": mission or chefs[raw]["mission"], "brief": brief, "chef": True})
             continue
         rid = (re.sub(r"[^a-z0-9_]", "", qg_log.slug(str(m.get("id") or m.get("nom") or "agent")).replace("-", "_")) or "agent")[:12]
         known = qg_log.ROLES | qg_log.PERMANENT | {t["id"] for t in d.get("team", [])}
-        base, k = rid if rid[0].isalpha() else "a" + rid, 2
-        rid = base
+        base_id, k = rid if rid[0].isalpha() else "a" + rid, 2
+        rid = base_id
         while rid in known or rid in {t["id"] for t in team}:
-            rid, k = f"{base[:13]}{k}", k + 1
-        # « @fichier » ferait lire un fichier local par qg_log : un brief venu du modèle n'y a pas droit
-        member = {"id": rid, "nom": str(m.get("nom") or rid)[:60], "mission": str(m.get("mission") or "")[:300],
-                  "brief": str(m.get("brief") or "").lstrip("@")}
-        log(name, "recruit", rid, member["nom"], member["mission"], f"Recruté par {model} pour cette demande", member["brief"])
+            rid, k = f"{base_id[:13]}{k}", k + 1
+        lead = str(m.get("chef") or "").strip().lower()
+        lead = lead if lead in chefs else None
+        member = {"id": rid, "nom": str(m.get("nom") or rid)[:60], "mission": mission, "brief": brief, "equipe": lead}
+        log(name, "recruit", rid, member["nom"], member["mission"], f"Recruté par {model} pour cette demande", member["brief"], *(["--equipe", lead] if lead else []))
         team.append(member)
+    # un chef dont on a recruté des experts dirige son équipe, même si le PDG ne l'a pas cité
+    for lead in {t["equipe"] for t in team if t.get("equipe")} - {t["id"] for t in team}:
+        team.append({"id": lead, "nom": chefs[lead]["name"], "mission": chefs[lead]["mission"], "brief": "", "chef": True})
     for n in ids:
         for t in team or [{"id": "pdg"}]:
             log(name, "dispatch", n, t["id"], "Pris en compte dans le travail" if team else "Réponse du PDG")
@@ -256,10 +277,34 @@ def tour(name, msgs):
         log(name, t["id"], "pdg", f"Terminé ({len(out.split())} mots). " + out.strip()[:280], "-", "Rédaction")
         log(name, "release", t["id"], "Part terminée")
         return t, out
-    with ThreadPoolExecutor(len(team)) as pool:  # les recrues travaillent en même temps
-        results = list(pool.map(work, team))
+    # 1) les experts, et les chefs sans experts, travaillent en même temps
+    experts = {t["id"]: [e for e in team if e.get("equipe") == t["id"]] for t in team if t.get("chef")}
+    first = [t for t in team if not t.get("chef") or not experts[t["id"]]]
+    with ThreadPoolExecutor(len(first)) as pool:
+        results = list(pool.map(work, first))
+    done = {t["id"]: out for t, out in results}
 
-    travaux = "\n\n".join(f"## Travail de {t['nom']} ({t['mission']})\n{out}" for t, out in results if out)
+    # 2) chaque chef fait la synthèse du travail de son équipe
+    def lead(t):
+        parts = "\n\n".join(f"### {e['nom']} ({e['mission']})\n{done[e['id']]}" for e in experts[t["id"]] if done.get(e["id"]))
+        if not parts:
+            return t, ""
+        log(name, t["id"], "-", f"Je fais la synthèse du travail de mon équipe ({len(experts[t['id']])} expert(s)).", "work", "Rédaction")
+        try:
+            out = ask(CHEF.format(**t), f"{contexte}\n\nTravail de ton équipe :\n{parts}")
+        except MoteurErreur as e:
+            log(name, t["id"], "pdg", f"Bloqué : {e}", "ko", "Rédaction")
+            return t, parts
+        log(name, t["id"], "pdg", f"Synthèse de l'équipe prête ({len(out.split())} mots).", "-", "Rédaction")
+        log(name, "release", t["id"], "Synthèse de l'équipe remise")
+        return t, out
+    leads = [t for t in team if t.get("chef") and experts[t["id"]]]
+    if leads:
+        with ThreadPoolExecutor(len(leads)) as pool:
+            results += list(pool.map(lead, leads))
+
+    # au rendu : la part de chaque chef (sa synthèse ou son travail), et celle des experts rattachés au PDG
+    travaux = "\n\n".join(f"## Travail de {t['nom']} ({t['mission']})\n{out}" for t, out in results if out and not t.get("equipe"))
     if not travaux:
         log(name, "pdg", "client", "L'équipe n'a rien pu produire (voir les messages des recrues).", "ko")
         return
