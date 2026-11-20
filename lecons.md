@@ -12,16 +12,19 @@ Catégories : cadrage · sources · rédaction · audit · client · outils.
 - 2026-11-12 · [cadrage] Découper toute recherche à plusieurs thèmes entre plusieurs Bibliothécaires dès le départ, et demander à chaque recrue de publier son avancement en direct. (Pourquoi : le client a dû réclamer lui-même un second Bibliothécaire et l'écran restait immobile pendant les recherches.)
 
 ## Sources
+- 2026-11-19 · [sources] Faire vérifier les numéros de page par le Contre-vérificateur, pas seulement le fond : les brochures en doubles pages et les PDF paginés autrement que l'imprimé faussent les références. (Pourquoi : 2 des 7 références vérifiées avaient une page fausse, avec un fond pourtant exact.)
 - 2026-11-06 · [sources] Faire relire à la source un échantillon des faits rapportés par un agent, surtout les chiffres. (Pourquoi : deux sources officielles donnaient le même chiffre avec un libellé différent ; l'écart n'est apparu qu'à la relecture.)
 - 2026-11-06 · [sources] Un PDF que l'outil web ne sait pas lire se lit avec `pdf_text.swift`. Ne jamais déduire le contenu d'un PDF illisible. (Pourquoi : deux communiqués n'étaient lisibles qu'après extraction locale.)
 - 2026-11-12 · [sources] Présenter un atout du client (diplôme, brevet) tel que les sources officielles le décrivent, sans en exagérer la portée. (Pourquoi : un brevet présenté comme un atout n'était, d'après les sources officielles, qu'une preuve d'intérêt.)
 
 ## Rédaction
+- 2026-11-19 · [rédaction] Pour un devoir universitaire qui exige des notes de bas de page, rédiger en Markdown avec des citations [n] (contrôlables par audit.py), puis produire un .docx où chaque [n] devient une vraie note (première citation complète, puis renvoi « voir note N »), sans les marqueurs [HYP]. (Pourquoi : le barème pénalise les références absentes, et un Markdown copié dans Word perd ses notes.)
 - 2026-11-12 · [rédaction] Quand le Correcteur et un relecteur de fond travaillent en parallèle, le PDG fusionne leurs remarques et écarte toute « clarification » qui ajoute un fait absent des sources. (Pourquoi : la relecture de forme proposait « très souple », « sans reste à charge » et une définition de la greffe, absents des sources.)
 - 2026-11-12 · [rédaction] Prévoir une marge de longueur au premier jet (viser le bas de la fourchette) : les relectures ajoutent des nuances obligatoires. (Pourquoi : les corrections de fond ont fait passer la fiche de 2,3 à 2,7 pages et il a fallu resserrer.)
 - 2026-11-06 · [rédaction] Vérifier la longueur avec `audit.py --pages N` avant de rendre. (Pourquoi : un premier jet faisait 7,5 pages pour 5 autorisées.)
 
 ## Audit
+- 2026-11-19 · [audit] Pour un devoir noté, faire relire par un « jury » extérieur avant la première remise, et non après : il trouve des erreurs de notion (type d'indicateur, préventif ou correctif, portée d'un article de loi) que audit.py ne voit pas. (Pourquoi : le premier rendu, validé par audit.py, contenait 8 défauts de fond relevés ensuite par le relecteur jury.)
 - 2026-11-12 · [audit] Attribuer chaque fait à la source qui le contient vraiment, même une définition. (Pourquoi : un délai de pose de la couronne était cité d'après une source qui ne le donnait pas.)
 - 2026-11-06 · [audit] Un chiffre trouvé par un comptage de l'équipe est un `[EST]` avec sa méthode, jamais un chiffre publié. (Pourquoi : un comptage fait sur des données ouvertes avait failli passer pour une statistique publiée.)
 
