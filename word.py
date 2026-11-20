@@ -53,6 +53,7 @@ class Doc:
     def runs(self, text, cite=True):
         """Texte Markdown d'une ligne → runs Word (gras, italique, code, liens, notes)."""
         text = re.sub(r"\s*\[(HYP|EST)\]", "", text)
+        text = re.sub(r"\s*<br\s*/?>\s*", " ; ", text)  # retour à la ligne HTML laissé par certains modèles (tableaux)
         if cite:  # la note se colle au mot qui précède, comme dans Word
             text = CITE_SPACE.sub(lambda m: m.group(1) if all(n in self.refs for n in numbers(m.group(2))) else m.group(0), text)
         text = re.sub(r"\[([^\]]+)\]\((https?://[^)\s]+)\)", r"\1 (\2)", text)

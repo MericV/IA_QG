@@ -1,8 +1,15 @@
 # Bureau IA
 
-Une mini-société de rôles (PDG, Auditeur, Bibliothécaire, Écrivain, Correcteur et spécialistes) que Claude incarne pour produire des livrables sourcés et audités. Le client suit la mission en direct dans le **QG**, un bureau isométrique animé, et dialogue avec le PDG.
+![Le QG du Bureau, un étage sur le toit d'une tour](docs/captures/03-etage-jour.jpg)
 
-## Installation
+**Une petite société d'IA qui travaille pour toi, et que tu regardes travailler.**
+Un PDG cadre ta demande, réveille les chefs de pôle utiles, qui recrutent leurs propres experts. Un Auditeur contrôle chaque étape : zéro invention, tout est sourcé. Tu suis la mission en direct dans le **QG**, un étage de bureaux animé sur le toit d'une tour, et tu dialogues avec le PDG.
+
+Le Bureau fonctionne avec **Claude Code** (skill `/bureau`) ou **sans lui**, avec le modèle de ton choix : Anthropic, OpenAI, Google Gemini (offre gratuite comprise), Mistral, OpenRouter, Ollama ou Hermes. Tout tourne sur ton Mac, en Python standard et en HTML, **sans dépendance à installer**.
+
+> Les captures ci-dessous montrent des missions de démonstration.
+
+## Démarrage rapide
 
 ```bash
 git clone https://github.com/MericV/IA_QG.git "Bureau IA"
@@ -10,103 +17,168 @@ cd "Bureau IA"
 ./install.sh
 ```
 
-`install.sh` relie ce dossier à `~/.claude/skills/bureau` : Claude Code trouve alors le skill `/bureau` dans tous les projets. Prérequis : macOS ou Linux, Python 3.8+ (bibliothèque standard seulement), `swift` pour lire les PDF (macOS).
+1. **Ouvrir l'app** : double-clic sur `Bureau.command`. Le serveur démarre et l'app s'ouvre sur http://127.0.0.1:8766/.
+2. **Choisir un modèle** : dans « Modèles et comptes », colle une clé d'API, par exemple une clé **gratuite** Google Gemini créée sur aistudio.google.com. Elle va dans le trousseau macOS. Sinon, garde « Claude Code ».
+3. **Lancer une mission** : décris-la sur l'écran d'accueil. Avec un modèle à clé, le Bureau travaille seul. Avec Claude Code, ouvre une session et tape `/bureau` (ou « mode QG »).
 
-## Contenu
+`install.sh` relie ce dossier à `~/.claude/skills/bureau` : Claude Code trouve alors le skill `/bureau` dans tous les projets. Prérequis : macOS (Python 3.8+, `swift`, `textutil` et `osascript` sont fournis avec le système).
 
-| Fichier | Rôle |
+## L'app
+
+| Accueil | Le QG d'une discussion |
 |---|---|
-| `SKILL.md` | Charte du Bureau : rôles, règles de l'Auditeur, circuit, mode QG |
-| `vivier.md` | Vivier de rôles où le PDG recrute l'équipe de chaque mission ; il s'enrichit des rôles inventés utiles |
-| `lecons.md` | Mémoire de méthode : leçons tirées des missions passées, lues au début de chaque mission et complétées à la fin |
-| `briefs.md` | Modèles de brief pour les agents (recherche, contre-vérification, rédaction, critique) |
-| `Bureau.command` | Double-clic : démarre le serveur si besoin et ouvre l'app dans le navigateur |
-| `app.html` | L'app : barre latérale repliable, discussions, nouvelle discussion, Boîte de réception, Pilote automatique, Fonctionnalités, Modèles et comptes, intro vidéo |
-| `features.json` | Fonctionnalités proposées : dépôts GitHub vérifiés qui pourraient enrichir le Bureau (le choix du client, « non » par défaut, reste dans `features-choix.json`, exclu du dépôt) |
-| `qg.html` | Page du QG : un étage sur le toit d'une tour (salles vitrées, atrium, café, terrasse ; ville, jour et nuit selon l'heure), pôles et leur état, caméra (molette ou + et − pour zoomer, glisser pour se déplacer, double-clic), fil, questions du PDG, consignes, kanban, livrable |
-| `qg_log.py` | Journal de mission, consignes et questions du client, livrables, export, historique |
-| `qg_server.py` | Serveur local de l'app : discussions, comptes (trousseau macOS), modèles, QG en direct |
-| `moteur.py` | Moteur multi-modèles : fait travailler le Bureau avec le modèle choisi (Anthropic, OpenAI, Google, Mistral, OpenRouter, Ollama, Hermes), sans Claude Code |
-| `audit.py` | Contrôles automatiques de l'Auditeur |
-| `pieces.py` | Pièces jointes : texte d'un PDF, Word, RTF, PowerPoint, Excel, image (Vision) ou texte, sans rien installer |
-| `ocr.swift` | Lecture du texte d'une image (Vision, macOS) |
-| `word.py` | Livrable Markdown → Word (.docx) avec de vraies notes de bas de page |
-| `pdf_text.swift` | Extraction du texte d'un PDF (macOS) |
-| `test_qg_log.py` | Test du circuit complet |
-| `test_moteur.py` | Test du moteur multi-modèles avec un faux modèle |
-| `test_pilote.py` | Test du pilote automatique et de la boîte de réception |
-| `intro/` | Vidéo d'entrée dans le building (générée par `intro/entree_building.py` avec Blender) |
-| `projets/` | Données locales de chaque projet (exclues du dépôt) |
+| ![Écran d'accueil de l'app](docs/captures/01-accueil.jpg) | ![Une discussion ouverte dans l'app](docs/captures/02-qg-dans-app.jpg) |
 
-## Commandes du QG
+- **Barre latérale** : discussions, Boîte de réception, Pilote automatique, Fonctionnalités, Modèles et comptes. Elle se replie avec **Cmd + B**.
+- **Verre liquide** : surfaces translucides sur un fond de couleurs douces.
+- **Apparence** : le bouton en haut à droite passe de **Auto** (suit le thème clair ou sombre de l'ordinateur) à **Jour** puis à **Nuit**. L'app et le QG changent ensemble.
+- **Intro** : une courte vidéo d'arrivée dans la tour, générée avec Blender (`intro/`).
 
-Toujours depuis la racine du projet sur lequel le Bureau travaille (`B=~/.claude/skills/bureau`).
+## Le QG
 
-| Commande | Effet |
+| Jour | Nuit |
 |---|---|
-| `python3 $B/qg_log.py init "Sujet" [nom]` | Archive la mission précédente, démarre une mission (nom du projet : la première fois) |
-| `qg_log.py stages "A\|B\|C"` | Étapes de la mission (par défaut : Cadrage, Sources, Rédaction, Forme, Audit final) |
-| `qg_log.py FROM TO "texte" [type] [étape]` | Échange. `TO` = rôle, `a,b` ou `-`. `type` = `ok`, `ko`, `deliver`, `work` ou `-` |
-| `qg_log.py recruit ID "Nom" "mission" "pourquoi"` | Le PDG recrute un membre (vivier ou rôle inventé) : il entre dans le bureau et l'Organigramme |
-| `qg_log.py release ID "bilan"` | Le membre a terminé sa part |
-| `qg_log.py livrable FICHIER [ROLE] ["libellé"]` | Nouvelle version du livrable, avec ses changements |
-| `qg_log.py ask "Question ?" "A\|B"` | Question du PDG au client, avec boutons de réponse |
-| `qg_log.py ack N "…"` · `dispatch N ROLE "…"` · `applied N ROLE "…"` | Traitement du message n° N du client |
-| `qg_log.py inbox` · `wait` · `wait-all` | Messages non lus ; `wait` attend la discussion courante, `wait-all` toutes les discussions de l'app |
-| `BUREAU_PROJET=<nom> python3 qg_log.py …` | Agit sur une discussion de l'app, quel que soit le dossier courant |
-| `qg_log.py retro` | Résumé de la mission (renvois, consignes, questions) pour la rétrospective |
-| `qg_log.py close N "raison"` | Clôt une question déjà réglée par un message du client |
-| `qg_log.py export` | Page rejouable de la mission + historique (`missions/index.html`) |
-| `qg_log.py where` | Dossier du projet et adresse du QG |
-| `python3 $B/qg_server.py` | Lance le QG (premier port libre à partir de 8766) ; ou double-clic sur `Bureau.command` |
+| ![L'étage de jour](docs/captures/03-etage-jour.jpg) | ![L'étage de nuit](docs/captures/04-etage-nuit.jpg) |
 
-Permanents : `pdg` (PDG) et `aud` (Auditeur) ; le client est `client`. Tous les autres rôles sont recrutés avec `recruit` (identifiants du vivier comme `bib`, `ecr`, ou identifiants inventés).
+- **Un étage de 40 × 30 cases et 19 lieux** :
+  - des salles vitrées : Direction, salle de mission, salle de conférence, Relecture, Studio design, Recherche, Archives, Atelier des experts, salle serveurs ;
+  - des espaces ouverts : atrium avec un grand arbre, Rédaction, Contrôle qualité, cabines, cantine, jardin, salon, café, détente, accueil ;
+  - une terrasse avec piscine.
+- **La ville autour** : de jour, du ciel et des façades vitrées ; de nuit, des fenêtres allumées, des étoiles et des spots au plafond.
+- **Caméra** : on arrive sur l'étage en entier. La molette ou les boutons + et − zooment, le glisser déplace la vue, ⤢ ou Échap ramène à l'étage. Le décor est préchargé autour de la vue : pas de trou quand on se déplace.
 
-## Outils de l'Auditeur
+| Zoom sur une pièce | Bulle d'action sur un robot |
+|---|---|
+| ![La Recherche zoomée, avec les noms des occupants](docs/captures/05-zoom-piece.jpg) | ![La bulle d'action du Chef de la Recherche](docs/captures/06-bulle-action.jpg) |
 
-```bash
-python3 audit.py FICHIER.md --sources SOURCES.md --pages 5   # verdict validé / rejeté
-python3 audit.py --selftest
-swift pdf_text.swift FICHIER.pdf --pages 1-3
-```
+- **Pièces** : un clic sur une pièce, ou le menu en haut à gauche, y pose la caméra en douceur. Les noms des occupants s'affichent. Le menu donne l'état de chaque pôle (« 3 au travail », « au calme »).
+- **Robots sans texte** : en vue d'ensemble, aucun nom ne cache le bureau. Celui qui parle **brille** quelques secondes, et une **pastille rouge** signale ce qui te concerne (message pour toi, question du PDG).
+- **Bulle d'action** : un clic sur un robot ouvre, à côté de lui, son statut, les boutons « Statut » et « Qu'est-ce qui bloque ? » et un champ pour lui écrire (le message passe par le PDG). « Fiche complète » ouvre sa mission, son brief exact et tout ce qu'il a fait.
+- **Vie du bureau** :
+  - une équipe se réunit en salle de conférence quand son chef recrute ou fait la synthèse ;
+  - ceux qui ont fini leur part vont au café ;
+  - le PDG va à l'accueil pour te remettre le livrable ;
+  - l'écran de la salle de conférence suit le livrable en cours ;
+  - le tableau de mission fait pulser l'étape en cours.
+
+## L'équipe
+
+![L'organigramme : PDG, Auditeur, chefs de pôle et leurs experts](docs/captures/07-organigramme.jpg)
+
+- **Deux permanents** : le **PDG** (cadre, répartit, tranche, seul interlocuteur du client) et l'**Auditeur** (contrôle chaque étape selon des règles non négociables : zéro invention, tout est sourcé, contre-vérification).
+- **Sept chefs de pôle, en veille au début de chaque mission** : Recherche, Rédaction, Relecture, Atelier des experts, Conformité, Studio design et Technique. Le PDG n'active que ceux dont la mission a besoin.
+- **Un chef actif dirige son équipe** : il recrute ses experts (rôles du vivier ou inventés sur mesure), qui s'installent dans son pôle. Il fait ensuite la synthèse de leur travail.
+- **Circuit** : les pôles de fond travaillent en parallèle, puis la Rédaction écrit à partir de leurs travaux. La Relecture corrige la forme, l'Auditeur valide ou renvoie (deux corrections au plus) et le PDG remet le livrable.
+- **Mémoire de méthode** : `lecons.md` garde ce que les missions passées ont appris ; le PDG la lit au début de chaque mission.
+
+## Le livrable
+
+![L'onglet Rendu et le bouton Word](docs/captures/08-rendu-word.jpg)
+
+- **Rendu** : le livrable s'affiche mis en forme (titres, listes, tableaux), avec chaque version et ses changements.
+- **Word ⤓** : télécharge le livrable en `.docx` avec de **vraies notes de bas de page**. Chaque citation [n] de la section Sources devient une note : la référence complète la première fois, puis « Voir note X ». Les marqueurs [HYP] et [EST] sont retirés.
+- **Pièces jointes** : 📎, ou un document glissé dans la conversation (PDF, Word, RTF, PowerPoint, Excel, image, texte ; 15 Mo au plus). Son texte est extrait sur le Mac (`textutil`, PDFKit, Vision pour le texte des images) et devient une source de la mission.
+- **Dictée** : 🎙️ dicte ton message avec la reconnaissance vocale du navigateur. Selon le navigateur, l'audio peut être traité par Apple ou Google.
+- **Coût** : la barre du haut compte les appels au modèle et les jetons de la mission (par exemple « 💰 2 appels · 3,8 k jetons »). Le détail par modèle s'affiche au survol.
+
+## Boîte de réception, Pilote automatique, Fonctionnalités
+
+| Boîte de réception | Pilote automatique |
+|---|---|
+| ![La Boîte de réception](docs/captures/09-boite-reception.jpg) | ![Le Pilote automatique](docs/captures/10-pilote-auto.jpg) |
+
+- **Boîte de réception** : toutes discussions confondues, elle regroupe :
+  - les décisions à prendre (réponse en un clic) ;
+  - ce qui est bloqué ;
+  - les messages qui attendent une session Claude Code ;
+  - ce qui a été livré dans la semaine.
+- **Pilote automatique** : des missions récurrentes, chaque jour, chaque semaine ou toutes les N heures.
+  - À l'heure prévue, le serveur envoie la consigne au PDG dans la discussion de la tâche.
+  - Les tâches tournent tant que l'app est ouverte et le Mac éveillé. Une tâche manquée part une fois au retour de l'app, et une tâche en échec attend son lancement suivant.
+- **Notifications du Mac** : tu es prévenu quand une mission est livrée, qu'une question t'attend ou qu'une mission s'arrête. On les désactive avec `BUREAU_NOTIF=0`.
+
+| Fonctionnalités | Modèles et comptes |
+|---|---|
+| ![La liste des fonctionnalités GitHub](docs/captures/11-fonctionnalites.jpg) | ![Modèles et comptes](docs/captures/12-modeles-comptes.jpg) |
+
+- **Fonctionnalités** : 22 projets libres de GitHub, vérifiés, qui pourraient enrichir le Bureau (Ollama, MarkItDown, Pandoc, SearXNG, whisper.cpp, Mermaid…). Pour chacun : ce qu'il apporterait et ses points d'attention. Tout est sur « **Non** » au départ. Ce que tu passes à « Oui » est noté à intégrer, puis intégré avec Claude Code.
+- **Modèles et comptes** : les clés vont dans le trousseau macOS, ne sont jamais réaffichées et ne partent que chez le fournisseur concerné. La liste des modèles est lue chez lui.
 
 ## Moteur multi-modèles
 
-Dans l'app, chaque discussion a son modèle. Avec « Claude Code », c'est la session Claude Code qui fait travailler le Bureau. Avec un autre modèle, le serveur s'en charge seul : le PDG (le modèle) répond ou pose une question, recrute 1 à 4 rôles qui travaillent en parallèle, l'Écrivain assemble le livrable, l'Auditeur le contrôle (deux corrections au plus) et le PDG le remet. Tout s'affiche dans le QG comme d'habitude.
+Avec un autre modèle que Claude Code, le serveur fait travailler le Bureau seul (`moteur.py`). Le PDG (le modèle) répond, pose une question ou active des chefs de pôle (1 à 6 membres, experts compris). Tout s'affiche dans le QG comme d'habitude.
 
-- **Comptes :** ajoute une clé dans « Modèles et comptes » (trousseau macOS) ; la liste des modèles est lue chez le fournisseur. Ollama et Hermes n'ont pas besoin de clé ici (Hermes utilise sa propre configuration, `hermes -z`).
-- **Recherche web :** avec Anthropic, le moteur active la recherche web et la réflexion adaptative ; chaque fait précis est vérifié en ligne avec son adresse. Si le compte ou le modèle les refuse, l'appel repart sans elles. Les autres fournisseurs n'ont pas de recherche web : les règles de l'Auditeur leur interdisent d'inventer et leur font marquer « à vérifier » tout fait précis non garanti.
-- **Panne :** si un appel échoue, le client voit l'erreur dans le chat et son message est gardé : il est repris à son message suivant ou au redémarrage de l'app.
-- **Appels :** requêtes HTTP de la bibliothèque standard de Python, sans dépendance à installer.
+- **Recherche web** : avec Anthropic, le moteur active la recherche web et la réflexion adaptative. Les autres fournisseurs n'en ont pas, et l'offre gratuite de Gemini refuse sa recherche Google intégrée. Les règles de l'Auditeur leur interdisent d'inventer et leur font marquer « à vérifier » tout fait précis non garanti.
+- **Robustesse** :
+  - un fournisseur surchargé (429, 5xx) est réessayé au bout de 3, 8 puis 20 s ;
+  - si un appel échoue, tu vois l'erreur et ton message est gardé pour l'essai suivant.
+- **Essai réel** : une mission complète sur Gemini gratuit (`gemini-flash-lite-latest`) prend environ 100 secondes, de la demande à la remise auditée.
 
-## Boîte de réception et pilote automatique
+## Contenu du dépôt
 
-- **Boîte de réception** (barre latérale de l'app) : toutes discussions confondues, les décisions à prendre (réponse en un clic), ce qui est bloqué, les messages qui attendent une session Claude Code et ce qui a été livré dans la semaine. La pastille compte ce qui attend ta décision.
-- **Pilote automatique** : des missions récurrentes (chaque jour, chaque semaine, toutes les N heures). À l'heure prévue, le serveur envoie la consigne au PDG dans la discussion de la tâche, créée au premier lancement puis réutilisée. Les tâches sont dans `pilote.json` (exclu du dépôt). Elles tournent tant que l'app est ouverte et le Mac éveillé ; une tâche manquée part une fois au retour de l'app. Avec « Claude Code », le message attend une session où le Bureau est activé ; avec un autre modèle, le moteur s'en charge seul.
+| Fichier | Rôle |
+|---|---|
+| `SKILL.md` | Charte du Bureau : équipe, règles de l'Auditeur, circuit, mode QG |
+| `vivier.md` · `briefs.md` · `lecons.md` | Vivier de rôles, modèles de brief, mémoire de méthode |
+| `Bureau.command` | Double-clic : démarre le serveur si besoin et ouvre l'app |
+| `app.html` | L'app : discussions, Boîte de réception, Pilote automatique, Fonctionnalités, Modèles et comptes, apparence, intro |
+| `qg.html` | Le QG : l'étage animé, la caméra, les pièces, la conversation avec le PDG, le rendu, l'organigramme, le tableau |
+| `qg_server.py` | Serveur local : discussions, comptes, pilote, boîte de réception, pièces jointes, export Word, notifications |
+| `qg_log.py` | Journal de mission : échanges, équipe de base et chefs, consignes, questions, livrables, export |
+| `moteur.py` | Moteur multi-modèles |
+| `pieces.py` · `pdf_text.swift` · `ocr.swift` | Lecture des pièces jointes (PDF, Office, images) |
+| `word.py` | Livrable Markdown → Word avec notes de bas de page |
+| `audit.py` | Contrôles automatiques de l'Auditeur |
+| `features.json` | Fonctionnalités proposées (le choix du client reste dans `features-choix.json`, hors dépôt) |
+| `intro/` | Vidéo d'entrée dans la tour (`entree_building.py`, Blender) |
+| `docs/captures/` | Captures de ce README |
+| `test_*.py` | Tests (voir plus bas) |
 
-- **Fonctionnalités** : une liste de projets libres sur GitHub (modèles, documents, recherche web, voix, mémoire, visuels, automatisation), chacun avec ce qu'il apporterait et ses points d'attention. Tout est sur « Non » au départ ; ce que tu passes à « Oui » est noté à intégrer, et l'intégration se fait ensuite avec Claude Code.
+Les données de tes missions (`projets/`, `pilote.json`, `features-choix.json`, `.token`) restent sur ton Mac et sont exclues du dépôt.
 
-## Dans la conversation et le QG
+## Commandes du QG (sessions Claude Code)
 
-- **Pièces jointes** : 📎 ou glisser-déposer un document dans la conversation avec le PDG. Son texte est extrait sur le Mac (textutil, PDFKit, Vision) et devient une source de la mission (`pieces/` de la discussion).
-- **Dictée** : 🎙️ dicte le message avec la reconnaissance vocale du navigateur (selon le navigateur, l'audio peut être traité par Apple ou Google).
-- **Word** : le bouton « Word ⤓ » de l'onglet Rendu télécharge le livrable en .docx ; chaque citation [n] de la section Sources devient une vraie note de bas de page.
-- **Coût** : la barre du haut compte les appels au modèle et les jetons de la mission (moteur multi-modèles).
-- **Bulle d'action** : un clic sur un robot ouvre, à côté de lui, son statut, « Statut », « Qu'est-ce qui bloque ? » et un champ pour lui écrire (le message passe par le PDG).
-- **Notifications du Mac** : mission livrée, question qui t'attend, mission arrêtée (désactivables avec `BUREAU_NOTIF=0`).
-- **Vie du bureau** : une équipe se réunit en salle de conférence quand son chef recrute ou fait la synthèse, les rôles qui ont fini vont au café, l'écran de la salle de conférence suit le livrable et le tableau de mission fait pulser l'étape en cours.
+Depuis la racine du projet sur lequel le Bureau travaille (`B=~/.claude/skills/bureau`).
 
-## Sécurité du QG
+| Commande | Effet |
+|---|---|
+| `python3 $B/qg_log.py init "Sujet" [nom]` | Démarre une mission, avec l'équipe de base en veille |
+| `qg_log.py stages "A\|B\|C"` | Étapes de la mission |
+| `qg_log.py FROM TO "texte" [type] [étape]` | Échange ; `type` = `ok`, `ko`, `deliver`, `work` ou `-` |
+| `qg_log.py recruit ID "Nom" "mission" "pourquoi" ["brief"] [--equipe CHEF]` | Active un chef (ID d'un chef) ou recrute un membre, rattaché à un chef avec `--equipe` |
+| `qg_log.py release ID "bilan"` · `dismiss ID "raison"` | Part terminée · fin de contrat |
+| `qg_log.py livrable FICHIER [ROLE] ["libellé"]` | Nouvelle version du livrable |
+| `qg_log.py ask "Question ?" "A\|B"` · `close N "raison"` | Question au client · question réglée |
+| `qg_log.py ack N "…"` · `dispatch N ROLE "…"` · `applied N ROLE "…"` | Traitement du message n° N du client |
+| `qg_log.py inbox` · `wait` · `wait-all` | Messages non lus ; attente d'un message (une ou toutes les discussions) |
+| `BUREAU_PROJET=<nom> python3 qg_log.py …` | Agit sur une discussion de l'app, quel que soit le dossier courant |
+| `qg_log.py retro` · `export` · `where` | Rétrospective · page rejouable · dossier et adresse du QG |
 
-Le serveur n'écoute que sur `127.0.0.1`, refuse les requêtes dont l’hôte n’est pas local, ne sert qu’une liste blanche de fichiers, interdit l’affichage dans une iframe et n’accepte les messages du client qu’avec le jeton secret du projet (conservé d’un démarrage à l’autre). Un autre site ouvert dans le navigateur ne peut ni lire la mission ni écrire au PDG. Les clés d'API sont transmises au trousseau par l'entrée standard (jamais en argument, donc invisibles dans la liste des processus), et le modèle choisi pour une discussion est contrôlé.
+Outils de l'Auditeur :
+
+```bash
+python3 audit.py FICHIER.md --sources SOURCES.md --pages 5
+swift pdf_text.swift FICHIER.pdf --pages 1-3
+python3 pieces.py DOCUMENT       # texte d'une pièce jointe
+python3 word.py LIVRABLE.md SORTIE.docx
+```
+
+## Sécurité
+
+- Le serveur n'écoute que sur `127.0.0.1` et refuse les requêtes dont l'hôte ou l'origine n'est pas locale.
+- Il ne sert qu'une liste blanche de fichiers.
+- Toute écriture (message, réponse, pièce jointe, compte, tâche) exige le jeton secret de l'app. Un autre site ouvert dans le navigateur ne peut ni lire une mission ni écrire au PDG.
+- Les clés d'API passent au trousseau par l'entrée standard, donc jamais en argument visible dans la liste des processus.
+- Le modèle choisi et les tâches du pilote sont contrôlés, et les pièces jointes sont limitées en taille et en format.
+- Les verrous du journal sont hors d'iCloud Drive, pour qu'un fichier déchargé ne bloque rien.
 
 ## Tests
 
 ```bash
-python3 test_qg_log.py
-python3 test_moteur.py
-python3 test_pilote.py
-python3 test_documents.py
+python3 test_qg_log.py      # circuit complet du QG, équipe de base, sécurité du serveur
+python3 test_moteur.py      # moteur multi-modèles avec un faux modèle (chefs, relecture, nouveaux essais, coût)
+python3 test_pilote.py      # pilote automatique, boîte de réception, fonctionnalités
+python3 test_documents.py   # pièces jointes et export Word
 ```
 
 ## Licence
