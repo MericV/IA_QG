@@ -10,6 +10,7 @@ TMP = pathlib.Path(tempfile.mkdtemp())
 os.environ["BUREAU_DATA"] = str(TMP)
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import qg_log, moteur  # noqa: E402
+HTTP_ORIG = moteur.http
 
 audits = []
 chefs_vus = []
@@ -123,6 +124,27 @@ try:
     assert moteur.anthropic("claude-haiku-5-5", moteur.AGENT, "x") == "avec recherche"
     assert sent[2]["tools"][0]["type"] == "web_search_20250305" and moteur.AVEC_WEB in sent[2]["system"]
     assert sent[3]["messages"][-1]["role"] == "assistant"  # reprise sans nouveau message du client
+
+    # 5 bis. Surcharge passagère (503) : nouvel essai automatique ; refus définitif (404) : pas de nouvel essai
+    import io, urllib.error
+    moteur.http = HTTP_ORIG
+    tries, pauses = [], []
+    def flaky(req, timeout=None):
+        tries.append(1)
+        if len(tries) < 3:
+            raise urllib.error.HTTPError(req.full_url, 503, "busy", {}, io.BytesIO(b"surcharge"))
+        return io.BytesIO(b'{"ok": true}')
+    moteur.urllib.request.urlopen, moteur.time.sleep = flaky, pauses.append
+    assert moteur.http("https://exemple.test", {}) == {"ok": True} and len(tries) == 3 and pauses == [3, 8]
+    def gone(req, timeout=None):
+        tries.append(1)
+        raise urllib.error.HTTPError(req.full_url, 404, "gone", {}, io.BytesIO(b"plus disponible"))
+    tries.clear(); moteur.urllib.request.urlopen = gone
+    try:
+        moteur.http("https://exemple.test", {})
+        raise AssertionError("un 404 doit remonter")
+    except moteur.MoteurErreur as e:
+        assert "(404)" in str(e) and len(tries) == 1
 
     # 6. Lecture du JSON entouré de texte
     assert moteur.as_json('blabla {"a": 1} fin') == {"a": 1} and moteur.as_json("rien") is None

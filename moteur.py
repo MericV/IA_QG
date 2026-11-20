@@ -9,7 +9,7 @@ n'est pas « Claude Code ». Un fil par discussion. Chaque tour :
 Tout passe par qg_log : le QG affiche le travail comme pour une mission menée par Claude Code.
 Les clés viennent du trousseau macOS (service « bureau-ia ») et ne sont jamais écrites ailleurs.
 """
-import json, re, subprocess, threading, urllib.error, urllib.request
+import json, re, subprocess, threading, time, urllib.error, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 import qg_log
@@ -37,17 +37,25 @@ def key(provider):
     return r.stdout.strip()
 
 
+RETRY = (429, 500, 502, 503, 504, 529)  # surcharge ou panne passagère du fournisseur : on réessaie
+WAITS = (3, 8, 20)
+
+
 def http(url, body=None, headers=None):
-    req = urllib.request.Request(url, json.dumps(body).encode() if body is not None else None,
-                                 {"content-type": "application/json", **(headers or {})})
-    try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
-            return json.load(r)
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode(errors="replace")[:300]
-        raise MoteurErreur(f"le fournisseur a refusé l'appel ({e.code}) : {detail}") from None
-    except OSError as e:
-        raise MoteurErreur(f"fournisseur injoignable : {e}") from None
+    data = json.dumps(body).encode() if body is not None else None
+    for attempt in range(len(WAITS) + 1):
+        req = urllib.request.Request(url, data, {"content-type": "application/json", **(headers or {})})
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode(errors="replace")[:300]
+            if e.code in RETRY and attempt < len(WAITS):
+                time.sleep(WAITS[attempt])
+                continue
+            raise MoteurErreur(f"le fournisseur a refusé l'appel ({e.code}) : {detail}") from None
+        except OSError as e:
+            raise MoteurErreur(f"fournisseur injoignable : {e}") from None
 
 
 def call(provider, model, system, user):
@@ -152,7 +160,7 @@ AGENT = """Tu es {nom}, recruté par le PDG du Bureau pour une mission précise.
 """ + REGLES + """
 Ta mission : {mission}
 Ton brief : {brief}
-Rends directement ton travail, complet, en français, en Markdown."""
+Rends uniquement TA part (pas le livrable entier : la Rédaction l'assemblera), complète, en français, en Markdown."""
 
 CHEF = """Tu es {nom}, chef d'équipe au Bureau. Tes experts ont travaillé sur leur part ; tu fais la synthèse de ton pôle.
 """ + REGLES + """
@@ -162,6 +170,10 @@ Garde ce qui est vérifié, corrige les erreurs, signale les manques, sans rien 
 ECRIVAIN = """Tu es l'Écrivain du Bureau. Tu assembles le livrable final pour le client à partir des seuls travaux de l'équipe.
 """ + REGLES + """
 Rends uniquement le livrable, en Markdown, prêt à être lu par le client."""
+
+RELECTEUR = """Tu es le Chef de la Relecture du Bureau. Tu corriges la forme d'un livrable : orthographe, grammaire, clarté, mise en forme.
+""" + REGLES + """
+N'ajoute aucun fait, ne retire aucune source, ne change pas le sens. Rends uniquement le livrable corrigé, en Markdown."""
 
 AUDITEUR = """Tu es l'Auditeur du Bureau. Tu contrôles le livrable avant sa remise.
 """ + REGLES + """
@@ -277,11 +289,15 @@ def tour(name, msgs):
         log(name, t["id"], "pdg", f"Terminé ({len(out.split())} mots). " + out.strip()[:280], "-", "Rédaction")
         log(name, "release", t["id"], "Part terminée")
         return t, out
-    # 1) les experts, et les chefs sans experts, travaillent en même temps
+    # 1) les experts, et les chefs sans experts, travaillent en même temps. La Rédaction et la Relecture
+    #    attendent : elles travaillent sur ce que les autres ont produit (rédaction du livrable, puis relecture).
+    later = {"ecr", "cor"} & {t["id"] for t in team if t.get("chef")}
     experts = {t["id"]: [e for e in team if e.get("equipe") == t["id"]] for t in team if t.get("chef")}
-    first = [t for t in team if not t.get("chef") or not experts[t["id"]]]
-    with ThreadPoolExecutor(len(first)) as pool:
-        results = list(pool.map(work, first))
+    first = [t for t in team if t["id"] not in later and (not t.get("chef") or not experts[t["id"]])]
+    results = []
+    if first:
+        with ThreadPoolExecutor(len(first)) as pool:
+            results = list(pool.map(work, first))
     done = {t["id"]: out for t, out in results}
 
     # 2) chaque chef fait la synthèse du travail de son équipe
@@ -298,20 +314,36 @@ def tour(name, msgs):
         log(name, t["id"], "pdg", f"Synthèse de l'équipe prête ({len(out.split())} mots).", "-", "Rédaction")
         log(name, "release", t["id"], "Synthèse de l'équipe remise")
         return t, out
-    leads = [t for t in team if t.get("chef") and experts[t["id"]]]
+    leads = [t for t in team if t.get("chef") and experts[t["id"]] and t["id"] not in later]
     if leads:
         with ThreadPoolExecutor(len(leads)) as pool:
             results += list(pool.map(lead, leads))
 
     # au rendu : la part de chaque chef (sa synthèse ou son travail), et celle des experts rattachés au PDG
     travaux = "\n\n".join(f"## Travail de {t['nom']} ({t['mission']})\n{out}" for t, out in results if out and not t.get("equipe"))
-    if not travaux:
+    if not travaux and not later:
         log(name, "pdg", "client", "L'équipe n'a rien pu produire (voir les messages des recrues).", "ko")
         return
+    if not travaux:
+        travaux = "(pas de travail préalable : rédige à partir de la demande, en marquant « à vérifier » tout fait précis)"
     log(name, "ecr", "-", "J'assemble le livrable à partir des travaux de l'équipe.", "work", "Rédaction")
     texte = ask(ECRIVAIN, f"{contexte}\n\nTravaux de l'équipe :\n{travaux}")
     titre = plan.get("livrable") or d.get("topic") or "livrable"
     fichier = qg_log.DATA / "projets" / name / "travail" / f"{qg_log.slug(str(titre))[:50] or 'livrable'}.md"
+    def relire(texte):
+        if "cor" not in later:
+            return texte
+        log(name, "ecr", "cor", "Livrable prêt pour la relecture.", "-", "Forme")
+        log(name, "cor", "-", "Je relis la forme : orthographe, style, clarté.", "work", "Forme")
+        try:
+            out = ask(RELECTEUR, f"Demande du client :\n{contexte}\n\nLivrable à relire :\n{texte}")
+        except MoteurErreur as e:
+            log(name, "cor", "pdg", f"Relecture impossible : {e}", "ko", "Forme")
+            return texte
+        log(name, "cor", "aud", "Relecture faite.", "-", "Forme")
+        return out.strip() or texte
+
+    texte = relire(texte)
     for tour_audit in range(3):
         fichier.parent.mkdir(parents=True, exist_ok=True)
         fichier.write_text(texte, encoding="utf-8")
@@ -325,12 +357,14 @@ def tour(name, msgs):
         log(name, "aud", "ecr", "Rejeté : " + " ; ".join(remarques), "ko", "Audit final")
         if tour_audit == 2:
             break
-        texte = ask(ECRIVAIN, f"{contexte}\n\nTravaux de l'équipe :\n{travaux}\n\nLivrable précédent :\n{texte}\n\n"
-                              "Corrige-le selon ces remarques de l'Auditeur :\n- " + "\n- ".join(remarques))
+        texte = relire(ask(ECRIVAIN, f"{contexte}\n\nTravaux de l'équipe :\n{travaux}\n\nLivrable précédent :\n{texte}\n\n"
+                                     "Corrige-le selon ces remarques de l'Auditeur :\n- " + "\n- ".join(remarques)))
     ok = verdict.get("verdict") != "ko"
     log(name, "pdg", "client", ("Voici le livrable, validé par l'Auditeur (onglet Rendu)." if ok else
                                 "Voici le livrable (onglet Rendu). L'Auditeur a encore des réserves : " + " ; ".join(remarques)),
         "deliver", "Audit final")
+    for rid in sorted(later):
+        log(name, "release", rid, "Rédaction remise" if rid == "ecr" else "Relecture remise")
     for n in ids:
         for t in team:
             log(name, "applied", n, t["id"], "Intégré au livrable")
