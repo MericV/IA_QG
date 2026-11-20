@@ -133,6 +133,10 @@ button.kb-card { cursor: pointer; } button.kb-card:hover { border-color: var(--c
 .office { position: relative; overflow: hidden; }
 canvas { display: block; width: 100%; height: 100%; cursor: pointer; }
 .cam { position: absolute; top: 10px; right: 10px; display: grid; gap: 4px; }
+.rooms { position: absolute; top: 10px; left: 10px; }
+.rooms select { font: 700 13px var(--body); color: var(--fg); padding: 7px 30px 7px 12px; border-radius: 99px; border: 1px solid var(--glass-edge, rgba(255,255,255,.7));
+  background: var(--glass, rgba(255,255,255,.6)); -webkit-backdrop-filter: blur(14px) saturate(180%); backdrop-filter: blur(14px) saturate(180%); box-shadow: 0 6px 18px rgba(20,30,60,.18), inset 0 1px 0 rgba(255,255,255,.6); max-width: min(260px, 60vw); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .cam button { width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--line); background: rgba(255,255,255,.92); font: 700 15px var(--body); color: var(--fg); padding: 0; }
 #office { cursor: grab; touch-action: none; }
 .now { position: absolute; left: 12px; bottom: 10px; right: 12px; display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
@@ -400,6 +404,7 @@ form#chat textarea, .q .free input { background: rgba(255,255,255,.6); border: 1
       <div class="card office">
         <canvas id="office" tabindex="0" role="img" aria-label="Le bureau, un étage sur le toit d'une tour, réparti en pôles (Direction, Recherche, Rédaction, Relecture, Contrôle qualité, Atelier des experts) avec atrium, café, salon et salles de réunion. Molette ou boutons + et − pour zoomer, glisser pour se déplacer. Chaque rôle est un petit robot qui se déplace pour échanger. Les échanges détaillés sont dans l'onglet Coulisses."></canvas>
         <div class="now" id="now"></div>
+        <label class="rooms"><span class="sr">Aller à une pièce</span><select id="roomPick"></select></label>
         <div class="cam" role="group" aria-label="Caméra du bureau"><button id="zin" type="button" aria-label="Zoomer">+</button><button id="zout" type="button" aria-label="Dézoomer">−</button><button id="zfit" type="button" aria-label="Voir tout l'étage">⤢</button></div>
       </div>
       <div class="split h" id="splitH" role="separator" aria-orientation="horizontal" aria-label="Redimensionner le bureau et le rendu (glisser, ou flèches haut et bas)" tabindex="0">
@@ -553,6 +558,42 @@ function zoomAt(k, sx = W / 2, sy = H / 2) {
   for (const [d, s, c] of [['dx', sx, W / 2], ['dy', sy, H / 2]]) { const s0 = c + (s - c - view[d]) / view.k; view[d] = s - c - (s0 - c) * k; }
   view.k = k; if (k === 1) view.dx = view.dy = 0;
   clampView(); applyView(); bgSoon();
+}
+// ---------- Pièces : un clic sur une pièce et la caméra s'y pose en douceur ; « Tout l'étage » pour revenir ----------
+let focus = null, anim = null;
+const ease = t => t < .5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+function viewFor(p) {
+  if (!p) return {k: 1, dx: 0, dy: 0};
+  // la pièce dans le cadrage « tout l'étage », puis le zoom qui la fait tenir à 85 % du cadre, centrée
+  const F = (x, y, z) => [fit.ox + (x - y) * fit.tw / 2, fit.oy + (x + y) * fit.tw / 4 - z * fit.tw / 2];
+  const pts = [[p.x0, p.y0, 0], [p.x1, p.y0, 0], [p.x1, p.y1, 0], [p.x0, p.y1, 0], [p.x0, p.y0, 2.6], [p.x1, p.y0, 2.6], [p.x0, p.y1, 2.6]].map(q => F(...q));
+  const xs = pts.map(q => q[0]), ys = pts.map(q => q[1]), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const k = Math.min(4.5, .85 * W / (x1 - x0), .85 * H / (y1 - y0));
+  return {k, dx: -((x0 + x1) / 2 - W / 2) * k, dy: -((y0 + y1) / 2 - H / 2) * k};
+}
+function focusOn(p) {
+  focus = p || null;
+  anim = {from: {...view}, to: viewFor(focus), t0: performance.now(), ms: reduce ? 1 : 700};
+  $('roomPick').value = focus ? String(POLES.indexOf(focus)) : '';
+}
+function poleAt(sx, sy) {
+  const u = (sx - ox) / (tw / 2), v = (sy - oy) / (tw / 4), x = (u + v) / 2, y = (v - u) / 2;
+  return x < 0 || y < 0 || x > GX || y > GY ? null : POLES.find(p => x >= p.x0 && x < p.x1 && y >= p.y0 && y < p.y1) || null;
+}
+let roomsKey = '';
+function renderRooms() {
+  // on ne reconstruit le menu que si un état a changé : un menu ouvert ne se referme pas tout seul
+  const labels = POLES.map(p => {
+    const n = p.quiet ? 0 : Object.values(agents).filter(a => inPole(p, a) && busy(a)).length;
+    return `${p.name}${p.quiet ? '' : n ? ` · ${n} au travail` : ' · au calme'}`;
+  });
+  if (labels.join('|') === roomsKey) return;
+  roomsKey = labels.join('|');
+  const sel = $('roomPick'), cur = sel.value;
+  sel.innerHTML = '';
+  sel.append(new Option('🏢 Tout l\'étage', ''));
+  labels.forEach((l, i) => sel.append(new Option(l, String(i))));
+  sel.value = cur;
 }
 function clampView() {
   const mx = W * (view.k - .4) / 2 + 40, my = H * (view.k - .4) / 2 + 40;
@@ -1055,7 +1096,7 @@ function syncSun() {
   sunNow = s; if (redraw) buildBg();
 }
 function renderCrew() {
-  syncSun();
+  syncSun(); renderRooms();
   const n = Object.values(agents).filter(busy).length, icon = {jour: '☀️', aube: '🌅', soir: '🌇', nuit: '🌙'}[sunNow.label];
   $('crew').innerHTML = '';
   $('crew').append(el('i', null, '● '), `${n} au travail · ${icon} ${sunNow.time} ${sunNow.label}`);
@@ -1147,6 +1188,12 @@ function drawAgent(a, now) {
   // ombre douce, et halo de couleur quand l'agent vient d'agir
   const sh = ctx.createRadialGradient(sx, sy, 0, sx, sy, 12 * s); sh.addColorStop(0, 'rgba(40,30,20,.22)'); sh.addColorStop(1, 'rgba(40,30,20,0)');
   ctx.fillStyle = sh; ctx.beginPath(); ctx.ellipse(sx, sy, 12 * s, 5.5 * s, 0, 0, 7); ctx.fill();
+  if (a === pinned) {
+    const k = reduce ? 1 : 1 + .06 * Math.sin(now / 260);
+    ctx.strokeStyle = '#38c8ff'; ctx.lineWidth = 2.2; ctx.globalAlpha = .9;
+    ctx.beginPath(); ctx.ellipse(sx, sy, 17 * s * k, 8 * s * k, 0, 0, 7); ctx.stroke();
+    ctx.globalAlpha = .18; ctx.fillStyle = '#38c8ff'; ctx.fill(); ctx.globalAlpha = alpha;
+  }
   const glow = now - a.flash;
   if (glow < 4000 && a.called) {
     const k = (1 - glow / 4000) * (reduce ? 1 : .75 + .25 * Math.sin(now / 160));
@@ -1194,10 +1241,10 @@ function drawBadge(a) {
 }
 let placed = [];
 const hits = r => placed.some(q => r.x < q.x + q.w + 4 && r.x + r.w + 4 > q.x && r.y < q.y + q.h + 3 && r.y + r.h + 3 > q.y);
-function drawLabel(a, must) {
+function drawLabel(a, must, any) {
   const s = Math.min(1.25, tw / 40), sx = a.fx, sy = a.fy;
   // pastille blanche ombrée, point de couleur du rôle
-  if (a.called || a === pinned) {
+  if (a.called || a === pinned || any) {
     ctx.font = `600 ${Math.max(10, 11 * s)}px ${FONT}`;
     const w = ctx.measureText(a.name).width + 22, lx = sx - w / 2, ly = sy + 5 * s, r = {x: lx, y: ly, w, h: 18};
     if (!must && hits(r)) return;
@@ -1244,6 +1291,11 @@ function drawBubble(now) {
 let lastFrame = performance.now();
 function frame(now) {
   const dt = Math.min(.05, (now - lastFrame) / 1000); lastFrame = now;
+  if (anim) {
+    const t = Math.min(1, (now - anim.t0) / anim.ms), e = ease(t);
+    for (const key of ['k', 'dx', 'dy']) view[key] = anim.from[key] + (anim.to[key] - anim.from[key]) * e;
+    applyView(); bgSoon(); if (t === 1) anim = null;
+  }
   for (const a of Object.values(agents)) {
     let rem = speed() * dt;
     if (a.leaving && !a.path.length) { delete agents[a.id]; continue; }
@@ -1268,8 +1320,10 @@ function frame(now) {
   // textes : seulement le nom du robot cliqué, puis les noms des pôles là où il reste de la place
   placed = [];
   if (pinned && agents[pinned.id]) drawLabel(pinned, true);
+  const inFocus = a => focus && a.x >= focus.x0 && a.x < focus.x1 && a.y >= focus.y0 && a.y < focus.y1;
+  if (focus && !anim) Object.values(agents).filter(a => a !== pinned && !a.leaving && inFocus(a)).forEach(a => drawLabel(a, false, true));
   Object.values(agents).forEach(drawBadge);
-  drawPoles();
+  if (!focus) drawPoles();
   drawBubble(now);
   const backlog = S.events.length - idx, gap = live ? (backlog > 2 ? 600 : 1400) : 2800 / +$('speed').value;
   if (playing && now - lastStep > gap) { lastStep = now; step(); }
@@ -1493,7 +1547,7 @@ function renderBoard() {
 }
 $('apClose').onclick = closeAgent;
 $('boardBtn').onclick = () => openAgent === BOARD ? closeAgent() : showAgent(BOARD);
-addEventListener('keydown', ev => { if (ev.key === 'Escape' && openAgent) closeAgent(); });
+addEventListener('keydown', ev => { if (ev.key === 'Escape' && openAgent) { closeAgent(); ev.preventDefault(); } });
 function section(title, child) { const d = el('div'); d.append(el('h5', null, title), child); return d; }
 function renderWho() {
   if (!openAgent) return;
@@ -1544,22 +1598,23 @@ function renderWho() {
 }
 const inPoly = (x, y, pts) => { let inside = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) { const [xi, yi] = pts[i], [xj, yj] = pts[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside; } return inside; };
 let drag = null;
-cv.addEventListener('wheel', ev => { ev.preventDefault(); const r = cv.getBoundingClientRect(); zoomAt(view.k * Math.exp(-ev.deltaY * .0016), ev.clientX - r.left, ev.clientY - r.top); }, {passive: false});
+cv.addEventListener('wheel', ev => { ev.preventDefault(); anim = null; const r = cv.getBoundingClientRect(); zoomAt(view.k * Math.exp(-ev.deltaY * .0016), ev.clientX - r.left, ev.clientY - r.top); }, {passive: false});
 cv.addEventListener('pointerdown', ev => { drag = {x: ev.clientX, y: ev.clientY, dx: view.dx, dy: view.dy, moved: false}; });
 addEventListener('pointermove', ev => {
   if (!drag) return;
   const mx = ev.clientX - drag.x, my = ev.clientY - drag.y;
   if (!drag.moved && Math.hypot(mx, my) < 5) return;
   if (!drag.moved) cv.setPointerCapture?.(ev.pointerId);
-  drag.moved = true; cv.style.cursor = 'grabbing';
+  drag.moved = true; cv.style.cursor = 'grabbing'; anim = null;
   view.dx = drag.dx + mx; view.dy = drag.dy + my; clampView(); applyView(); bgSoon();
 });
 addEventListener('pointerup', () => { if (drag && drag.moved) setTimeout(() => { drag = null; }, 0); else drag = null; cv.style.cursor = ''; });
-cv.addEventListener('dblclick', ev => { const r = cv.getBoundingClientRect(); zoomAt(view.k > 1.6 ? 1 : 2.2, ev.clientX - r.left, ev.clientY - r.top); });
-$('zin').onclick = () => zoomAt(view.k * 1.35); $('zout').onclick = () => zoomAt(view.k / 1.35); $('zfit').onclick = () => zoomAt(1);
+$('zin').onclick = () => { anim = null; zoomAt(view.k * 1.35); }; $('zout').onclick = () => { anim = null; zoomAt(view.k / 1.35); }; $('zfit').onclick = () => focusOn(null);
+$('roomPick').onchange = () => focusOn($('roomPick').value === '' ? null : POLES[+$('roomPick').value]);
+addEventListener('keydown', ev => { if (ev.key === 'Escape' && focus && !ev.defaultPrevented) focusOn(null); });  // Échap : d'abord la fiche, puis la vue d'ensemble
 cv.addEventListener('keydown', ev => {
   const step = 40, keys = {ArrowLeft: [step, 0], ArrowRight: [-step, 0], ArrowUp: [0, step], ArrowDown: [0, -step]};
-  if (ev.key === '+' || ev.key === '=') zoomAt(view.k * 1.25); else if (ev.key === '-') zoomAt(view.k / 1.25); else if (ev.key === '0') zoomAt(1);
+  if (ev.key === '+' || ev.key === '=') { anim = null; zoomAt(view.k * 1.25); } else if (ev.key === '-') { anim = null; zoomAt(view.k / 1.25); } else if (ev.key === '0') focusOn(null);
   else if (keys[ev.key] && view.k > 1) { ev.preventDefault(); view.dx += keys[ev.key][0]; view.dy += keys[ev.key][1]; clampView(); applyView(); bgSoon(); }
 });
 cv.addEventListener('click', ev => {
@@ -1569,7 +1624,10 @@ cv.addEventListener('click', ev => {
   for (const a of Object.values(agents)) { const d = Math.hypot(a.sx - mx, a.sy - my); if (d < bd) { bd = d; best = a; } }
   if (best && best.id !== 'client') return showAgent(best.id);
   const quad = [P(8.9, .02, .9), P(14.1, .02, .9), P(14.1, .02, 2.8), P(8.9, .02, 2.8)];
-  if (inPoly(mx, my, quad)) showAgent(BOARD); else closeAgent();
+  if (inPoly(mx, my, quad)) return showAgent(BOARD);
+  closeAgent();
+  const room = poleAt(mx, my);
+  if (room && room !== focus) focusOn(room);
 });
 
 // Recrutement : un rôle du vivier garde sa couleur et son poste ; un renfort reprend la teinte de son modèle ;
