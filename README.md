@@ -21,7 +21,7 @@ cd "Bureau IA"
 | `lecons.md` | Mémoire de méthode : leçons tirées des missions passées, lues au début de chaque mission et complétées à la fin |
 | `briefs.md` | Modèles de brief pour les agents (recherche, contre-vérification, rédaction, critique) |
 | `Bureau.command` | Double-clic : démarre le serveur si besoin et ouvre l'app dans le navigateur |
-| `app.html` | L'app : barre latérale repliable, discussions, nouvelle discussion, Modèles et comptes, intro vidéo |
+| `app.html` | L'app : barre latérale repliable, discussions, nouvelle discussion, Boîte de réception, Pilote automatique, Modèles et comptes, intro vidéo |
 | `qg.html` | Page du QG : bureau sur le toit d'une tour (ville, jour et nuit selon l'heure), pôles et leur état, fil, questions du PDG, consignes, kanban, livrable |
 | `qg_log.py` | Journal de mission, consignes et questions du client, livrables, export, historique |
 | `qg_server.py` | Serveur local de l'app : discussions, comptes (trousseau macOS), modèles, QG en direct |
@@ -30,6 +30,7 @@ cd "Bureau IA"
 | `pdf_text.swift` | Extraction du texte d'un PDF (macOS) |
 | `test_qg_log.py` | Test du circuit complet |
 | `test_moteur.py` | Test du moteur multi-modèles avec un faux modèle |
+| `test_pilote.py` | Test du pilote automatique et de la boîte de réception |
 | `intro/` | Vidéo d'entrée dans le building (générée par `intro/entree_building.py` avec Blender) |
 | `projets/` | Données locales de chaque projet (exclues du dépôt) |
 
@@ -74,6 +75,11 @@ Dans l'app, chaque discussion a son modèle. Avec « Claude Code », c'est la se
 - **Panne :** si un appel échoue, le client voit l'erreur dans le chat et son message est gardé : il est repris à son message suivant ou au redémarrage de l'app.
 - **Appels :** requêtes HTTP de la bibliothèque standard de Python, sans dépendance à installer.
 
+## Boîte de réception et pilote automatique
+
+- **Boîte de réception** (barre latérale de l'app) : toutes discussions confondues, les décisions à prendre (réponse en un clic), ce qui est bloqué, les messages qui attendent une session Claude Code et ce qui a été livré dans la semaine. La pastille compte ce qui attend ta décision.
+- **Pilote automatique** : des missions récurrentes (chaque jour, chaque semaine, toutes les N heures). À l'heure prévue, le serveur envoie la consigne au PDG dans la discussion de la tâche, créée au premier lancement puis réutilisée. Les tâches sont dans `pilote.json` (exclu du dépôt). Elles tournent tant que l'app est ouverte et le Mac éveillé ; une tâche manquée part une fois au retour de l'app. Avec « Claude Code », le message attend une session où le Bureau est activé ; avec un autre modèle, le moteur s'en charge seul.
+
 ## Sécurité du QG
 
 Le serveur n'écoute que sur `127.0.0.1`, refuse les requêtes dont l’hôte n’est pas local, ne sert qu’une liste blanche de fichiers, interdit l’affichage dans une iframe et n’accepte les messages du client qu’avec le jeton secret du projet (conservé d’un démarrage à l’autre). Un autre site ouvert dans le navigateur ne peut ni lire la mission ni écrire au PDG. Les clés d'API sont transmises au trousseau par l'entrée standard (jamais en argument, donc invisibles dans la liste des processus), et le modèle choisi pour une discussion est contrôlé.
@@ -83,6 +89,7 @@ Le serveur n'écoute que sur `127.0.0.1`, refuse les requêtes dont l’hôte n�
 ```bash
 python3 test_qg_log.py
 python3 test_moteur.py
+python3 test_pilote.py
 ```
 
 ## Licence

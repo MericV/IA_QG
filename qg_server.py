@@ -14,6 +14,10 @@ API (écritures : jeton secret + origine locale)
   GET  /api/providers            fournisseurs de modèles et état des comptes (jamais les clés)
   POST /api/accounts             {"provider", "key"}  enregistre une clé dans le trousseau macOS
   POST /api/accounts/remove      {"provider"}         la retire
+  GET  /api/inbox                boîte de réception : décisions à prendre, blocages, en attente, livré (toutes les discussions)
+  GET  /api/pilote               tâches du pilote automatique
+  POST /api/pilote               {"id"?, "titre", "consigne", "frequence", "heure", "jour", "toutes_h", "model", "actif"}  crée ou modifie
+  POST /api/pilote/remove · /api/pilote/run   {"id"}  supprime · lance tout de suite
   GET  /d/<d>/state · /d/<d>/events (SSE) · /d/<d>/livrables/… · /d/<d>/missions/…
   POST /d/<d>/say · /d/<d>/answer · /d/<d>/model {"provider", "model"} · /d/<d>/dismiss {"id", "reason"?}
 
@@ -22,7 +26,7 @@ qu'une liste blanche de fichiers ; affichage en iframe limité à l'app elle-mê
 secret (stable, conservé dans .token) et une origine locale. Les clés d'API vont dans le trousseau macOS
 (service « bureau-ia ») et ne sont jamais renvoyées par le serveur.
 """
-import functools, http.server, json, mimetypes, os, re, secrets, shutil, signal, subprocess, sys, threading, time, pathlib
+import datetime, functools, http.server, json, mimetypes, os, re, secrets, shutil, signal, subprocess, sys, threading, time, pathlib
 from urllib.parse import urlsplit, parse_qs, unquote
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
@@ -93,6 +97,142 @@ def valid_model(msg):
     if model["provider"] not in {p["id"] for p in PROVIDERS} or not model["model"] or model["model"].startswith("-"):
         return None  # « -… » serait lu comme une option par la commande hermes
     return model
+
+
+def create_discussion(text, model=None, topic=None):
+    """Nouvelle discussion dont text est le premier message au PDG ; renvoie son identifiant."""
+    name = (qg_log.slug(text)[:40].strip("-") or "discussion") + "-" + os.urandom(2).hex()
+    topic = topic or (text if len(text) <= 80 else text[:77].rsplit(" ", 1)[0] + "…")
+    with LOCK:
+        qg_log.use_project(name)
+        qg_log.ROOT.mkdir(parents=True, exist_ok=True)
+        qg_log.update(qg_log.LIVE, {}, lambda d: (d.clear(), d.update(qg_log.new_mission(topic, model))))
+        qg_log.write_history()
+        qg_log.new_message(text)
+    moteur.kick(name)
+    return name
+
+
+# ---------- Boîte de réception : ce qui attend le client, toutes discussions confondues ----------
+def inbox():
+    out = {"decider": [], "bloque": [], "attente": [], "livre": []}
+    week = time.time() - 7 * 86400
+    for d in discussions():
+        name = d["id"]
+        try:
+            with LOCK:
+                qg_log.use_project(name)
+                quest, live = qg_log.read(qg_log.QUEST, []), qg_log.read(qg_log.LIVE, {})
+                lines = qg_log.INBOX.read_text(encoding="utf-8").splitlines() if qg_log.INBOX.exists() else []
+                seen = int(qg_log.SEEN.read_text()) if qg_log.SEEN.exists() else 0
+        except (OSError, ValueError):
+            continue
+        base = {"discussion": name, "topic": d["topic"]}
+        for q in quest:
+            if not q.get("answer") and not q.get("closed"):
+                out["decider"].append({**base, "id": q["id"], "text": q["text"], "options": q.get("options", []), "ts": q.get("ts")})
+        to_client = [e for e in live.get("events", []) if e.get("from") == "pdg" and e.get("to") == "client"]
+        last = to_client[-1] if to_client else None
+        if last and last.get("type") == "ko":
+            out["bloque"].append({**base, "text": last.get("text", ""), "ts": last.get("ts")})
+        if len(lines) > seen and live.get("model", qg_log.DEFAULT_MODEL).get("provider") == "claude-code" and name not in moteur.RUNNING:
+            out["attente"].append({**base, "text": f"{len(lines) - seen} message(s) attendent une session Claude Code avec le Bureau activé.", "ts": d["updated"]})
+        for e in to_client:
+            if e.get("type") == "deliver" and (e.get("ts") or 0) > week:
+                out["livre"].append({**base, "text": e.get("text", ""), "ts": e.get("ts")})
+    for k in out:
+        out[k].sort(key=lambda x: -(x.get("ts") or 0))
+    return out
+
+
+# ---------- Pilote automatique : missions récurrentes lancées par le serveur ----------
+PILOTE = qg_log.DATA / "pilote.json"
+FREQ = {"jour", "semaine", "heures"}
+
+
+def next_run(job, after):
+    """Prochain lancement d'une tâche après l'instant after (datetime local)."""
+    if job["frequence"] == "heures":
+        return after + datetime.timedelta(hours=job["toutes_h"])
+    h, m = map(int, job["heure"].split(":"))
+    t = after.replace(hour=h, minute=m, second=0, microsecond=0)
+    if job["frequence"] == "semaine":
+        t += datetime.timedelta(days=(job["jour"] - t.weekday()) % 7)
+    while t <= after:
+        t += datetime.timedelta(days=7 if job["frequence"] == "semaine" else 1)
+    return t
+
+
+def valid_job(msg):
+    """Tâche envoyée par l'app, contrôlée ; lève ValueError si elle est invalide."""
+    job = {"titre": str(msg.get("titre", "")).strip()[:80], "consigne": str(msg.get("consigne", "")).strip()[:4000],
+           "frequence": str(msg.get("frequence", "")), "heure": str(msg.get("heure") or "09:00"),
+           "jour": int(msg.get("jour") or 0), "toutes_h": int(msg.get("toutes_h") or 24),
+           "model": valid_model(msg.get("model")), "actif": bool(msg.get("actif", True))}
+    if not job["titre"] or not job["consigne"] or job["frequence"] not in FREQ or not job["model"] \
+            or not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", job["heure"]) or not 0 <= job["jour"] <= 6 or not 1 <= job["toutes_h"] <= 168:
+        raise ValueError("tâche invalide")
+    return job
+
+
+def save_job(msg):
+    job, jid = valid_job(msg), str(msg.get("id") or "")
+    with LOCK:
+        jobs = qg_log.read(PILOTE, [])
+        old = next((j for j in jobs if j["id"] == jid), None)
+        if old:
+            old.update(job)
+            job = old
+        else:
+            job.update(id=os.urandom(4).hex(), discussion=None, dernier=None)
+            jobs.append(job)
+        job["prochain"] = next_run(job, datetime.datetime.now()).timestamp()
+        qg_log.write_json(PILOTE, jobs)
+    return job
+
+
+def run_job(jid):
+    """Lance une tâche maintenant : un message au PDG dans la discussion de la tâche (créée au premier lancement)."""
+    with LOCK:
+        jobs = qg_log.read(PILOTE, [])
+        job = next((j for j in jobs if j["id"] == jid), None)
+        if not job:
+            return None
+        name = job.get("discussion")
+        exists = bool(name) and (qg_log.DATA / "projets" / name / "qg-live.json").exists()
+    text = f"[Pilote automatique · {job['titre']}] {job['consigne']}"
+    if exists:
+        with LOCK:
+            qg_log.use_project(name)
+            qg_log.update(qg_log.LIVE, {}, lambda d: d.__setitem__("model", job["model"]))
+            qg_log.new_message(text)
+        moteur.kick(name)
+    else:
+        name = create_discussion(text, job["model"], "🔁 " + job["titre"])
+    with LOCK:
+        jobs = qg_log.read(PILOTE, [])
+        for j in jobs:
+            if j["id"] == jid:
+                j.update(discussion=name, dernier=time.time(), prochain=next_run(j, datetime.datetime.now()).timestamp())
+        qg_log.write_json(PILOTE, jobs)
+    return name
+
+
+def pilote_due(now=None):
+    """Tâches actives dont l'heure est passée (une tâche manquée pendant l'arrêt de l'app part une seule fois)."""
+    now = now or time.time()
+    with LOCK:
+        return [j["id"] for j in qg_log.read(PILOTE, []) if j.get("actif") and j.get("prochain", 0) <= now]
+
+
+def pilote_loop():
+    while True:
+        for jid in pilote_due():
+            try:
+                run_job(jid)
+            except Exception as e:  # une tâche en panne ne doit pas arrêter les autres
+                print(f"Pilote automatique : la tâche {jid} n'a pas pu partir : {e}", flush=True)
+        time.sleep(30)
 
 
 def discussions():
@@ -185,6 +325,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self.send_json(discussions())
         if path == "/api/providers":
             return self.send_json(providers())
+        if path == "/api/inbox":
+            return self.send_json(inbox())
+        if path == "/api/pilote":
+            with LOCK:
+                return self.send_json(qg_log.read(PILOTE, []))
         d = self.discussion(path)
         if not d:
             return self.send_error(404)
@@ -243,6 +388,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self.new_discussion(msg)
             if path == "/api/accounts":
                 return self.add_account(msg)
+            if path == "/api/pilote":
+                return self.send_json(save_job(msg))
+            if path == "/api/pilote/remove":
+                with LOCK:
+                    qg_log.write_json(PILOTE, [j for j in qg_log.read(PILOTE, []) if j["id"] != str(msg.get("id"))])
+                return self.send_json({"ok": True})
+            if path == "/api/pilote/run":
+                name = run_job(str(msg.get("id")))
+                return self.send_json({"discussion": name}) if name else self.send_error(404)
             if path == "/api/accounts/remove":
                 provider = str(msg.get("provider", ""))
                 subprocess.run(["security", "delete-generic-password", "-s", KEYCHAIN, "-a", provider], capture_output=True)
@@ -290,16 +444,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             model = valid_model(msg["model"])
             if not model:
                 return self.send_error(400)
-        name = (qg_log.slug(text)[:40].strip("-") or "discussion") + "-" + os.urandom(2).hex()
-        topic = text if len(text) <= 80 else text[:77].rsplit(" ", 1)[0] + "…"
-        with LOCK:
-            qg_log.use_project(name)
-            qg_log.ROOT.mkdir(parents=True, exist_ok=True)
-            qg_log.update(qg_log.LIVE, {}, lambda d: (d.clear(), d.update(qg_log.new_mission(topic, model))))
-            qg_log.write_history()
-            qg_log.new_message(text)
-        moteur.kick(name)
-        return self.send_json({"id": name}, 201)
+        return self.send_json({"id": create_discussion(text, model)}, 201)
 
     def add_account(self, msg):
         provider, key = str(msg.get("provider", "")), str(msg.get("key", "")).strip()
@@ -344,6 +489,7 @@ def serve(start=8766):
     portfile.write_text(str(port))
     for live in (qg_log.DATA / "projets").glob("*/qg-live.json"):  # messages arrivés pendant l'arrêt du serveur
         moteur.kick(live.parent.name)
+    threading.Thread(target=pilote_loop, daemon=True).start()
     print(f"QG : http://127.0.0.1:{port}/" + (f"#{current}" if current else ""), flush=True)
     try:
         server.serve_forever()

@@ -81,6 +81,38 @@ main { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min
 .ideas button { border: 1px solid var(--line); background: var(--panel); border-radius: 99px; padding: 7px 13px; font-size: 13px; }
 .ideas button:hover { border-color: var(--dim); }
 
+/* ---------- Boîte de réception et pilote automatique ---------- */
+.badge { margin-left: auto; font: 700 11px var(--mono); background: var(--accent); color: #fff; border-radius: 99px; padding: 1px 7px; }
+.collapsed .badge { display: none; }
+.side-btn[aria-current="page"] { background: var(--panel); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.view { overflow-y: auto; padding: 20px max(16px, env(safe-area-inset-right, 0px)) 40px max(16px, env(safe-area-inset-left, 0px)); }
+.view-inner { width: min(820px, 100%); margin: 0 auto; display: grid; gap: 14px; }
+.view h1 { font: 600 22px/1.2 var(--display); margin: 0; }
+.view .lead { margin: 0; color: var(--dim); }
+.clear { display: flex; gap: 12px; align-items: center; border: 1px solid color-mix(in srgb, var(--ok) 35%, var(--line)); background: color-mix(in srgb, var(--ok) 8%, var(--panel)); border-radius: 14px; padding: 14px 16px; }
+.clear b { display: block; }
+.clear span { color: var(--dim); font-size: 14px; }
+.clear .ok { width: 30px; height: 30px; border-radius: 50%; background: var(--ok); color: #fff; display: grid; place-items: center; font-weight: 700; flex: none; }
+.group h2 { font: 600 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 8px 0; display: flex; gap: 8px; align-items: center; }
+.group h2 .n { background: var(--bg); border: 1px solid var(--line); border-radius: 99px; padding: 0 7px; color: var(--fg); }
+.item { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--c, var(--line)); border-radius: 12px; padding: 10px 14px; display: grid; gap: 6px; margin-bottom: 8px; min-width: 0; }
+.item .where { font-size: 12px; color: var(--dim); display: flex; gap: 8px; flex-wrap: wrap; }
+.item .where a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.item p { margin: 0; overflow-wrap: anywhere; }
+.item .opts { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--line); background: var(--bg); border-radius: 99px; padding: 5px 12px; font-weight: 600; font-size: 13px; }
+.chip.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip:disabled { opacity: .55; cursor: default; }
+.job-form { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 10px; }
+.job-form .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.job-form input, .job-form textarea, .job-form select { border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; background: var(--panel); min-width: 0; }
+.job-form textarea { resize: vertical; min-height: 70px; }
+.job-form .grow { flex: 1 1 220px; }
+.job-form label { font-size: 13px; font-weight: 600; display: grid; gap: 4px; }
+.job .head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.job .head b { flex: 1 1 200px; }
+.switch { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; font-weight: 600; }
+
 /* ---------- Modèles et comptes ---------- */
 dialog { border: 0; border-radius: 18px; padding: 0; width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 48px); box-shadow: 0 20px 60px rgba(25,32,45,.25); }
 dialog::backdrop { background: rgba(20,26,38,.35); }
@@ -135,6 +167,12 @@ dialog::backdrop { background: rgba(20,26,38,.35); }
     <p class="eyebrow">Discussions</p>
     <ol id="list"></ol>
     <div class="side-foot">
+      <button class="side-btn" id="goInbox" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/></svg><span>Boîte de réception</span><b class="badge" id="inboxCount" hidden></b>
+      </button>
+      <button class="side-btn" id="goPilot" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/><path d="M12 7v5l3 2"/></svg><span>Pilote automatique</span>
+      </button>
       <button class="side-btn" id="openSettings" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Modèles et comptes</span>
       </button>
@@ -164,6 +202,42 @@ dialog::backdrop { background: rgba(20,26,38,.35); }
           <button type="button">Une lettre de motivation de 500 caractères</button>
           <button type="button">Comparer trois solutions et recommander la meilleure</button>
         </div>
+      </div>
+    </section>
+    <section class="view" id="inboxView" hidden>
+      <div class="view-inner">
+        <h1>Boîte de réception</h1>
+        <p class="lead">Seul ce qui attend ta décision arrête le travail du Bureau. Tout le reste avance sans toi.</p>
+        <div id="inboxBody"></div>
+      </div>
+    </section>
+    <section class="view" id="pilotView" hidden>
+      <div class="view-inner">
+        <h1>Pilote automatique</h1>
+        <p class="lead">Des missions qui partent seules, à l'heure prévue : le PDG les reçoit comme un message de ta part. Elles tournent tant que l'app est ouverte (Bureau.command) et le Mac éveillé ; une tâche manquée part au retour de l'app.</p>
+        <form class="job-form" id="jobForm">
+          <div class="row">
+            <input class="grow" id="jobTitle" maxlength="80" placeholder="Nom de la tâche (ex. Veille du lundi)" aria-label="Nom de la tâche" required>
+            <select id="jobModel" aria-label="Modèle"></select>
+          </div>
+          <textarea id="jobText" maxlength="4000" placeholder="La consigne au PDG, comme si tu lui écrivais (ex. Fais la veille de la semaine sur l'IA en santé, 1 page, avec sources)." aria-label="Consigne au PDG" required></textarea>
+          <div class="row">
+            <label>Fréquence <select id="jobFreq"><option value="jour">Chaque jour</option><option value="semaine" selected>Chaque semaine</option><option value="heures">Toutes les N heures</option></select></label>
+            <label id="jobDayL">Jour <select id="jobDay"><option value="0">lundi</option><option value="1">mardi</option><option value="2">mercredi</option><option value="3">jeudi</option><option value="4">vendredi</option><option value="5">samedi</option><option value="6">dimanche</option></select></label>
+            <label id="jobTimeL">Heure <input id="jobTime" type="time" value="09:00"></label>
+            <label id="jobEveryL" hidden>Toutes les <input id="jobEvery" type="number" min="1" max="168" value="6" style="width: 80px"></label>
+            <span class="grow"></span>
+            <button class="chip primary" id="jobSave" type="submit">Ajouter la tâche</button>
+          </div>
+          <div class="row" id="jobIdeas">
+            <span class="lead" style="font-size: 13px">Idées :</span>
+            <button class="chip" type="button" data-t="Veille du lundi" data-c="Fais la veille des nouveautés de la semaine sur [sujet], 1 page, chaque fait avec sa source." data-f="semaine" data-d="0" data-h="09:00">Veille du lundi</button>
+            <button class="chip" type="button" data-t="Point du vendredi" data-c="Fais le point de la semaine sur [projet] : ce qui a avancé, ce qui bloque, ce que tu proposes pour la semaine prochaine." data-f="semaine" data-d="4" data-h="17:00">Point du vendredi</button>
+            <button class="chip" type="button" data-t="Revue de presse du matin" data-c="Revue de presse du jour sur [sujet] : 5 informations maximum, chacune avec sa source et une phrase sur ce qu'elle change." data-f="jour" data-d="0" data-h="08:00">Revue de presse du matin</button>
+          </div>
+          <span class="lead" id="jobMsg" style="font-size: 13px"></span>
+        </form>
+        <div id="jobs"></div>
       </div>
     </section>
     <iframe id="frame" title="QG de la discussion" hidden></iframe>
@@ -296,9 +370,21 @@ const alertLine = text => { $('notice').hidden = false; $('notice').textContent 
 
 // ---------- Navigation : accueil ou discussion ----------
 let shown = null;
+const VIEWS = {boite: 'inboxView', pilote: 'pilotView'};
 function route(force) {
   const id = location.hash.slice(1), d = items.find(x => x.id === id);
   renderList();
+  $('goInbox').toggleAttribute('aria-current', id === 'boite'); $('goPilot').toggleAttribute('aria-current', id === 'pilote');
+  if ($('goInbox').hasAttribute('aria-current')) $('goInbox').setAttribute('aria-current', 'page');
+  if ($('goPilot').hasAttribute('aria-current')) $('goPilot').setAttribute('aria-current', 'page');
+  for (const [k, v] of Object.entries(VIEWS)) $(v).hidden = id !== k;
+  if (VIEWS[id]) {
+    shown = null; $('frame').hidden = true; $('frame').removeAttribute('src'); $('home').hidden = true;
+    $('title').textContent = id === 'boite' ? 'Boîte de réception' : 'Pilote automatique'; $('modelPick').hidden = true; $('notice').hidden = true;
+    if (id === 'boite') renderInbox(); else loadJobs();
+    if (matchMedia('(max-width: 720px)').matches && !force) setCollapsed(true);
+    return;
+  }
   if (!d) {
     shown = null; $('frame').hidden = true; $('frame').removeAttribute('src'); $('home').hidden = false;
     $('title').textContent = 'Nouvelle discussion'; $('modelPick').hidden = true; $('notice').hidden = true;
@@ -351,5 +437,107 @@ function renderProviders() {
 $('openSettings').onclick = () => { loadProviders(); $('settings').showModal(); };
 $('closeSettings').onclick = () => $('settings').close();
 
-loadProviders(); loadList(); setInterval(loadList, 4000);
+// ---------- Boîte de réception ----------
+let inboxData = {decider: [], bloque: [], attente: [], livre: []}, inboxKey = '';
+const ago = ts => ts ? since(ts) : '';
+function inboxItem(it, color) {
+  const box = el('div', 'item'); box.style.setProperty('--c', color);
+  const where = el('div', 'where'), a = el('a', null, it.topic); a.href = '#' + it.discussion;
+  where.append(a, ago(it.ts)); box.append(where, el('p', null, it.text));
+  return box;
+}
+function renderInbox() {
+  const body = $('inboxBody'); body.innerHTML = '';
+  const {decider, bloque, attente, livre} = inboxData, waiting = decider.length + bloque.length;
+  const clear = el('div', 'clear'), txt = el('div');
+  clear.append(el('span', 'ok', waiting ? '!' : '✓'), txt);
+  if (waiting) { clear.style.borderColor = 'var(--warn)'; clear.querySelector('.ok').style.background = 'var(--warn)'; }
+  txt.append(el('b', null, waiting ? `${waiting} point${waiting > 1 ? 's' : ''} attend${waiting > 1 ? 'ent' : ''} ta décision` : 'Rien n\'attend ta décision.'),
+    el('span', null, waiting ? 'Le travail concerné est en pause jusqu\'à ta réponse.' : 'Personne n\'est bloqué par toi. Tout le reste avance seul.'));
+  body.append(clear);
+  const group = (title, list, color, extra) => {
+    if (!list.length) return;
+    const g = el('div', 'group'), h = el('h2', null, title); h.append(el('span', 'n', list.length)); g.append(h);
+    list.forEach(it => { const b = inboxItem(it, color); if (extra) extra(it, b); g.append(b); }); body.append(g);
+  };
+  group('Décisions à prendre', decider, 'var(--accent)', (q, b) => {
+    const opts = el('div', 'opts');
+    q.options.forEach(o => {
+      const c = el('button', 'chip', o); c.type = 'button';
+      c.onclick = async () => {
+        opts.querySelectorAll('button').forEach(x => x.disabled = true);
+        try { await post(`/d/${encodeURIComponent(q.discussion)}/answer`, {id: q.id, choice: o}); c.textContent = o + ' ✓'; loadInbox(); }
+        catch (e) { opts.querySelectorAll('button').forEach(x => x.disabled = false); b.append(el('p', 'lead', e.message)); }
+      };
+      opts.append(c);
+    });
+    b.append(opts);
+  });
+  group('Bloqué', bloque, '#d93b30');
+  group('En attente d\'une session Claude Code', attente, 'var(--warn)');
+  group('Livré cette semaine', livre, 'var(--ok)');
+}
+async function loadInbox() {
+  try {
+    const next = await (await fetch('/api/inbox', {cache: 'no-store'})).json(), key = JSON.stringify(next);
+    if (key === inboxKey) return; inboxKey = key; inboxData = next;
+    const n = next.decider.length + next.bloque.length;
+    $('inboxCount').hidden = !n; $('inboxCount').textContent = n;
+    if (location.hash === '#boite') renderInbox();
+  } catch {}
+}
+$('goInbox').onclick = () => { location.hash = 'boite'; };
+
+// ---------- Pilote automatique ----------
+const JOURS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+let jobs = [], editing = null;
+const when = j => j.frequence === 'heures' ? `toutes les ${j.toutes_h} h` : j.frequence === 'jour' ? `chaque jour à ${j.heure}` : `chaque ${JOURS[j.jour]} à ${j.heure}`;
+const fmtDate = ts => new Date(ts * 1000).toLocaleString('fr-FR', {weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'});
+function syncFreq() { const f = $('jobFreq').value; $('jobDayL').hidden = f !== 'semaine'; $('jobTimeL').hidden = f === 'heures'; $('jobEveryL').hidden = f !== 'heures'; }
+$('jobFreq').onchange = syncFreq;
+function resetForm() { editing = null; $('jobForm').reset(); $('jobSave').textContent = 'Ajouter la tâche'; syncFreq(); fillModels($('jobModel'), JSON.parse($('homeModel').value || 'null')); }
+$('jobIdeas').onclick = ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  $('jobTitle').value = b.dataset.t; $('jobText').value = b.dataset.c; $('jobFreq').value = b.dataset.f; $('jobDay').value = b.dataset.d; $('jobTime').value = b.dataset.h; syncFreq();
+  $('jobText').focus(); const i = $('jobText').value.indexOf('['); if (i >= 0) $('jobText').setSelectionRange(i, $('jobText').value.indexOf(']') + 1);
+};
+$('jobForm').onsubmit = async ev => {
+  ev.preventDefault();
+  const body = {id: editing, titre: $('jobTitle').value, consigne: $('jobText').value, frequence: $('jobFreq').value, heure: $('jobTime').value,
+    jour: +$('jobDay').value, toutes_h: +$('jobEvery').value, model: JSON.parse($('jobModel').value), actif: true};
+  if (/\[[^\]]*\]/.test(body.consigne)) { $('jobMsg').textContent = 'Remplace d\'abord ce qui est entre crochets dans la consigne.'; return; }
+  try { const j = await post('/api/pilote', body); $('jobMsg').textContent = `Enregistrée. Prochain lancement : ${fmtDate(j.prochain)}.`; resetForm(); loadJobs(); }
+  catch (e) { $('jobMsg').textContent = 'Tâche non enregistrée : ' + e.message; }
+};
+function renderJobs() {
+  const box = $('jobs'); box.innerHTML = '';
+  if (!jobs.length) { box.append(el('p', 'lead', 'Aucune tâche pour l\'instant. Ajoute la première ci-dessus, ou pars d\'une idée.')); return; }
+  const g = el('div', 'group'), h = el('h2', null, 'Tâches'); h.append(el('span', 'n', jobs.length)); g.append(h); box.append(g);
+  for (const j of jobs) {
+    const card = el('div', 'item job'); card.style.setProperty('--c', j.actif ? 'var(--ok)' : 'var(--line)');
+    const head = el('div', 'head'), sw = el('label', 'switch'), cb = el('input');
+    cb.type = 'checkbox'; cb.checked = j.actif; sw.append(cb, j.actif ? 'Active' : 'En pause');
+    cb.onchange = async () => { await post('/api/pilote', {...j, actif: cb.checked}).catch(() => {}); loadJobs(); };
+    head.append(el('b', null, j.titre), sw); card.append(head, el('p', null, j.consigne));
+    const where = el('div', 'where');
+    where.append(`${when(j)} · ${j.model.model}`, j.actif ? ` · prochain : ${fmtDate(j.prochain)}` : '', j.dernier ? ` · dernier : ${since(j.dernier)}` : ' · jamais lancée');
+    if (j.discussion) { const a = el('a', null, 'Voir la discussion'); a.href = '#' + j.discussion; where.append(a); }
+    const acts = el('div', 'opts'), run = el('button', 'chip', 'Lancer maintenant'), edit = el('button', 'chip', 'Modifier'), del = el('button', 'chip', 'Supprimer');
+    [run, edit, del].forEach(b => b.type = 'button');
+    run.onclick = async () => { run.disabled = true; try { const r = await post('/api/pilote/run', {id: j.id}); await loadList(); location.hash = r.discussion; } catch (e) { run.disabled = false; run.textContent = e.message; } };
+    edit.onclick = () => {
+      editing = j.id; $('jobTitle').value = j.titre; $('jobText').value = j.consigne; $('jobFreq').value = j.frequence; $('jobDay').value = j.jour; $('jobTime').value = j.heure; $('jobEvery').value = j.toutes_h;
+      fillModels($('jobModel'), j.model); syncFreq(); $('jobSave').textContent = 'Enregistrer les changements'; $('jobTitle').focus();
+    };
+    del.onclick = async () => {
+      if (!del.classList.contains('primary')) { del.classList.add('primary'); del.textContent = 'Confirmer la suppression'; return; }
+      await post('/api/pilote/remove', {id: j.id}).catch(() => {}); loadJobs();
+    };
+    acts.append(run, edit, del); card.append(where, acts); g.append(card);
+  }
+}
+async function loadJobs() { try { jobs = await (await fetch('/api/pilote', {cache: 'no-store'})).json(); } catch { jobs = []; } renderJobs(); }
+$('goPilot').onclick = () => { location.hash = 'pilote'; };
+
+loadProviders().then(resetForm); loadList(); loadInbox(); setInterval(loadList, 4000); setInterval(loadInbox, 5000);
 </script>

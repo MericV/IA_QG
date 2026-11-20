@@ -9,3 +9,4 @@ __pycache__/
 .token
 .port
 intro/frames/
+pilote.json
